@@ -55,6 +55,7 @@ class CorticalData(object):
 
     def run(self):
         self.neurondata.start()
+        time.sleep(1) # give the datasource time to start
         try:
             super(CorticalData, self).run()
         finally:

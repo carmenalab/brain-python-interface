@@ -9,7 +9,7 @@ eCube streaming sources
 '''
 
 def multi_chan_generator(data_block, channels, downsample=1):
-    for idx in range(data_block.shape[1]):
+    for idx in range(len(channels)):
         yield (channels[idx], data_block[::downsample,idx]) # yield one channel at a time
 
 from riglib.source import DataSourceSystem
@@ -31,41 +31,53 @@ class Broadband(DataSourceSystem):
             channels [tuple array]: channel range (start, stop) for each headstage (1-indexed)
         '''
         # Initialize the servernode-control connection
-        self.conn = eCubeStream(debug=True)
+        self.conn = eCubeStream(debug=False)
         self.headstage = headstage
         self.channels = channels
 
     def start(self):
+        print("Starting ecube streaming datasource...")
+
+        # Remove all existing sources
+        subscribed = self.conn.listadded()
+        if len(subscribed[0]) > 0:
+            self.conn.remove(('Headstages', self.headstage))
+        if len(subscribed[1]) > 0:
+            self.conn.remove(('AnalogPanel',))
+        if len(subscribed[2]) > 0:
+            self.conn.remove(('DigitalPanel',))
 
         # Add the requested headstage channels if they are available
         available = self.conn.listavailable()[0][self.headstage-1] # (headstages, analog, digital); hs are 1-indexed
-        subscribed = self.conn.listadded()
         for ch in self.channels:
             if ch > available:
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
-            elif len(subscribed[0]) == 0 or (len(subscribed[0]) > 0 and not ch in subscribed[0][1]):
-                self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
+            self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
         subscribed = self.conn.listadded() # in debug mode this prints out the added channels
 
         # Start streaming
         self.conn.start()
-        print("Started streaming from ecube")
 
         # Start with an empty generator
         self.gen = iter(())
+
+        # Call get once to make sure we have the right channels
+        data_block = self.conn.get()
+        assert data_block[1] == "Headstages"
+        assert data_block[2].shape[1] == len(self.channels)
+        print(f"Started streaming from ecube, packet size {data_block[2].shape[0]}")
     
     def stop(self):
 
         # Stop streaming
-        if self.conn.stop():
-
-            # Remove the added sources
-            self.conn.remove(('Headstages', self.headstage))
-
-        else:
+        if not self.conn.stop():
             del self.conn # try to force the streaming to end by deleting the ecube connection object
+            self.conn = eCubeStream(debug=True)
 
+        # Remove the added sources
+        self.conn.remove(('Headstages', self.headstage))
+        
     def get(self):
         '''data
         Retrieve a packet from the server
@@ -74,6 +86,8 @@ class Broadband(DataSourceSystem):
             return next(self.gen)
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+            # while data_block[1] != "Headstages":
+            #     data_block = self.conn.get() # ideally this shouldn't happen.
             self.gen = multi_chan_generator(data_block[2], self.channels)
             return next(self.gen)
 

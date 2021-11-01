@@ -130,6 +130,10 @@ class RecordECube(traits.HasTraits):
             log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
             try:
                 ec = pyeCubeStream.eCubeStream()
+                ec.add(('AnalogPanel',))
+                ec.add(('DigitalPanel',))
+                if record_headstage:
+                    ec.add(('Headstages', headstage_connector, headstage_channels))
                 cls.ecube_status = "testing"
             except Exception as e:
                 print(e)

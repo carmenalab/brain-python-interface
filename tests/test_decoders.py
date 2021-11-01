@@ -31,13 +31,16 @@ class TestKFDecoder(unittest.TestCase):
         with open(test_decoder_filename, 'wb') as f:
             pickle.dump(decoder, f, 2)
 
+        del decoder
+        
+        with open(test_decoder_filename, 'rb') as f:
+            decoder = pickle.load(f)
+
         base_class = BMIControlMulti
 
         # Settings for streaming from ecube
         feats = [EcubeBMI, WindowDispl2D, SaveHDF] # use default headstage port 7
-        kwargs = dict(decoder=decoder, window_size=(500,500), fullscreen=False, 
-            record_headstage=True, headstage_connector=7, headstage_channels=(1,2))
-        # RecordECube.pre_init(saveid='decoder_test_02', **kwargs)
+        kwargs = dict(decoder=decoder, window_size=(500,500), fullscreen=False)
 
         # Settings for reading from file
         # feats = [EcubeFileBMI, WindowDispl2D, SaveHDF]
@@ -47,11 +50,12 @@ class TestKFDecoder(unittest.TestCase):
         Exp = experiment.make(base_class, feats=feats)
         exp = Exp(seq, **kwargs)
 
-        print(exp.decoder.units)
-        print(exp.decoder.units[:,0])
-        print(exp.cortical_channels)
-
         exp.init()
+
+        print(f"decoder units: {exp.decoder.units}")
+        print(f"decoder binlen: {exp.decoder.binlen}")
+        print(f"decoder call rate: {exp.decoder.call_rate}")
+
 
         exp.run()
 
