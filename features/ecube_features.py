@@ -112,6 +112,10 @@ class RecordECube(traits.HasTraits):
                 if record_headstage:
                     ec.add(('Headstages', headstage_connector, headstage_channels))
                 ec.remotesave(session_name)
+                if record_headstage:
+                    ec.remove(('Headstages', headstage_connector))
+                ec.remove(('AnalogPanel',))
+                ec.remove(('DigitalPanel',))
                 active_sessions = ec.listremotesessions()
                 if session_name in active_sessions:
                     cls.ecube_status = "recording"
@@ -134,6 +138,9 @@ class RecordECube(traits.HasTraits):
                 ec.add(('DigitalPanel',))
                 if record_headstage:
                     ec.add(('Headstages', headstage_connector, headstage_channels))
+                    ec.remove(('Headstages', headstage_connector))
+                ec.remove(('AnalogPanel',))
+                ec.remove(('DigitalPanel',))
                 cls.ecube_status = "testing"
             except Exception as e:
                 print(e)
