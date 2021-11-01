@@ -26,7 +26,7 @@ rig1_sync_events = dict(
 
 rig1_sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 7,
+        sync_protocol_version = 8,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
@@ -233,9 +233,14 @@ class ScreenSync(NIDAQSync):
     def _start_sync(self):
         self._tmp_fps = copy.deepcopy(self.fps)
         self.fps = self.sync_state_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
 
     def _end_sync(self):
         self.fps = self._tmp_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
+        #     print("restore update rate")
 
     def _test_start_experiment(self, ts):
         return ts > self.sync_state_duration
