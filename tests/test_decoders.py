@@ -9,10 +9,13 @@ import numpy as np
 import unittest
 
 
-
+# might need this on windows:
+# export LIBGL_ALWAYS_INDIRECT=0
+#export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
 
 class TestKFDecoder(unittest.TestCase):
         
+    @unittest.skip("")
     def test_fixed_decoder_ecube(self):
 
          # Construct a fixed decoder
@@ -34,24 +37,31 @@ class TestKFDecoder(unittest.TestCase):
         base_class = BMIControlMulti
 
         # Settings for streaming from ecube
-        feats = [EcubeBMI, WindowDispl2D, SaveHDF] # use default headstage port 7
-        kwargs = dict(decoder=decoder, window_size=(500,500), fullscreen=False, 
-            record_headstage=True, headstage_connector=7, headstage_channels=(1,2))
+        # feats = [EcubeBMI, WindowDispl2D, SaveHDF] # use default headstage port 7
+        # kwargs = dict(decoder=decoder, window_size=(500,500), fullscreen=False, 
+        #     record_headstage=True, headstage_connector=7, headstage_channels=(1,2))
         # RecordECube.pre_init(saveid='decoder_test_02', **kwargs)
 
         # Settings for reading from file
-        # feats = [EcubeFileBMI, WindowDispl2D, SaveHDF]
-        # kwargs = dict(ecube_bmi_filename='tests/test_data/simple', decoder=decoder)
+        feats = [EcubeFileBMI, WindowDispl2D, SaveHDF]
+        test_file = 'tests/test_data/simple'
+        # test_file = '/media/server/raw/ecube/ecube test data'
+        kwargs = dict(ecube_bmi_filename=test_file, decoder=decoder)
 
         seq = base_class.centerout_2D(nblocks=1, ntargets=8, distance=8)
         Exp = experiment.make(base_class, feats=feats)
         exp = Exp(seq, **kwargs)
+
+        exp.window_size = (500,500)
+        exp.fullscreen = False
 
         print(exp.decoder.units)
         print(exp.decoder.units[:,0])
         print(exp.cortical_channels)
 
         exp.init()
+
+        print("Running task")
 
         exp.run()
 
@@ -63,11 +73,31 @@ class TestKFDecoder(unittest.TestCase):
         self.assertTrue(rewards > 0)
 
     @unittest.skip('msg')
+    def test_trained_decoder_simulation(self):
+        import aopy
+
+        # Train a decoder form test neural and cursor data generated from a known encoder model
+        data = aopy.data.load_hdf_group('tests/test_data/feature_selection', 'wo_FS_0.7_training_data.hdf')
+        position = data['kinematics']
+        velocity = np.diff(position.T, axis=0) * 1./(1/60)
+        velocity = np.vstack([np.zeros(position.shape[0]), velocity])
+        kin = np.hstack([position.T, velocity])
+        print(kin.shape)
+        units = np.array([[i+1, 0] for i in range(8)])
+        neural_features = data['spike_counts']
+        print(neural_features.shape)
+        update_rate = 60
+        ssm = state_space_models.StateSpaceEndptVel2D()
+        decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate)
+
+        print(np.round(decoder.kf.C, 3))
+        print(np.round(decoder.kf.Q, 3))
+
     def test_trained_decoder_ecube(self):
         import aopy
 
         # Train a decoder form test neural and cursor data generated from a known encoder model
-        data = aopy.data.load_hdf_group('tests/test_data', 'wo_FS_0.7_training_data.hdf')
+        data = aopy.data.load_hdf_group('tests/test_data/feature_selection', 'wo_FS_0.7_training_data.hdf')
         position = data['kinematics'][:,::int(0.1*60)] # only need one kin sample per extractor window size
         velocity = np.diff(position.T, axis=0) * 1./(1/60)
         velocity = np.vstack([np.zeros(position.shape[0]), velocity])
@@ -76,26 +106,30 @@ class TestKFDecoder(unittest.TestCase):
         files = {'ecube': 'tests/test_data/feature_selection'}
         units = np.array([[i+1, 0] for i in range(8)])
         print(data['neurows'].shape)
+        print(data['neurows'])
         neural_features, units, extractor_kwargs = extractor.LFPMTMPowerExtractor.extract_from_file(files, data['neurows'], 0.1, units, {'channels': [i+1 for i in range(8)], 'bands': [(70,90)], 'win_len': 0.1})
         print(neural_features.shape)
+        
+        import matplotlib.pyplot as plt
+        plt.plot(neural_features[:,0])
+        plt.plot(kin[:,0])
+        plt.show()
+
         update_rate = 60
         ssm = state_space_models.StateSpaceEndptVel2D()
         decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
         decoder.extractor_kwargs = extractor_kwargs
+        print(np.round(decoder.kf.C, 3))
+        print(np.round(decoder.kf.Q, 3))
 
-        test_decoder_filename = os.path.join('tests', 'trained_kf_decoder.pkl')
-        import os
-        import pickle
-        with open(test_decoder_filename, 'wb') as f:
-            pickle.dump(decoder, f, 2)
-
-
-        data = aopy.data.load_hdf_group('tests/test_data', 'wo_FS_0.7_training_data.hdf')
+        # Load the sequence
+        data = aopy.data.load_hdf_group('tests/test_data/feature_selection', 'wo_FS_0.7_training_data.hdf')
         targ_seq = data['target_sequence']
         targ_locs = data['target_location']
         seq = list(zip([[i] for i in targ_seq], [[l] for l in targ_locs]))
 
+        # Make and run the experiment
         base_class = BMIControlMulti
         #feats = [EcubeBMI] # use default headstage port 7
         feats = [EcubeFileBMI, WindowDispl2D]
@@ -103,7 +137,8 @@ class TestKFDecoder(unittest.TestCase):
         Exp = experiment.make(base_class, feats=feats)
         exp = Exp(seq, **kwargs)
 
-        exp.window_size = (1920,1080)
+        exp.window_size = (500,500)
+        exp.fullscreen = False
 
         print(exp.decoder.units)
         print(exp.decoder.units[:,0])
@@ -111,7 +146,8 @@ class TestKFDecoder(unittest.TestCase):
 
         exp.init()
         exp.run()
-        
+
+        # Do some simple checks
         rewards, time_penalties, hold_penalties = calculate_rewards(exp)
         self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
         self.assertTrue(rewards > 0)

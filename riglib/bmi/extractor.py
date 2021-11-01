@@ -582,7 +582,7 @@ class LFPMTMPowerExtractor(object):
             cont_samples = lfp[max(0,sample_num-n_pts):min(lfp.shape[0], sample_num), :]
             if cont_samples.shape[0] < n_pts:
                 # maybe don't count these ones?
-                pass
+                continue
             lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
             # except:
             #     print("Error with LFP decoder training")
