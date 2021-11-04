@@ -414,6 +414,7 @@ Parameters.prototype.add_row = function() {
     td.css("textAlign", "right");
     trait.append(td);
     var label = $('<input type="text" placeholder="New entry">');
+    label.prop("required",true);
     label.css({"border": "none", "border-color": "transparent"});
     var div = $("<td>");
     var input = $('<input type="text" class="string" required>');
