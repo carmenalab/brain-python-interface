@@ -184,6 +184,8 @@ class ScreenSync(NIDAQSync):
     sync_state_duration = traits.Float(2., desc="How long to delay the start of the experiment (seconds)")
     sync_state_fps = traits.Float(30., desc="Frame rate during the sync state (lower helps to measure the screen latency)")
 
+    hidden_traits = ['sync_color_off', 'sync_color_on', 'sync_state_duration', 'sync_state_fps']
+
     def __init__(self, *args, **kwargs):
 
         # Create a new "sync" state at the beginning of the experiment
