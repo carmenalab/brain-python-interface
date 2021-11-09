@@ -13,6 +13,8 @@ from riglib.experiment import traits
 
 from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture, ScreenReachAngle
+from .target_tracking_task import ScreenTargetTracking
+
 from riglib.stereo_opengl.window import WindowDispl2D
 
 
@@ -183,5 +185,11 @@ class ManualControl(ManualControlMixin, ScreenTargetCapture):
 class ManualControlDirectionConstraint(ManualControlMixin, ScreenReachAngle):
     '''
     Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass
+
+class TrackingTask(ManualControlMixin, ScreenTargetTracking):
+    '''
+    Track moving target task
     '''
     pass
