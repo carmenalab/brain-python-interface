@@ -21,6 +21,8 @@ import io, traceback
 from . import exp_tracker # Wrapper for tasktrack.Track
 from . import trainbmi
 
+from aopy.data import map_elec2acq
+
 http_request_queue = []
 
 @csrf_exempt
@@ -52,7 +54,7 @@ def train_decoder_ajax_handler(request, idx):
         clsname=request.POST['bmiclass'],
         extractorname=request.POST['bmiextractor'],
         cells=request.POST['cells'],
-        channels=request.POST['channels'],
+        channels=map_elec2acq(request.POST['signalpath_table'],request.POST['electrodes'].split(' ')).join(' '),
         binlen=1./update_rate,
         tslice=list(map(float, request.POST.getlist('tslice[]'))),
         ssm=request.POST['ssm'],
