@@ -7,10 +7,18 @@ import struct
 from numpy import binary_repr
 from .dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
 import time
+import threading
+import pyfirmata
 
 def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
     word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
     return word
+
+def parse_word(word, n_bits_data=8, n_bits_msg_type=3):
+    data = word & ((1 << n_bits_data) - 1)
+    msg_type = (word >> n_bits_data) & ((1 << n_bits_msg_type) - 1) 
+    aux = word >> n_bits_msg_type + n_bits_data
+    return aux, msg_type, data
 
 baudrate = 115200
 

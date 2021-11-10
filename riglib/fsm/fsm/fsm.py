@@ -35,22 +35,27 @@ class FSMTable(object):
     def __iter__(self):
         return list(self.states.keys()).__iter__()
 
+    @property
+    def trial_end_states(self):
+        return [state for state, transitions in self.states.items() if transitions.end_state]
+
     @staticmethod
     def construct_from_dict(status):
         outward_transitions = OrderedDict()
         for state in status:
-            outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
+            outward_transitions[state] = StateTransitions(**status[state])
         return FSMTable(**outward_transitions)
 
 
 class StateTransitions(object):
-    def __init__(self, stoppable=True, **kwargs):
+    def __init__(self, stoppable=True, end_state=False, **kwargs):
         self.state_transitions = OrderedDict()
         for event, next_state in list(kwargs.items()):
             self.state_transitions[event] = next_state
 
         if stoppable and not ('stop' in self.state_transitions):
             self.state_transitions['stop'] = None
+        self.end_state = end_state
 
     def __getitem__(self, key):
         return self.state_transitions[key]
@@ -67,7 +72,8 @@ class Clock(object):
     def tick(self, fps):
         import time
         time.sleep(1.0/fps)
-
+    def get_time(self):
+        return 0
 
 class FSM(object):
     status = FSMTable(
@@ -170,12 +176,9 @@ class FSM(object):
         '''
         Execute the commands corresponding to a single tick of the event loop
         '''
+    
         # Execute commands
         self.exec_state_specific_actions(self.state)
-
-        # Execute the commands which must run every loop, independent of the FSM state
-        # (e.g., running the BMI decoder)
-        self._cycle()
 
         current_state = self.state
 
@@ -191,6 +194,12 @@ class FSM(object):
                 # stop searching for transition events (transition events must be 
                 # mutually exclusive for this FSM to function properly)
                 break
+
+        # Execute the commands which must run every loop, independent of the FSM state
+        # (e.g., running the BMI decoder, updating the display)
+        if self.state is not None:
+            self._cycle()    
+
 
     def test_state_transition_event(self, event):
         event_test_fn_name = "_test_%s" % event

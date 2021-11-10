@@ -40,10 +40,13 @@ class DataFile(InstanceFromDB):
 
 
 class OptionsList(traits.Enum):
+    '''
+    Wrapper around Enum so that we can keep track of the possible enumerations in list
+    called 'bmi3d_input_options' which will be hidden in the UI
+    '''
     def __init__(self, *args, **kwargs):
         if 'bmi3d_input_options' not in kwargs:
             kwargs['bmi3d_input_options'] = args[0]
-
         super(OptionsList, self).__init__(*args, **kwargs)
 
 

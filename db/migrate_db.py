@@ -1,37 +1,54 @@
-# run with manage.py shell
+# run with manage.py:
+# > python manage.py shell
+# > import update_db_paths
 
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import django
 django.setup()
 
-from tracker import models
+from db.tracker import models
 
-task_entry_with_invalid_sequence_id = []
+#models.System.objects.filter(name='optitrack').update(path='/media/Optitrack')
+#models.System.objects.filter(name='ecube').update(path='/media/NeuroAcq')
 
-for te in models.TaskEntry.objects.all():
-    if te.visible is None:
-        te.visible = False
-        te.save()
+# optitrack_storage = "/media/Optitrack/"
+# ecube_storage = "/media/NeuroAcq"
 
-    if te.backup is None:
-        te.backup = False
-        te.save()
+# for df in models.DataFile.objects.all():
+#     if df.system.name == 'optitrack':
+#         path = df.path
+#         (path, filename) = os.path.split(path)
+#         (path, session) = os.path.split(path)
+#         (path, base_dir) = os.path.split(path)
+#         df.path = os.path.join(optitrack_storage, base_dir, session, filename + '.tak')
+#         print(df.path)
+#         df.save()
 
-    if te.sequence_id in [-1, 0]:
-        te.sequence_id = 1
-        te.save()
-        task_entry_with_invalid_sequence_id.append(te.id)
+#     if df.system.name == 'ecube':
+#         path = df.path
+#         (path, filename) = os.path.split(path)
+#         df.path = os.path.join(ecube_storage, filename)
+#         print(df.path)
+#         df.save()
 
-print("TaskEntry sequence ID was invalid")
-print(task_entry_with_invalid_sequence_id)
+def make_seq_name(gen, params):
+    param_str = []
+    for (k, v) in params.items():
+        value_str = []
+        try:
+            for x in v['value']:
+                value_str.append(str(x))
+        except:
+            value_str.append(str(v['value']))
+        param_str.append(f"{k}={','.join(value_str)}")
+    return f"{gen}:[{', '.join(param_str)}]"
 
-df_with_invalid_task_entry_id = []
-for df in models.DataFile.objects.all():
-    if df.entry_id == -1:
-        df.entry_id = 1
-        df.save()
-        df_with_invalid_task_entry_id.append(df.id)
-
-print("DataFile task entry is invalid: ", df.id)
-print(df_with_invalid_task_entry_id)
+for seq in models.Sequence.objects.all():
+    json = seq.to_json()
+    params = json['params']
+    print(seq.name)
+    seq.name = make_seq_name(seq.generator.name, params)
+    print(seq.name)
+    print('-')
+    seq.save()

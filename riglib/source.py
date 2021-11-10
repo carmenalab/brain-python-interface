@@ -88,7 +88,7 @@ class DataSource(RPCProcess):
         self.data = shm.RawArray('c', self.max_len * self.slice_size)
         # self.pipe, self._pipe = mp.Pipe()
         # self.cmd_event = mp.Event()
-        self.status = mp.Value('b', 1)
+        # self.status = mp.Value('b', 1)
         self.stream = mp.Event()
         self.last_idx = 0
         self.streaming = False
@@ -202,18 +202,6 @@ class DataSource(RPCProcess):
         Used to toggle the 'streaming' variable in the remote "run" process 
         '''
         self.stream.set()
-
-    def stop(self):
-        '''
-        Set self.status.value to negative so that the while loop in self.run() terminates
-        '''
-        self.status.value = -1
-    
-    def __del__(self):
-        '''
-        Make sure the remote process stops if the Source object is destroyed
-        '''
-        self.stop()    
 
 
 class MultiChanDataSource(mp.Process):

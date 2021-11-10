@@ -161,14 +161,11 @@ def call_from_parent(x):
 
 class RPCProcess(mp.Process):
     """mp.Process which implements remote procedure call (RPC) through a mp.Pipe object"""
-    def __init__(self, target_class=object, target_kwargs=dict(), log_filename=''):
+    def __init__(self, target_class=object, target_kwargs=dict(), log_filename='', **kwargs):
         super().__init__()
         self.cmd_pipe = None
         self.data_pipe = None
         self.log_filename = log_filename
-        if self.log_filename != '':
-            with open(self.log_filename, 'w') as f:
-                f.write('')
 
         self.target = None
         self.target_class = target_class
@@ -196,10 +193,9 @@ class RPCProcess(mp.Process):
 
     def log_error(self, err, mode='a'):
         if self.log_filename != '':
-            traceback.print_exc(None, err)
             with open(self.log_filename, mode) as fp:
-                err.seek(0)
-                fp.write(err.read())
+                traceback.print_exc(file=fp)
+                fp.write(str(err))
 
     def log_str(self, s, mode="a", newline=True):
         if self.log_filename != '':
@@ -248,12 +244,13 @@ class RPCProcess(mp.Process):
 
     @call_from_parent
     def stop(self):
-        self.status.value = -1;
+        self.status.value = -1
 
     def __del__(self):
         '''Stop the process when the object is destructed'''
         if self.status.value > 0:
-            self.stop()
+            #self.stop() <- currently causing issues with task_wrapper. Somewhere the status is not being set properly after the task ends...
+            self.status.value = -1
 
     def is_cmd_present(self):
         return self.cmd_event.is_set()

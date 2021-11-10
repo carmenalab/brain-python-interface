@@ -21,6 +21,8 @@ from .models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
 import pickle
 import tempfile
 
+from riglib.mp_calc import MultiprocShellCommand
+
 def save_log(idx, log, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     entry.report = json.dumps(log)
@@ -33,7 +35,7 @@ def save_calibration(subject, system, name, params, dbname='default'):
     Calibration(subject=subj, system=sys, name=name, params=params).save(using=dbname)
 
 def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None, dbname='default'):
-    suffix = dict(supp_hdf="supp.hdf", eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi")
+    suffix = dict(supp_hdf="supp.hdf", eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi", optitrack="tak")
     if system in suffix:
         suff = suffix[system]
     else:  # blackrock system saves multiple files (.nev, .ns1, .ns2, etc.)
@@ -54,26 +56,28 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
     num = enums[entry]
 
     if move:
-        dataname = "{subj}{time}_{num:02}_te{id}.{suff}".format(
+
+        # Set the new filename and filepath
+        permfile = "{subj}{time}_{num:02}_te{id}.{suff}".format(
             subj=entry.subject.name[:4].lower(),
             time=time.strftime('%Y%m%d'), num=num+1,
             id=entry.id, suff=suff
         )
-        if system != 'blackrock2':
-            fullname = os.path.join(sys.path, dataname)
-            sys_path = sys.path
-        else:
-            fullname = os.path.join('/storage/rawdata/blackrock', dataname)
+        if system == 'blackrock2':
+            fullname = os.path.join('/storage/rawdata/blackrock', permfile)
             sys_path = '/storage/rawdata/blackrock'
             print('BLACKROCK SYSTEM: ')
-        permfile = dataname
+        else:
+            fullname = os.path.join(sys.path, permfile)
+            sys_path = sys.path
 
+        # Move or copy or rsync the file
         if os.path.abspath(sys_path) == os.path.abspath(os.path.split(curfile)[0]):
             print("moving file...")
-            os.rename(curfile, fullname)
-        elif not os.path.exists(fullname):
+            os.rename(curfile, fullname) # from sys_path to sys_path
+        elif os.path.exists(sys_path) and not os.path.exists(fullname):
             print("copying file...")
-            shutil.copy2(curfile, os.path.join(sys_path, dataname))
+            shutil.copy2(curfile, os.path.join(sys_path, permfile)) # from somewhere to sys_path
         else:
             raise ValueError('Will not overwrite existing files')
     else:
@@ -113,6 +117,7 @@ def save_bmi(name, entry, filename, dbname='default'):
         num=num, name=name,ix=dec_ix)
         dec_ix += 1
 
+    # Some problems with this on windows with permissions
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
@@ -126,6 +131,18 @@ def save_bmi(name, entry, filename, dbname='default'):
         for d in d_list:
             print(d.pk, d.name)
     print("Saved decoder to %s"%os.path.join(base, pklname))
+
+def cleanup(entry, dbname='default'):
+    '''
+    Final cleanup after a task is finished
+    '''
+    te = TaskEntry.objects.using(dbname).get(id=entry)
+    tries = 3
+    while tries > 0:
+        if te.make_hdf_self_contained():
+            break
+        time.sleep(1) # wait for the hdf file to be created
+        tries -= 1
 
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)
@@ -142,6 +159,7 @@ dispatcher.register_function(save_log, 'save_log')
 dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
 dispatcher.register_function(save_bmi, 'save_bmi')
+dispatcher.register_function(cleanup, 'cleanup')
 dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt

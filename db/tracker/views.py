@@ -8,7 +8,7 @@ import traceback
 import os
 
 from django.template import RequestContext
-from django.shortcuts import render_to_response, render
+from django.shortcuts import render
 from django.http import HttpResponse
 
 from . import exp_tracker
@@ -17,12 +17,14 @@ from . import exp_tracker
 def main(request):
     return render(request, "main.html", dict())
 
-def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None):
+def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None, show_hidden=False):
     from . import models
     # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
 
-    filter_kwargs = dict(visible=True)
+    filter_kwargs = {}
+    if not show_hidden:
+        filter_kwargs['visible'] = True
     if not (subject is None) and isinstance(subject, str):
         filter_kwargs['subject__name'] = subject
     if not (task is None) and isinstance(task, str):
@@ -47,6 +49,9 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
             ent.rowspan = k - last
             last = k
 
+    filter_kwargs['template'] = True
+    templates = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+
     tasks = models.Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -57,21 +62,21 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         else:
             entry.bgcolor = '#FFFFFF'
 
-    subjects = models.Subject.objects.all().order_by("name")
     features = models.Feature.objects.filter(visible=True).order_by("name")
     generators = models.Generator.objects.filter(visible=True).order_by("name")
     collections = models.TaskEntryCollection.objects.all().order_by("name")
 
-
     fields = dict(
         entries=entries,
-        subjects=subjects,
         tasks=tasks,
+        templates=templates,
         features=features,
         generators=generators,
         collections=collections,
         systems=models.System.objects.all(),
-        n_blocks=len(entries),
+        n_entries=len(entries),
+        show_hidden=show_hidden,
+        n_hidden=len([e for e in entries if e.visible==False]),
     )
 
     try:
@@ -102,6 +107,8 @@ def list_exp_history(request, **kwargs):
     '''
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
+    kwargs['show_hidden'] = request.GET.get('show_hidden') != None
+
     fields = _list_exp_history(**kwargs)
     fields['hostname'] = request.get_host()
 
@@ -110,10 +117,12 @@ def list_exp_history(request, **kwargs):
     tracker = exp_tracker.get()
     tracker.update_alive()
 
-    if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
-        fields['running'] = tracker.task_kwargs["saveid"]
+    if tracker is not None:
+        fields['status'] = tracker.get_status()
+    if tracker.proc is not None and hasattr(tracker.proc, 'saveid'):
+        fields['saveid'] = tracker.proc.saveid
 
-    resp = render_to_response('list.html', fields, RequestContext(request))
+    resp = render(request, 'list.html', fields)
     return resp
 
 def setup_subjects(request):
@@ -144,12 +153,11 @@ def setup_features(request):
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
-    for feat in features:
-        if feat.name in built_in_feature_names:
-            built_in_feature_names.remove(feat.name)
 
     return render(request, "setup_features.html",
-        dict(features=features, built_in_feature_names=built_in_feature_names))
+        dict(active_features=features,
+        active_feature_names=[feature.name for feature in features],
+        built_in_feature_names=built_in_feature_names))        
 
 def setup_parameters(request):
     """view for experimenter to add new global system parameters"""
@@ -167,20 +175,18 @@ def setup_parameters(request):
         path = models.KeyValueStore.get('data_path', '--', dbname=db)
         database_objs.append({"name":db, "path":path})
 
+    rig_name = models.KeyValueStore.get("rig_name", "")
     recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
-
-    recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
+    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
     return render(request, "setup_parameters.html",
-        dict(systems=systems, databases=database_objs, recording_sys=recording_sys,
+        dict(rig_name=rig_name, systems=systems, databases=database_objs, 
+            recording_sys=recording_sys,
             recording_sys_options=recording_sys_options))
 
 def setup(request):
     """Highest level "Setup" view"""
     return render(request, "setup_base.html")
-
 
 def _color_entries(entries):
     from .models import TaskEntry, Task, Subject, Feature, Generator

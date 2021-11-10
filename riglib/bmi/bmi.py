@@ -432,6 +432,34 @@ class RectangularBounder(object):
         state_mean[repl_with_max, :] = min_bounds[repl_with_max].reshape(-1, 1)
         return state_mean
 
+class Filter(object):
+    ''' All Decoder filters should inherit from this abstract class'''
+
+    model_attrs = []
+    attrs_to_pickle = []
+
+    def __init__(self):
+        '''
+        Constructor for LinearScaleFilter
+        '''
+        self._init_state()
+
+    def get_mean(self):
+        ''' Must return self.state.mean to maintain compatibility'''
+        return np.array(self.state.mean).ravel()
+
+    def __call__(self, obs, **kwargs):
+        ''' 
+        Update the state with the new neural observation
+        '''
+        pass
+
+    def _pickle_init(self):
+        pass
+
+    def _init_state(self):
+        self.state.mean = 0
+
 
 class Decoder(object):
     '''
@@ -467,6 +495,7 @@ class Decoder(object):
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
+        self.channels = np.unique(self.units[:,0])
         self.binlen = binlen
         self.bounding_box = ssm.bounding_box
         self.states = ssm.state_names
@@ -774,7 +803,7 @@ class Decoder(object):
                 self.filt.state.mean = np.mat(tmp).T
 
             else:
-                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist.reshape(-1,1)
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
@@ -1356,8 +1385,8 @@ class BMILoop(object):
             # Create the HDF table with the datatype above
             dtype = np.dtype(dtype)
 
-            h5file = tables.openFile(hdf_fname, mode='a')
-            arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+            h5file = tables.open_file(hdf_fname, mode='a')
+            arr = h5file.create_table("/", 'clda', dtype, filters=compfilt)
 
             null_update = np.zeros((1,), dtype=dtype)
             for col_name in table_col_names:

@@ -13,6 +13,7 @@ import tornado.ioloop
 import tornado.web
 from tornado import websocket
 import io, traceback
+import copy
 
 sockets = []
 
@@ -131,21 +132,21 @@ class NotifyFeat(object):
     Send task report and state data to display on the web inteface
     '''
     def __init__(self, *args,  **kwargs):
-        super(NotifyFeat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.websock = kwargs.pop('websock')
         self.tracker_status = kwargs.pop('tracker_status')
+        self.prev_stats = None
 
-    def set_state(self, state, *args, **kwargs):
+    def _cycle(self):
+        super()._cycle()
         self.reportstats['status'] = str(self.tracker_status)
-        self.reportstats['State'] = state or 'stopped'
-
-        # Call 'Server.send' above
-        self.websock.send(self.reportstats)
-        super(NotifyFeat, self).set_state(state, *args, **kwargs)
+        if self.reportstats != self.prev_stats:
+            self.websock.send(self.reportstats)
+            self.prev_stats = copy.deepcopy(self.reportstats)
 
     def run(self):
         try:
-            super(NotifyFeat, self).run()
+            super().run()
         except:
             err = io.StringIO()
             traceback.print_exc(None, err)
@@ -154,8 +155,32 @@ class NotifyFeat(object):
         finally:
             if self.terminated_in_error:
                 self.websock.send(dict(status="error", msg=self.termination_err.read()))
+            else:
+                self.reportstats['status'] = str(self.tracker_status)
+                self.websock.send(self.reportstats)
 
     def print_to_terminal(self, *args):
         sys.stdout = sys.__stdout__
-        super(NotifyFeat, self).print_to_terminal(*args)
+        super().print_to_terminal(*args)
         sys.stdout = self.websock
+
+
+class WinNotifyFeat(object):
+    '''
+    Stop the task gracefully on windows without websockets
+    '''
+    def __init__(self, *args,  **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
+        self.tracker_status = kwargs.pop('tracker_status')
+
+    def run(self):
+        try:
+            super().run()
+        except:
+            err = io.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            print(err.read())
+        finally:
+            self.tracker_end_of_pipe.send(None)

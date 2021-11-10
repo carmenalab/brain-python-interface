@@ -12,46 +12,69 @@ import traceback
 from riglib.experiment import traits
 
 from .target_graphics import *
-from .target_capture_task import ScreenTargetCapture
+from .target_capture_task import ScreenTargetCapture, ScreenReachAngle
+from riglib.stereo_opengl.window import WindowDispl2D
 
 
-class JoystickMulti(ScreenTargetCapture):
+rotations = dict(
+    yzx = np.array(
+        [[0, 1, 0, 0], 
+        [0, 0, 1, 0], 
+        [1, 0, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    zyx = np.array(
+        [[0, 0, 1, 0], 
+        [0, 1, 0, 0], 
+        [1, 0, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    xzy = np.array(
+        [[1, 0, 0, 0], 
+        [0, 0, 1, 0], 
+        [0, 1, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    xyz = np.identity(4),
+)
+
+class ManualControlMixin(traits.HasTraits):
     '''Target capture task where the subject operates a joystick
     to control a cursor. Targets are captured by having the cursor
     dwell in the screen target for the allotted time'''
 
     # Settable Traits
-    joystick_method = traits.Float(1,desc="1: Normal velocity, 0: Position control")
-    random_rewards = traits.Float(0,desc="Add randomness to reward, 1: yes, 0: no")
-    joystick_speed = traits.Float(20, desc="Radius of cursor")
-
+    wait_time = traits.Float(2., desc="Time between successful trials")
+    velocity_control = traits.Bool(False, desc="Position or velocity control")
+    random_rewards = traits.Bool(False, desc="Add randomness to reward")
+    rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
+    scale = traits.Float(1.0, desc="Control scale factor")
+    offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
 
     def __init__(self, *args, **kwargs):
-        super(JoystickMulti, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
+        self._quality_window_size = 500 # how many cycles to accumulate quality statistics
+        self.reportstats['Input quality'] = "100 %"
+        if self.random_rewards:
+            self.reward_time_base = self.reward_time
 
-    def update_report_stats(self):
-        super(JoystickMulti, self).update_report_stats()
-        start_time = self.state_log[0][1]
-        rewardtimes=np.array([state[1] for state in self.state_log if state[0]=='reward'])
-        if len(rewardtimes):
-            rt = rewardtimes[-1]-start_time
-        else:
-            rt= np.float64("0.0")
+    def init(self):
+        self.add_dtype('manual_input', 'f8', (3,))
+        super().init()
+        self.no_data_counter = np.zeros((self._quality_window_size,), dtype='?')
 
-        sec = str(np.int(np.mod(rt,60)))
-        if len(sec) < 2:
-            sec = '0'+sec
-        self.reportstats['Time Of Last Reward'] = str(np.int(np.floor(rt/60))) + ':' + sec
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
 
     def _test_trial_complete(self, ts):
         if self.target_index==self.chain_length-1 :
             if self.random_rewards:
                 if not self.rand_reward_set_flag: #reward time has not been set for this iteration
                     self.reward_time = np.max([2*(np.random.rand()-0.5) + self.reward_time_base, self.reward_time_base/2]) #set randomly with min of base / 2
-                    self.rand_reward_set_flag =1;
+                    self.rand_reward_set_flag =1
                     #print self.reward_time, self.rand_reward_set_flag
             return self.target_index==self.chain_length-1
 
@@ -59,74 +82,106 @@ class JoystickMulti(ScreenTargetCapture):
         #When finished reward, reset flag.
         if self.random_rewards:
             if ts > self.reward_time:
-                self.rand_reward_set_flag = 0;
+                self.rand_reward_set_flag = 0
                 #print self.reward_time, self.rand_reward_set_flag, ts
         return ts > self.reward_time
 
-    def move_effector(self):
-        ''' Returns the 3D coordinates of the cursor. For manual control, uses
-        motiontracker data. If no motiontracker data available, returns None'''
+    def _transform_coords(self, coords):
+        ''' 
+        Returns transformed coordinates based on rotation, offset, and scale traits
+        '''
+        offset = np.array(
+            [[1, 0, 0, 0], 
+            [0, 1, 0, 0], 
+            [0, 0, 1, 0], 
+            [self.offset[0], self.offset[1], self.offset[2], 1]]
+        )
+        scale = np.array(
+            [[self.scale, 0, 0, 0], 
+            [0, self.scale, 0, 0], 
+            [0, 0, self.scale, 0], 
+            [0, 0, 0, 1]]
+        )
+        old = np.concatenate((np.reshape(coords, -1), [1]))
+        new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
+        return new[0:3]
 
-        #get data from phidget
+    def _get_manual_position(self):
+        '''
+        Fetches joystick position
+        '''
+        if not hasattr(self, 'joystick'):
+            return
         pt = self.joystick.get()
-        #print pt
+        if len(pt) == 0:
+            return
 
-        if len(pt) > 0:
+        pt = pt[-1] # Use only the latest coordinate
 
-            pt = pt[-1][0]
-            x = pt[1]
-            y = 1-pt[0]
+        if len(pt) == 2:
+            pt = np.concatenate((np.reshape(pt, -1), [0]))
 
+        return [pt]
 
-            pt[0]=1-pt[0]; #Switch L / R axes
-            calib = [0.5,0.5] #Sometimes zero point is subject to drift this is the value of the incoming joystick when at 'rest'
-            # calib = [ 0.487,  0.   ]
+    def move_effector(self):
+        ''' 
+        Sets the 3D coordinates of the cursor. For manual control, uses
+        motiontracker / joystick / mouse data. If no data available, returns None
+        '''
 
-            #if self.joystick_method==0:
-            if self.joystick_method==0:
-                pos = np.array([(pt[0]-calib[0]), 0, calib[1]-pt[1]])
-                pos[0] = pos[0]*36
-                pos[2] = pos[2]*24
-                self.current_pt = pos
+        # Get raw input and save it as task data
+        raw_coords = self._get_manual_position() # array of [3x1] arrays
+        if raw_coords is None or len(raw_coords) < 1:
+            self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
+            self.update_report_stats()
+            self.task_data['manual_input'] = np.empty((3,))
+            return
 
-            elif self.joystick_method==1:
-                #vel=np.array([(pt[0]-calib[0]), 0, calib[1]-pt[1]])
-                vel = np.array([x-calib[0], 0., y-calib[1]])
-                epsilon = 2*(10**-2) #Define epsilon to stabilize cursor movement
-                if sum((vel)**2) > epsilon:
-                    self.current_pt=self.last_pt+20*vel*(1/60) #60 Hz update rate, dt = 1/60
-                else:
-                    self.current_pt = self.last_pt
+        self.task_data['manual_input'] = raw_coords.copy()
+        self.no_data_counter[self.cycle_count % self._quality_window_size] = 0
 
-                #self.current_pt = self.current_pt + (np.array([np.random.rand()-0.5, 0., np.random.rand()-0.5])*self.joystick_speed)
+        # Transform coordinates
+        coords = self._transform_coords(raw_coords)
+        if self.limit2d:
+            coords[1] = 0
 
-                if self.current_pt[0] < -25: self.current_pt[0] = -25
-                if self.current_pt[0] > 25: self.current_pt[0] = 25
-                if self.current_pt[-1] < -14: self.current_pt[-1] = -14
-                if self.current_pt[-1] > 14: self.current_pt[-1] = 14
+        # Set cursor position
+        if not self.velocity_control:
+            self.current_pt = coords
+        else:
+            epsilon = 2*(10**-2) # Define epsilon to stabilize cursor movement
+            if sum((coords)**2) > epsilon:
 
-            self.plant.set_endpoint_pos(self.current_pt)
-            self.last_pt = self.current_pt.copy()
+                # Add the velocity (units/s) to the position (units)
+                self.current_pt = coords / self.fps + self.last_pt
+            else:
+                self.current_pt = self.last_pt
+
+        self.plant.set_endpoint_pos(self.current_pt)
+        self.last_pt = self.plant.get_endpoint_pos()
+
+    def update_report_stats(self):
+        super().update_report_stats()
+        window_size = min(max(1, self.cycle_count), self._quality_window_size)
+        num_missing = np.sum(self.no_data_counter[:window_size])
+        quality = 1 - num_missing / window_size
+        self.reportstats['Input quality'] = "{} %".format(int(100*quality))
 
     @classmethod
-    def get_desc(cls, params, report):
-        duration = report[-1][-1] - report[0][-1]
-        reward_count = 0
-        for item in report:
-            if item[0] == "reward":
-                reward_count += 1
-        return "{} rewarded trials in {} min".format(reward_count, duration)
+    def get_desc(cls, params, log_summary):
+        duration = round(log_summary['runtime'] / 60, 1)
+        return "{}/{} succesful trials in {} min".format(
+            log_summary['n_success_trials'], log_summary['n_trials'], duration)
 
 
-class JoystickMulti2DWindow(JoystickMulti, WindowDispl2D):
-    fps = 20.
-    def __init__(self,*args, **kwargs):
-        super(JoystickMulti2DWindow, self).__init__(*args, **kwargs)
+class ManualControl(ManualControlMixin, ScreenTargetCapture):
+    '''
+    Slightly refactored original manual control task
+    '''
+    pass
 
-    def _start_wait(self):
-        self.wait_time = 0.
-        super(JoystickMulti2DWindow, self)._start_wait()
-
-    def _test_start_trial(self, ts):
-        return ts > self.wait_time and not self.pause
-
+class ManualControlDirectionConstraint(ManualControlMixin, ScreenReachAngle):
+    '''
+    Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass

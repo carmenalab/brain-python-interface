@@ -4,7 +4,6 @@ mechanisms for interacting withe the task running in another process, e.g.,
 calling functions to start/stop the task, enabling/disabling decoder adaptation, etc.
 '''
 import os
-os.environ['DISPLAY'] = ':0'
 import sys
 import time
 import xmlrpc.client
@@ -19,9 +18,12 @@ from .json_param import Parameters
 
 import io
 import traceback
+from datetime import datetime
 
 log_path = os.path.join(os.path.dirname(__file__), '../../log')
 log_filename = os.path.join(log_path, "tasktrack_log")
+# TODO make folder if it doesn't exist
+
 def log_error(err, mode='a'):
     traceback.print_exc(None, err)
     with open(log_filename, mode) as fp:
@@ -67,7 +69,8 @@ class Track(singleton.Singleton):
         '''
         Begin running of task
         '''
-        log_str("Running new task: \n", mode="w")
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_str("\n{}\n-------------------\nRunning new task: {}\n".format(now, base_class))
 
         if not cli:
             self.start_websock()
@@ -126,15 +129,20 @@ class Track(singleton.Singleton):
         '''
         Terminate the task gracefully by running riglib.experiment.Experiment.end_task
         '''
+        self.update_alive()            
         if self.status.value == b"":
             print("Task already stopped!")
             return
         elif self.status.value not in [b"testing", b"running"]:
             raise ValueError("Unknown task status")
 
+        assert self.status.value in [b"testing", b"running"]
+        print("Tasktrack is stopping the task...")
         try:
-            self.task_proxy.end_task()
+            if self.task_proxy is not None:
+                self.task_proxy.end_task()
         except Exception as e:
+            print(e)
             traceback.print_exc()
             err = io.StringIO()
             traceback.print_exc(None, err)
@@ -142,14 +150,15 @@ class Track(singleton.Singleton):
             return dict(status="error", msg=err.read())
 
         status = self.status.value.decode("utf-8")
-        self.status.value = b""
         self.reset()
 
+        '''
+        WIP cloud upload code
         # allow time for files, etc. to be saved
         time.sleep(3)
 
         if self.proc.saveid is not None:
-            from tracker import models
+            from db.tracker import models
             te = models.TaskEntry.objects.get(id=self.proc.saveid)
 
             # Wrap up HDF file saving
@@ -163,11 +172,13 @@ class Track(singleton.Singleton):
             # upload metadata to server, if appropriate
             print("Attempting to save to cloud...")
             te.upload_to_cloud()
+        '''
 
         return status
 
     def reset(self):
         self.task_proxy = None
+        self.status.value = b""
 
     def get_status(self):
         return self.status.value.decode("utf-8")
@@ -181,4 +192,3 @@ class Track(singleton.Singleton):
     def task_running(self):
         print(self.get_status())
         return self.get_status() in ["running", "testing"]
-

@@ -10,7 +10,7 @@ from OpenGL.GL import *
 from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
-from .render import stereo
+from .render import stereo, render
 from .models import Group
 from .xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
@@ -18,6 +18,10 @@ from riglib.stereo_opengl.environment import Box
 import time
 from .primitives import Cylinder, Sphere, Cone
 import socket
+
+import copy
+
+from built_in_tasks.target_graphics import VirtualRectangularTarget, VirtualCircularTarget
 
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -29,6 +33,11 @@ except ImportError:
 # for WindowDispl2D only
 from riglib.stereo_opengl.primitives import Shape2D
 
+monitor_res = dict(
+    test_monitor = (1680, 1050),
+    monitor_2D = (2560, 1440),
+    monitor_3D = (1920*2, 1080),
+)
 
 class Window(LogExperiment):
     '''
@@ -38,16 +47,20 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
+    # XPS computer
     # window_size = (1920*2, 1080)
-    background = (0,0,0,1)
+    window_size = traits.Tuple(monitor_res['monitor_2D'], desc='Window size, in pixels')
+    background = traits.Tuple((0.,0.,0.,1.), desc="Background color (R,G,B,A)")
+    fullscreen = traits.Bool(True, desc="Fullscreen window")
 
     #Screen parameters, all in centimeters -- adjust for monkey
-    fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
-    screen_dist = 44.5+3
-    iod = 2.5     # intraocular distance
+    screen_dist = traits.Float(44.5+3, desc="Screen to eye distance (cm)")
+    screen_half_height = traits.Float(10.75, desc="Screen half height (cm)")
+    iod = traits.Float(2.5, desc="Intraocular distance (cm)")     # intraocular distance
 
-    show_environment = traits.Int(0)
+    show_environment = traits.Int(0, desc="Show wireframe box around environment")
+
+    hidden_traits = ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
 
     def __init__(self, *args, **kwargs):
         self.display_start_pos = kwargs.pop('display_start_pos', "0,0")
@@ -58,6 +71,8 @@ class Window(LogExperiment):
         self.event = None
 
         # os.popen('sudo vbetool dpms on')
+        self.fov = np.degrees(np.arctan(self.screen_half_height/self.screen_dist))*2
+        self.screen_cm = [2 * self.screen_half_height * self.window_size[0]/self.window_size[1], 2 * self.screen_half_height]
 
         if self.show_environment:
             self.add_model(Box())
@@ -72,12 +87,14 @@ class Window(LogExperiment):
 
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
+        if self.fullscreen:
+            flags = flags | pygame.FULLSCREEN
         try:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
-            self.surf = pygame.display.set_mode(self.window_size, flags)
+            self.screen = pygame.display.set_mode(self.window_size, flags)
         except:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
-            self.surf = pygame.display.set_mode(self.window_size, flags)
+            self.screen = pygame.display.set_mode(self.window_size, flags)
 
         glEnable(GL_BLEND)
         glDepthFunc(GL_LESS)
@@ -87,6 +104,8 @@ class Window(LogExperiment):
         glClearColor(*self.background)
         glClearDepth(1.0)
         glDepthMask(GL_TRUE)
+        glEnable(GL_CULL_FACE) # temporary solution to alpha blending issue with spheres. just draw the front half of the sphere
+        glCullFace(GL_FRONT) # actually it's the back half of the sphere we want since everything is mirrored
 
         self.renderer = self._get_renderer()
 
@@ -96,6 +115,8 @@ class Window(LogExperiment):
 
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
         self.set_eye((0, -self.screen_dist, 0), (0,0))
+
+        pygame.mouse.set_visible(False)
 
     def _get_renderer(self):
         near = 1
@@ -144,16 +165,23 @@ class Window(LogExperiment):
         '''
         super_stop = super(Window, self)._test_stop(ts)
         from pygame import K_ESCAPE
-        return super_stop or self.event is not None and self.event[0] == K_ESCAPE
-
+        key_stop = self.event is not None and self.event[0] == K_ESCAPE
+        if key_stop:
+            print("Window closed. Stopping task")
+        return super_stop or key_stop
+    
+    def update_report_stats(self):
+        self.reportstats['FPS'] = round(self.clock.get_fps(),2)
+        return super().update_report_stats()
+    
     def requeue(self):
         self.renderer._queue_render(self.world)
 
     def _cycle(self):
+        super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
+        self.event = self._get_event()
         self.requeue()
         self.draw_world()
-        super(Window, self)._cycle()
-        self.event = self._get_event()
 
 
 class WindowWithExperimenterDisplay(Window):
@@ -192,20 +220,15 @@ class WindowWithExperimenterDisplay(Window):
             flip_main_z = self._stereo_main_flip_z)
 
 
-class WindowDispl2D(Window):
-    background = (1,1,1,1)
-    def __init__(self, *args, **kwargs):
-        self.models = []
-        self.world = None
-        self.event = None
-        super(WindowDispl2D, self).__init__(*args, **kwargs)
+TRANSPARENT = (106,0,42)
 
-    def _set_workspace_size(self):
-        '''
-        By default, the workspace is 50x28 cm, centered around the origin (0,0)
-        '''
-        self.workspace_bottom_left = (-25., -14.)
-        self.workspace_top_right   = (25., 14.)
+class WindowDispl2D():
+    '''For testing only -- draws world on a 2D screen. May cause mild confusion -- transforms 
+    incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
+
+    def __init__(self, *args, **kwargs):
+        self.is_pygame_display = True
+        super().__init__(*args, **kwargs)
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
@@ -213,11 +236,10 @@ class WindowDispl2D(Window):
         pygame.init()
         self.clock = pygame.time.Clock()
 
-        flags = pygame.NOFRAME
-        self._set_workspace_size()
+        flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
 
-        self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
-        self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
+        if self.fullscreen:
+            flags = flags | pygame.FULLSCREEN
 
         self.display_border = 10
 
@@ -226,19 +248,18 @@ class WindowDispl2D(Window):
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        x1, y1 = self.workspace_top_right
-        x0, y0 = self.workspace_bottom_left
-        self.normalize = np.array(np.diag([1./(x1-x0), 1./(y1-y0), 1]))
-        self.center_xform = np.array([[1., 0, -x0],
-                                      [0, 1., -y0],
+        x_max, y_max = (self.screen_cm[0]/2, self.screen_cm[1]/2)
+        x_min, y_min = (-self.screen_cm[0]/2, -self.screen_cm[1]/2)
+        self.normalize = np.array(np.diag([1./(x_max-x_min), 1./(y_max-y_min), 1]))
+        self.center_xform = np.array([[1., 0, -x_min], 
+                                      [0, 1., -y_min],
                                       [0, 0, 1]])
         self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
 
-        # the y-coordinate in pixel space has to be swapped for some graphics convention reason
+        # the y-coordinate in pixel space has to be swapped graphics convention reasons
         self.flip_y_coord = np.array([[1, 0, 0],
                                       [0, -1, self.size[1]],
                                       [0, 0, 1]])
-
         self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
         self.world = Group(self.models)
@@ -246,7 +267,6 @@ class WindowDispl2D(Window):
         # self.world.init()
 
         #initialize surfaces for translucent markers
-        TRANSPARENT = (255,0,255)
         self.surf={}
         self.surf['0'] = pygame.Surface(self.screen.get_size())
         self.surf['0'].fill(TRANSPARENT)
@@ -262,6 +282,8 @@ class WindowDispl2D(Window):
 
         self.surf_background = pygame.Surface(self.surf['0'].get_size()).convert()
         self.surf_background.fill(TRANSPARENT)
+
+        pygame.mouse.set_visible(False)
 
         self.i = 0
 
@@ -334,6 +356,9 @@ class WindowDispl2D(Window):
             for mdl in model:
                 self.draw_model(mdl)
 
+    def _draw_other(self):
+        pass
+
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -350,6 +375,8 @@ class WindowDispl2D(Window):
         #Renders the new surfaces
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
+
+        self._draw_other()
         pygame.display.update()
 
     def requeue(self):
@@ -360,6 +387,18 @@ class WindowDispl2D(Window):
         pass
 
 
+class Window2D():
+    '''
+    Render the world in 2D without lighting
+    '''
+    def screen_init(self):
+        super().screen_init()
+    #     glBlendEquation(GL_MAX)
+    #     glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
+        glCullFace(GL_BACK) # temporary solution #2 to alpha blending issue with spheres. just draw the front half of the sphere
+
+    def _get_renderer(self):
+        return render.Renderer2D(self.screen_cm)
 
 class FakeWindow(Window):
     '''
@@ -403,7 +442,6 @@ class FPScontrol(Window):
 
     def init(self):
         super(FPScontrol, self).init()
-        pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
         self.eyepos = [0,-self.screen_dist, 0]
         self.eyevec = [0,0]

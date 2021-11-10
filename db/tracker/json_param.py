@@ -28,7 +28,7 @@ def param_objhook(obj):
         is simply returned.
 
     '''
-    from tracker import models
+    from db.tracker import models
     if '__django_model__' in obj:
         model = getattr(models, obj['__django_model__'])
         return model(pk = obj['pk'])
@@ -94,9 +94,10 @@ def norm_trait(trait, value):
             value = True
         elif value == 'off':
             value = False
-        else:
-            # let invalid values get caught by the cast below
-            pass
+        elif value == 'true':
+            value = True
+        elif value == 'false':
+            value = False
     elif ttype == 'Tuple':
         # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
@@ -117,7 +118,7 @@ def norm_trait(trait, value):
         f.close()
         import traceback
         traceback.print_exc()
-        raise Exception
+        raise ValueError("Invalid input for parameter %s: %s" % (str(trait.name), str(value)))
 
 
 def _parse_str(value):
@@ -204,6 +205,7 @@ class Parameters(object):
         self.params = dict()
         for name, value in list(params.items()):
             if name in traits:
+                traits[name].name = name
                 self.params[name] = norm_trait(traits[name], value)
             else:
                 self.params[name] = value

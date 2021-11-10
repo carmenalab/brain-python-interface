@@ -59,9 +59,10 @@ class TaskWrapper(RPCProcess):
         Task = self.target_class
 
         # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
-        self.target_class.pre_init(saveid=saveid)
+        self.target_class.pre_init(saveid=saveid, **self.params)
 
         self.log_str("Constructing task target")
+        self.params['saveid'] = saveid
         if issubclass(Task, Sequence):
             if isinstance(seq, np.ndarray):
                 self.log_str("'seq' input is an array")
@@ -124,12 +125,13 @@ class TaskWrapper(RPCProcess):
         self.log_str("Starting cleanup...")
         cleanup_successful = self.cleanup()
 
-        # inform the user in the browser that the task is done!
+        # inform the user in the browser that the task is done!         TODO: Get errors to show up as errors in the web UI
         if cleanup_successful == True or cleanup_successful is None:
             if use_websock: self.websock.write("\n\n...done!\n")
         else:
             if use_websock: self.websock.write("\n\nError! Check for errors in the terminal!\n")
 
+        self.log_str("...done")
         print("*************************** EXITING TASK *****************************")
 
     def check_run_condition(self):
@@ -143,12 +145,17 @@ class TaskWrapper(RPCProcess):
         print("Calling saveout/task cleanup code")
 
         if self.saveid is not None and self.subj is not None:
-            # get object representing function calls to the remote database
-            # returns the result of tracker.dbq.rpc_handler
-            database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-            # from tracker import dbq as database
-
-            cleanup_successful = self.target.cleanup(database, self.saveid, subject=self.subj)
+            try:
+                # get object representing function calls to the remote database
+                # returns the result of db.tracker.dbq.rpc_handler
+                database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+                # from tracker import dbq as database
+                cleanup_successful = self.target.cleanup(database, self.saveid, subject=self.subj)
+                database.cleanup(self.saveid)
+            except Exception as e:
+                self.log_str("Error in cleanup:")
+                self.log_error(e)
+                cleanup_successful = False
         else:
             cleanup_successful = True
 

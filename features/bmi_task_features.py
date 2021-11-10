@@ -235,3 +235,13 @@ class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
         if 'half_life' not in self.attrs:
             self.attrs.append('half_life')    
 
+class LinearlyDecreasingReachAngle(LinearlyDecreasingAssist):
+    '''
+    For the reach direction task, decrease the maximum reach angle linearly
+    '''
+    reach_angle_time = traits.Float(600, desc="Number of seconds to go from initial to final reach angle")
+
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingHalfLife, self).__init__(*args, **kwargs)
+        if 'half_life' not in self.attrs:
+            self.attrs.append('half_life')    
