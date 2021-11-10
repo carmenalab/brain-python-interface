@@ -32,5 +32,6 @@ setuptools.setup(
         "pyserial",
         "h5py",
         "ipdb",
+        "aopy"
     ]
 )

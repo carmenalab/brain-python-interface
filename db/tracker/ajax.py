@@ -54,7 +54,7 @@ def train_decoder_ajax_handler(request, idx):
         clsname=request.POST['bmiclass'],
         extractorname=request.POST['bmiextractor'],
         cells=request.POST['cells'],
-        channels=map_elec2acq(request.POST['signalpath_table'],request.POST['electrodes'].split(' ')).join(' '),
+        channels=map_elec2acq(request.POST['signalpath_table'],request.POST['electrodes'].split(', ')).join(', '),
         binlen=1./update_rate,
         tslice=list(map(float, request.POST.getlist('tslice[]'))),
         ssm=request.POST['ssm'],
