@@ -98,7 +98,8 @@ class TestKFDecoder(unittest.TestCase):
 
         # Train a decoder form test neural and cursor data generated from a known encoder model
         data = aopy.data.load_hdf_group('tests/test_data/feature_selection', 'wo_FS_0.7_training_data.hdf')
-        position = data['kinematics'][:,::int(0.1*60)] # only need one kin sample per extractor window size
+        winlen = 0.5
+        position = data['kinematics'][:,::int(winlen*60)] # only need one kin sample per extractor window size
         velocity = np.diff(position.T, axis=0) * 1./(1/60)
         velocity = np.vstack([np.zeros(position.shape[0]), velocity])
         kin = np.hstack([position.T, velocity])
@@ -107,21 +108,28 @@ class TestKFDecoder(unittest.TestCase):
         units = np.array([[i+1, 0] for i in range(8)])
         print(data['neurows'].shape)
         print(data['neurows'])
-        neural_features, units, extractor_kwargs = extractor.LFPMTMPowerExtractor.extract_from_file(files, data['neurows'], 0.1, units, {'channels': [i+1 for i in range(8)], 'bands': [(70,90)], 'win_len': 0.1})
+        neural_features, units, extractor_kwargs = extractor.LFPMTMPowerExtractor.extract_from_file(files, data['neurows'], winlen, units, {'channels': [i+1 for i in range(8)], 'bands': [(70,90)], 'win_len': winlen})
         print(neural_features.shape)
         
         import matplotlib.pyplot as plt
-        plt.plot(neural_features[:,0])
-        plt.plot(kin[:,0])
+        plt.plot(neural_features[:,2])
+        plt.plot(kin[:,2])
         plt.show()
 
         update_rate = 60
         ssm = state_space_models.StateSpaceEndptVel2D()
-        decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate)
+        decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate, zscore=True)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
         decoder.extractor_kwargs = extractor_kwargs
         print(np.round(decoder.kf.C, 3))
         print(np.round(decoder.kf.Q, 3))
+
+        # Save the decoder
+        import pickle
+        import os
+        test_decoder_filename = os.path.join('tests', 'trained_kf_decoder.pkl')
+        with open(test_decoder_filename, 'wb') as f:
+            pickle.dump(decoder, f, 2)
 
         # Load the sequence
         data = aopy.data.load_hdf_group('tests/test_data/feature_selection', 'wo_FS_0.7_training_data.hdf')
