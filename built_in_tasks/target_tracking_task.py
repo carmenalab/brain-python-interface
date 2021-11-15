@@ -43,7 +43,6 @@ class TargetTracking(Sequence):
     state = "wait"
     frame_index = 0 #index in the frame in a trial
     total_distance_error = 0 #Euclidian distance between cursor and target during each trial
-    target_index = -1 # Helper variable to keep track of which target to display within a trial
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
     trial_timed_out = False #check if the trial is finished
     sequence_generators = []
@@ -77,15 +76,11 @@ class TargetTracking(Sequence):
         # number of times this sequence of targets has been attempted
         self.tries = 0
 
-        # index of current target presented to subject
-        self.target_index = -1
-
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
 
     
     def _start_target(self):
-        self.target_index += 1
         self.frame_index = 0
         self.total_distance_error = 0
 
@@ -93,10 +88,10 @@ class TargetTracking(Sequence):
         self.total_distance_error += self.test_in_target() #Calculate and sum distance between center of cursor and current target position
         
         #Move Target to next frame so it appears to be moving
-        target = self.targets[self.target_index]
+        target = self.targets
         target.move_to_position(self.targs[self.frame_index])
         target.show()
-        self.sync_event('TARGET_ON', self.gen_indices[self.target_index])
+        self.sync_event('TARGET_ON', self.gen_indices)
         self.frame_index +=1
 
         #Check if the trial is over and there are no more target frames to display
@@ -165,9 +160,9 @@ class TargetTracking(Sequence):
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.frame_index])
         if d <= (self.target_radius - self.cursor_radius):
-            self.targets[self.target_index].cue_trial_end_success()
+            self.targets.cue_trial_end_success()
         else:
-            self.targets[self.target_index].reset()
+            self.targets.reset()
         return d
         
 class ScreenTargetTracking(TargetTracking, Window):
@@ -215,12 +210,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-
             # Need two targets to have the ability for delayed holds
-            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-
-            self.targets = [target1, target2]
+            self.targets = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+        
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -281,33 +273,29 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_wait()
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait"
-            for target in self.targets:
-                for model in target.graphics_models:
-                    self.add_model(model)
-                    target.hide()
+            for model in self.targets.graphics_models:
+                self.add_model(model)
+                self.targets.hide()
 
     def _start_target(self):
         super()._start_target()
         # Show target if it is hidden (this is the first target, or previous state was a penalty)
-        target = self.targets[self.target_index % 2]
-        if self.target_index == 0:
-            
-            target.move_to_position(self.targs[self.frame_index])
-            target.show()
-            self.sync_event('TARGET_ON', self.gen_indices[self.target_index])
+        target = self.targets  
+        target.move_to_position(self.targs[self.frame_index])
+        target.show()
+        self.sync_event('TARGET_ON', self.gen_indices)
   
     def _start_reward(self):
         print("REWARD")
-        self.targets[self.target_index % 2].cue_trial_end_success()
+        self.targets.cue_trial_end_success()
         self.sync_event('REWARD')
     
     def _end_reward(self):
         super()._end_reward()
         self.sync_event('TRIAL_END')
         # Hide targets
-        for target in self.targets:
-            target.hide()
-            target.reset()
+        self.targets.hide()
+        self.targets.reset()
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
@@ -398,7 +386,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        x_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
+        disterbance_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
         y_primes_freq = np.array([3, 7, 13, 19, 29, 37, 43])
         for i in range(nblocks):
             for j in range(ntrials):
@@ -440,8 +428,8 @@ class ScreenTargetTracking(TargetTracking, Window):
                 sum_of_sins_pathy = ScreenTargetTracking.generate_trajectory(y_primes_freq)
                 rand_start_index = np.random.randint(0,np.shape(sum_of_sins_pathy)[0]-(time_length*60))
                 pts = []
-                trajectory[:,0] = 10*sum_of_sins_pathx[rand_start_index:rand_start_index+time_length*60]
-                trajectory[:,2] = 10*sum_of_sins_pathy[rand_start_index:rand_start_index+time_length*60]
+                trajectory[:,0] = 4*sum_of_sins_pathx[rand_start_index:rand_start_index+time_length*60]
+                trajectory[:,2] = 4*sum_of_sins_pathy[rand_start_index:rand_start_index+time_length*60]
                 pts.append(trajectory)
                 yield idx+np.arange(ntrials), pts
                 idx += ntrials
