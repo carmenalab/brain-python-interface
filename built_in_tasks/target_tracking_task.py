@@ -295,7 +295,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('TRIAL_END')
         # Hide targets
         self.targets.hide()
-        self.targets.reset()
+        self.targetsv.reset()
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
