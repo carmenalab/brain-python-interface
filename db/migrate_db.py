@@ -119,6 +119,7 @@ for te in models.TaskEntry.objects.all():
             project = "manual control training"
     elif te.subject.name == "affi":
         handler = "Lydia"
+        project = "open loop training"
     elif te.subject.name == "test":
         handler = "Leo"
     else:
