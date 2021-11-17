@@ -822,8 +822,10 @@ class TaskEntry(models.Model):
         # Add metadata
         js['metadata'] = self.get_default_metadata()
         js['metadata']['subject']['default'] = self.subject.name
-        js['metadata']['experimenter']['default'] = self.experimenter
-        js['metadata']['project']['default'] = self.project
+        if self.experimenter: 
+            js['metadata']['experimenter']['default'] = self.experimenter.name
+        js['metadata']['project']['value'] = self.project
+        js['metadata']['session']['value'] = self.session
         js['metadata'].update(dict([
             (
                 name, 
@@ -833,7 +835,7 @@ class TaskEntry(models.Model):
                     'desc': '',
                     'hidden': 'visible',
                     'value': value,
-                    'required': True
+                    'required': False
                 }
             ) for name, value in self.task_metadata.items()
         ]))

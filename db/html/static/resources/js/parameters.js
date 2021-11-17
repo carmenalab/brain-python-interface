@@ -7,9 +7,10 @@ if (typeof(require) !== 'undefined') {
     var $ = jQuery = require('jquery')(dom.window);
 }
 
-function Parameters() {
+function Parameters(editable=false) {
     this.obj = document.createElement("table");
     this.traits = {};
+    this.editable = editable;
 }
 Parameters.prototype.update = function(desc) {
     // Update the parameters descriptor to include the updated values
@@ -78,6 +79,7 @@ Parameters.prototype.append = function(desc) {
             debug(desc[name]['type']);
     }
 }
+
 Parameters.prototype.show_all_attrs = function() {
 
 
@@ -122,6 +124,17 @@ Parameters.prototype.add_to_table = function(name, info) {
     label.setAttribute("for", "param_"+name);
 
     td.appendChild(label);
+
+    // optionally add a minus button
+    if (this.editable && !info["required"]) {
+        var remove_row = document.createElement("input");
+        remove_row.setAttribute("class", "paramremove");
+        remove_row.setAttribute("type", "button");
+        remove_row.setAttribute("value", "-");
+        var this_ = this;
+        $(remove_row).on("click", function() {this_.remove_row(name);});
+        td.appendChild(remove_row);
+    }
 
     // label.style.visibility = hidden;
     if (hidden === 'hidden') {
@@ -401,9 +414,10 @@ Parameters.prototype.add_row = function() {
     td.css("textAlign", "right");
     trait.append(td);
     var label = $('<input type="text" placeholder="New entry">');
+    label.prop("required",true);
     label.css({"border": "none", "border-color": "transparent"});
     var div = $("<td>");
-    var input = $('<input type="text" required>');
+    var input = $('<input type="text" class="string" required>');
     input.on("change", function() {
         if (this.value.length == 0)
             this.required = "required";
@@ -424,15 +438,33 @@ Parameters.prototype.add_row = function() {
             trait.attr('id', 'param_'+name);
             new_label = $("<label>")
             new_label.css("textAlign", "right");
+            new_label.addClass("string");
             new_label.html(name);
             label.replaceWith(new_label);
             _this.traits[name] = {"obj":trait.get(0), "inputs":[input.get(0)]}
+            if (_this.editable) {
+                // add a minus button
+                var remove_row = document.createElement("input");
+                remove_row.setAttribute("class", "paramremove");
+                remove_row.setAttribute("type", "button");
+                remove_row.setAttribute("value", "-");
+                $(remove_row).on("click", function() {_this.remove_row(name);});
+                new_label.after(remove_row);
+            }
         } else {
 
             // Otherwise delete the row
             trait.remove();
         }
     })
+}
+
+Parameters.prototype.remove_row = function(name) {
+    if (typeof(this.traits[name]) != "undefined") {
+        var trait = this.traits[name]
+        trait.obj.remove();
+        delete this.traits[name];
+    }
 }
 
 function get_param_input(input_obj) {
@@ -475,8 +507,11 @@ Parameters.prototype.to_json = function(get_all) {
 Parameters.prototype.clear_all = function() {
     for (var name in this.traits) {
         var trait = this.traits[name];
-        for (var i = 0; i < trait.inputs.length; i++)
+        for (var i = 0; i < trait.inputs.length; i++) {
             trait.inputs[i].value = null;
+            if (trait.inputs[i].onchange)
+                trait.inputs[i].onchange();
+        }
     }
 }
 
