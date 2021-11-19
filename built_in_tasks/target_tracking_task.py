@@ -46,28 +46,32 @@ class TargetTracking(Sequence):
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
     trial_timed_out = False #check if the trial is finished
     sequence_generators = []
+    plant_position = []
+    disterbance_trial = False
+    disterbance_position = None
 
-    
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
 
-
     def init(self):
-        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8', (300,3))])
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8', (300,3)), ('disterbance_path', 'f8', (300,)), ('is_disterbance', 'u4')])
         super().init()
     
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
-        self.gen_indices, self.targs = self.next_trial
+        self.gen_indices, self.targs, self.disterbance_trial, self.disterbance_path = self.next_trial
         self.targs = np.squeeze(self.targs,axis=0)
-        
+        self.disterbance_path = np.squeeze(self.disterbance_path)
+
         # Update the data sinks with trial information
         self.trial_record['trial'] = self.calc_trial_num()
         #import pdb; pdb.set_trace()
-        for i in range(len(self.gen_indices)):
-            self.trial_record['index'] = self.gen_indices[i]
-            self.trial_record['target'] = self.targs[i]
-            self.sinks.send("trials", self.trial_record)
+
+        self.trial_record['index'] = self.gen_indices
+        self.trial_record['target'] = self.targs
+        self.trial_record['disterbance_path'] = self.disterbance_path
+        self.trial_record['is_disterbance'] = self.disterbance_trial
+        self.sinks.send("trials", self.trial_record)
 
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
@@ -83,15 +87,24 @@ class TargetTracking(Sequence):
     def _start_target(self):
         self.frame_index = 0
         self.total_distance_error = 0
+        self.plant_position.append(self._get_manual_position()[0])
 
     def _while_target(self):
         self.total_distance_error += self.test_in_target() #Calculate and sum distance between center of cursor and current target position
         
+        #Add Disterbance TODO
+
+        self.plant.set_endpoint_pos(np.array([0,0,0]))
+        
+        self.plant_position.append(self._get_manual_position()[0])
+       
+        self.disterbance_position = self.add_disterbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disterbance_path[self.frame_index])
+
         #Move Target to next frame so it appears to be moving
         target = self.targets
         target.move_to_position(self.targs[self.frame_index])
         target.show()
-        self.sync_event('TARGET_ON', self.gen_indices)
+        self.sync_event('MOVE_TARGET', self.targs[self.frame_index])
         self.frame_index +=1
 
         #Check if the trial is over and there are no more target frames to display
@@ -164,12 +177,17 @@ class TargetTracking(Sequence):
         else:
             self.targets.reset()
         return d
-        
+    
+    def add_disterbance(self, current_position, current_velocity, disterbance):
+        return  current_position + current_velocity + disterbance
+
+
 class ScreenTargetTracking(TargetTracking, Window):
     """Concrete implementation of Target Tracking task where the target is moving and
     are tracked by holding the cursor within the moving target"""
 
-    limit2d = 1
+    limit2d = True
+    limit1d = True
 
     sequence_generators = [
         'tracking_target_chain_1D', 'tracking_target_chain_2D'
@@ -228,8 +246,11 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        self.move_effector()
-
+        if self.disterbance_trial:
+            self.move_effector(self.disterbance_position)
+        else:
+            self.move_effector()
+        
         ## Run graphics commands to show/hide the plant if the visibility has changed
         self.update_plant_visibility()
         self.task_data['plant_visible'] = self.plant_visible
@@ -286,7 +307,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('TARGET_ON', self.gen_indices)
   
     def _start_reward(self):
-        print("REWARD")
         self.targets.cue_trial_end_success()
         self.sync_event('REWARD')
     
@@ -295,7 +315,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('TRIAL_END')
         # Hide targets
         self.targets.hide()
-        self.targetsv.reset()
+        self.targets.reset()
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
@@ -386,18 +406,25 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
+
         disterbance_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
+        disterbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
         y_primes_freq = np.array([3, 7, 13, 19, 29, 37, 43])
         for i in range(nblocks):
             for j in range(ntrials):
+                disterbance = False
+                disterbance_path = np.zeros((time_length*60,1))
                 trajectory = np.zeros((time_length*60,3))
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq)
                 rand_start_index = np.random.randint(0,np.shape(sum_of_sins_path)[0]-(time_length*60))
                 pts = []
                 trajectory[:,2] = 4*sum_of_sins_path[rand_start_index:rand_start_index+time_length*60]
+                if idx == disterbance_trials:
+                    disterbance_path = 4*ScreenTargetTracking.generate_trajectory(disterbance_primes_freq)[rand_start_index:rand_start_index+time_length*60]
+                    disterbance = True
                 pts.append(trajectory)
-                yield idx+np.arange(time_length*60), pts
-                idx += ntrials
+                yield idx, pts, disterbance, disterbance_path
+                idx += 1
     
     @staticmethod
     def tracking_target_chain_2D(nblocks=1, ntrials=2, time_length = 5, boundaries=(-10,10,-10,10)):
@@ -431,5 +458,5 @@ class ScreenTargetTracking(TargetTracking, Window):
                 trajectory[:,0] = 4*sum_of_sins_pathx[rand_start_index:rand_start_index+time_length*60]
                 trajectory[:,2] = 4*sum_of_sins_pathy[rand_start_index:rand_start_index+time_length*60]
                 pts.append(trajectory)
-                yield idx+np.arange(ntrials), pts
-                idx += ntrials
+                yield idx, pts
+                idx += 1
