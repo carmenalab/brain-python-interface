@@ -8,6 +8,7 @@ import math
 import traceback
 from collections import OrderedDict
 
+from features.reward_features import RewardAudio
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
@@ -50,11 +51,12 @@ class TargetTracking(Sequence):
     disterbance_trial = False
     disterbance_position = None
 
+    x_targ_positions = np.linspace(-10,10,60)
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
 
     def init(self):
-        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8', (300,3)), ('disterbance_path', 'f8', (300,)), ('is_disterbance', 'u4')])
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disterbance_path', 'f8',(3,)), ('is_disterbance', '?')])
         super().init()
     
     def _parse_next_trial(self):
@@ -63,15 +65,15 @@ class TargetTracking(Sequence):
         self.targs = np.squeeze(self.targs,axis=0)
         self.disterbance_path = np.squeeze(self.disterbance_path)
 
-        # Update the data sinks with trial information
-        self.trial_record['trial'] = self.calc_trial_num()
-        #import pdb; pdb.set_trace()
 
-        self.trial_record['index'] = self.gen_indices
-        self.trial_record['target'] = self.targs
-        self.trial_record['disterbance_path'] = self.disterbance_path
-        self.trial_record['is_disterbance'] = self.disterbance_trial
-        self.sinks.send("trials", self.trial_record)
+        for i in range(len(self.disterbance_path)):
+            # Update the data sinks with trial information
+            self.trial_record['trial'] = self.calc_trial_num()
+            self.trial_record['index'] = self.gen_indices
+            self.trial_record['target'] = self.targs[i]
+            self.trial_record['disterbance_path'] = self.disterbance_path[i]
+            self.trial_record['is_disterbance'] = self.disterbance_trial
+            self.sinks.send("trials", self.trial_record)
 
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
@@ -88,34 +90,37 @@ class TargetTracking(Sequence):
         self.frame_index = 0
         self.total_distance_error = 0
         self.plant_position.append(self._get_manual_position()[0])
+        #self.targs = self.targs 
 
     def _while_target(self):
-        self.total_distance_error += self.test_in_target() #Calculate and sum distance between center of cursor and current target position
+        #Calculate and sum distance between center of cursor and current target position
+        self.total_distance_error += self.test_in_target() 
         
-        #Add Disterbance TODO
-
-        self.plant.set_endpoint_pos(np.array([0,0,0]))
-        
+        #Add Disterbance
         self.plant_position.append(self._get_manual_position()[0])
-       
-        self.disterbance_position = self.add_disterbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disterbance_path[self.frame_index])
+        self.disterbance_position = self.add_disterbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disterbance_path[self.frame_index],self.disterbance_path[self.frame_index-1])
 
         #Move Target to next frame so it appears to be moving
-        target = self.targets
-        target.move_to_position(self.targs[self.frame_index])
-        target.show()
-        self.sync_event('MOVE_TARGET', self.targs[self.frame_index])
-        self.frame_index +=1
-
+        #self.update_frame()
+        
         #Check if the trial is over and there are no more target frames to display
         if np.shape(self.targs)[0] <= self.frame_index:
-            self.trial_timed_out = True     
+            self.trial_timed_out = True   
+    
+    def update_frame(self):
+        for i in range(len(self.x_targ_positions)-1):
+            next_pos = self.targets[i+1].get_position()
+            self.targets[i].move_to_position(np.array([self.x_targ_positions[i],0,next_pos[2]]))
+            self.targets[i].show()
+        self.targets[-1].move_to_position(np.array([self.x_targ_positions[i],0,self.targs[self.frame_index][2]]))
+        self.targets[-1].show()    
+        self.sync_event('MOVE_TARGET', self.targs[self.frame_index])
+        self.frame_index +=1
 
     def _end_target(self):
         self.trial_timed_out = False
         pass
 
-    def _start_reward(self):
         '''Nothing generic to do.'''
         pass
 
@@ -172,14 +177,14 @@ class TargetTracking(Sequence):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.frame_index])
-        if d <= (self.target_radius - self.cursor_radius):
-            self.targets.cue_trial_end_success()
+        if d <= (self.target_radius - self.cursor_radius + 1):
+            self.targets[0].cue_trial_end_success()
         else:
-            self.targets.reset()
+            self.targets[0].reset()
         return d
     
-    def add_disterbance(self, current_position, current_velocity, disterbance):
-        return  current_position + current_velocity + disterbance
+    def add_disterbance(self, current_position, current_velocity, disterbance,prev_disterbance):
+        return  current_position + current_velocity + disterbance - prev_disterbance
 
 
 class ScreenTargetTracking(TargetTracking, Window):
@@ -194,11 +199,12 @@ class ScreenTargetTracking(TargetTracking, Window):
     ]
 
     hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
+    targets = []
 
     is_bmi_seed = True
 
     # Runtime settable traits
-    target_radius = traits.Float(1.5, desc="Radius of targets in cm")
+    target_radius = traits.Float(.25, desc="Radius of targets in cm")
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
@@ -207,6 +213,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
+    myRewardAudio = RewardAudio()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -228,9 +235,10 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            # Need two targets to have the ability for delayed holds
-            self.targets = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-        
+            self.targets = [VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])]
+            # for i in range(len(self.x_targ_positions)):
+            #     self.targets.append(VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color]))
+                
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -294,28 +302,34 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_wait()
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait"
-            for model in self.targets.graphics_models:
-                self.add_model(model)
-                self.targets.hide()
+            for target in self.targets:
+                for model in target.graphics_models:
+                    self.add_model(model)
+                    target.hide()
 
     def _start_target(self):
         super()._start_target()
         # Show target if it is hidden (this is the first target, or previous state was a penalty)
-        target = self.targets  
-        target.move_to_position(self.targs[self.frame_index])
-        target.show()
+        #TODO chage the order of plotting? so the first target is shown as a ful circle
+        # for i in range(len(self.x_targ_positions)):
+        #     inital_pos = np.array([self.x_targ_positions[i],0,self.targs[self.frame_index][2]])
+        #     self.targets[i].move_to_position(inital_pos)
+        #     self.targets[i].show()
+        #     self.frame_index += 1
+        self.targets[0].show()    
         self.sync_event('TARGET_ON', self.gen_indices)
   
     def _start_reward(self):
-        self.targets.cue_trial_end_success()
+        self.targets[0].cue_trial_end_success()
         self.sync_event('REWARD')
-    
+        self.myRewardAudio._start_reward()
+
     def _end_reward(self):
         super()._end_reward()
         self.sync_event('TRIAL_END')
         # Hide targets
-        self.targets.hide()
-        self.targets.reset()
+        self.targets[0].hide()
+        self.targets[0].reset()
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
@@ -406,7 +420,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-
         disterbance_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
         disterbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
         y_primes_freq = np.array([3, 7, 13, 19, 29, 37, 43])

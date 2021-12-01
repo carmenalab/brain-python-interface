@@ -80,6 +80,33 @@ class Cylinder(TriMesh):
         super(Cylinder, self).__init__(pts, np.array(polys), 
             tcoords=tcoord, normals=normals, **kwargs)
 
+class Cable(TriMesh):
+    def __init__(self, height=1, radius=.5, segments=36, **kwargs):
+        self.height = height
+        self.radius = radius
+        theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
+        unit = np.array([np.ones(segments),np.cos(theta) ,np.sin(theta)]).T
+        
+        trajectory = np.array([[0,0,0] for traj in range(60)])
+        
+        pts = (unit+trajectory[0])*[0,radius,radius]
+        for i in range(1,len(trajectory)):
+            pts = np.vstack([pts, (unit+trajectory[i])*[(i-30)/1.36,radius,radius]])
+
+        normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
+        polys = []
+        for i in range(segments-1):
+            for j in range(len(trajectory)-1): 
+                polys.append((i+j*segments, i+1+j*segments, i+segments+j*segments))
+                polys.append((i+segments+j*segments, i+1+j*segments, i+1+segments+j*segments))
+        
+
+        tcoord = np.array([np.arange(segments), np.ones(segments)]).T
+        n = 1./segments
+        tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
+        super(Cable, self).__init__(pts, np.array(polys), 
+            tcoords=tcoord, normals=normals, **kwargs)
+
 class Sphere(TriMesh):
     def __init__(self, radius=1, segments=36, **kwargs):
         self.radius = radius
