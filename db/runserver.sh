@@ -82,7 +82,7 @@ fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-python manage.py runserver 127.0.0.1:8000 --noreload &
+python3 manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 #python manage.py celery worker &
 #CELERY=$!
