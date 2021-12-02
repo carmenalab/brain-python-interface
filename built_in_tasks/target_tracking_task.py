@@ -145,8 +145,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     are tracked by holding the cursor within the moving target"""
 
     limit2d = True
-    limit1d = False
-
+    
     sequence_generators = [
         'rand_target_chain_2D'
     ]
