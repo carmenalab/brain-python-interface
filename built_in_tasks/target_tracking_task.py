@@ -114,7 +114,7 @@ class TargetTracking(Sequence):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
-        return d <= (self.target_radius - self.cursor_radius)
+        return d <= (self.target_radius - self.cursor_radius+1)
 
     def _test_timeout(self, time_in_state):
         '''
@@ -155,7 +155,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     is_bmi_seed = True
 
     # Runtime settable traits
-    target_radius = traits.Float(1.5, desc="Radius of targets in cm")
+    target_radius = traits.Float(4), desc="Radius of targets in cm")
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))

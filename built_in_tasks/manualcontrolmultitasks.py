@@ -133,8 +133,7 @@ class ManualControlMixin(traits.HasTraits):
 
         # Get raw input and save it as task data
  
-        raw_coords = self._get_manual_position() # array of [3x1] arrays
-
+        raw_coords = np.multiply(self._get_manual_position(),[2,1,2.5]) # array of [3x1] arrays
 
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
