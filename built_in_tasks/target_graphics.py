@@ -161,16 +161,17 @@ class VirtualRectangularTarget(RectangularTarget):
 
 
 class CableTarget(object): 
-    def __init__(self, target_radius=1, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
+    def __init__(self, target_radius=1, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3), trajectory = np.array([np.sin(x) for x in range(60)])):
         self.target_color = target_color
         self.target_radius = target_radius
         self.target_color = target_color
         self.position = starting_pos
         self.int_position = starting_pos
+        self.trajectory = trajectory
         self._pickle_init()
 
     def _pickle_init(self):
-        self.cable = Cable(radius=self.target_radius, color=self.target_color)
+        self.cable = Cable(radius=self.target_radius,trajectory = self.trajectory, color=self.target_color)
         self.graphics_models = [self.cable]
         self.cable.translate(*self.position)
 
@@ -188,9 +189,10 @@ class VirtualCableTarget(CableTarget):
         self.cable.translate(*self.position, reset=True)
 
     def hide(self):
+
         self.cable.detach()
 
-    def show(self):
+    def show(self):      
         self.cable.attach()
 
     def cue_trial_start(self):

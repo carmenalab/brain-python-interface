@@ -8,7 +8,7 @@ import math
 import traceback
 from collections import OrderedDict
 
-from features.reward_features import RewardAudio
+
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
@@ -108,14 +108,11 @@ class TargetTracking(Sequence):
             self.trial_timed_out = True   
     
     def update_frame(self):
-        for i in range(len(self.x_targ_positions)-1):
-            next_pos = self.targets[i+1].get_position()
-            self.targets[i].move_to_position(np.array([self.x_targ_positions[i],0,next_pos[2]]))
-            self.targets[i].show()
         self.targets[-1].move_to_position(np.array([self.x_targ_positions[i],0,self.targs[self.frame_index][2]]))
         self.targets[-1].show()    
         self.sync_event('MOVE_TARGET', self.targs[self.frame_index])
         self.frame_index +=1
+        
 
     def _end_target(self):
         self.trial_timed_out = False
@@ -177,7 +174,7 @@ class TargetTracking(Sequence):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.frame_index])
-        if d <= (self.target_radius - self.cursor_radius + 1):
+        if d <= (self.target_radius - self.cursor_radius):
             self.targets[0].cue_trial_end_success()
         else:
             self.targets[0].reset()
@@ -213,7 +210,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
-    myRewardAudio = RewardAudio()
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -235,7 +232,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            self.targets = [VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])]
+            self.targets = [VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color],)]
             # for i in range(len(self.x_targ_positions)):
             #     self.targets.append(VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color]))
                 
@@ -378,7 +375,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         P = 2 # number of periods in signal
         T = P*T0 # sec -- signal duration
-        r = 5 # "ramp" duration (see sum_of_sines_ramp)
+        r = .5 # "ramp" duration (see sum_of_sines_ramp)
         dw = 1/T # Hz -- frequency resolution
         W = dw*T/dt/2 # Hz -- signal bandwidth
 

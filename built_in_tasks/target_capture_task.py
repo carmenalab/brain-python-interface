@@ -288,7 +288,6 @@ class ScreenTargetCapture(TargetCapture, Window):
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
-    myRewardAudio = RewardAudio()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
