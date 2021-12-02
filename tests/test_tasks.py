@@ -16,7 +16,7 @@ def init_exp(base_class, feats):
     blocks = 1
     trials = 2
     trial_length = 5
-    seq = TrackingTask.tracking_target_chain_1D(blocks,trials,trial_length)
+    seq = TrackingTask.rand_target_chain_2D(1,3)
     Exp = experiment.make(base_class, feats=feats)
     exp = Exp(seq)
     exp.init()

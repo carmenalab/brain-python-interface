@@ -8,7 +8,7 @@ import math
 import traceback
 from collections import OrderedDict
 
-from features.reward_features import RewardAudio
+#from features.reward_features import RewardAudio
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
@@ -46,6 +46,7 @@ class TargetTracking(Sequence):
     total_distance_error = 0 #Euclidian distance between cursor and target during each trial
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
     trial_timed_out = False #check if the trial is finished
+
     sequence_generators = []
     plant_position = []
 
@@ -165,7 +166,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
     reward_sound = traits.OptionsList("click.wav",desc="File in riglib/audio to play on each reward")
-    myRewardAudio = RewardAudio()
+   # myRewardAudio = RewardAudio()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -265,7 +266,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_reward(self):
         self.targets.cue_trial_end_success()
         self.sync_event('REWARD')
-        self.myRewardAudio._start_reward()
+       # self.myRewardAudio._start_reward()
 
     def _end_reward(self):
         super()._end_reward()
