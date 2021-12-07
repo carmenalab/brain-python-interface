@@ -86,24 +86,28 @@ class Cable(TriMesh):
         self.center_value = [0,0,0]
         self.height = height
         self.radius = radius
-        theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
-        unit = np.array([np.ones(segments),np.cos(theta) ,np.sin(theta)]).T
+        self.segments = segments
+
+        self.update(**kwargs)
+    
+    def update(self, **kwargs):
+        theta = np.linspace(0, 2*np.pi, self.segments, endpoint=False)
+        unit = np.array([np.ones(self.segments),np.cos(theta) ,np.sin(theta)]).T
         
         intial = np.array([[0,0,self.trial_trajectory[x]] for x in range(len(self.trial_trajectory))])
-        
-        self.pts = (unit+intial[0])*[0,radius,radius]
+        self.pts = (unit+intial[0])*[-30/1.36,self.radius,self.radius]
         for i in range(1,len(intial)):
-            self.pts = np.vstack([self.pts, (unit+intial[i])*[(i)/1.36,radius,radius]])
+            self.pts = np.vstack([self.pts, (unit+intial[i])*[(i-30)/3,self.radius,self.radius]])
 
         self.normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
         self.polys = []
-        for i in range(segments-1):
+        for i in range(self.segments-1):
             for j in range(len(intial)-1): 
-                self.polys.append((i+j*segments, i+1+j*segments, i+segments+j*segments))
-                self.polys.append((i+segments+j*segments, i+1+j*segments, i+1+segments+j*segments))
+                self.polys.append((i+j*self.segments, i+1+j*self.segments, i+self.segments+j*self.segments))
+                self.polys.append((i+self.segments+j*self.segments, i+1+j*self.segments, i+1+self.segments+j*self.segments))
 
-        tcoord = np.array([np.arange(segments), np.ones(segments)]).T
-        n = 1./segments
+        tcoord = np.array([np.arange(self.segments), np.ones(self.segments)]).T
+        n = 1./self.segments
         self.tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
         super(Cable, self).__init__(self.pts, np.array(self.polys), 
             tcoords=self.tcoord, normals=self.normals, **kwargs)

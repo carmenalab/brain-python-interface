@@ -184,6 +184,11 @@ class CableTarget(object):
 
         
 class VirtualCableTarget(CableTarget):
+
+    def update_shape(self):
+        self.cable.trial_trajectory = self.trajectory
+        self.cable.update()
+    
     def drive_to_new_pos(self):
         self.position = self.int_position
         self.cable.translate(*self.position, reset=True)
