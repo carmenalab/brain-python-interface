@@ -42,38 +42,39 @@ class TargetTracking(Sequence):
 
     # initial state
     state = "wait"
-    frame_index = 0 #index in the frame in a trial
-    total_distance_error = 0 #Euclidian distance between cursor and target during each trial
+    frame_index = 0 # index in the frame in a trial
+    total_distance_error = 0 # Euclidian distance between cursor and target during each trial
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
-    trial_timed_out = False #check if the trial is finished
+    trial_timed_out = False # check if the trial is finished
     sequence_generators = []
     plant_position = []
-    disterbance_trial = False
-    disterbance_position = None
+    disturbance_trial = False
+    disturbance_position = None
     target_index = -1
     x_targ_positions = np.linspace(-10,10,60)
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
+    max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
 
     def init(self):
-        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disterbance_path', 'f8',(3,)), ('is_disterbance', '?')])
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance_path', 'f8',(3,)), ('is_disturbance', '?')])
         super().init()
 
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
-        self.gen_indices, self.targs, self.disterbance_trial, self.disterbance_path = self.next_trial
+        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial
         #self.targs = np.concatenate((np.zeros(30),np.squeeze(self.targs,axis=0),np.zeros(60)))
         self.targs = np.squeeze(self.targs,axis=0)
-        self.disterbance_path = np.squeeze(self.disterbance_path)
+        self.disturbance_path = np.squeeze(self.disturbance_path)
 
 
-        for i in range(len(self.disterbance_path)):
+        for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information
             self.trial_record['trial'] = self.calc_trial_num()
             self.trial_record['index'] = self.gen_indices
             self.trial_record['target'] = self.targs[i]
-            self.trial_record['disterbance_path'] = self.disterbance_path[i]
-            self.trial_record['is_disterbance'] = self.disterbance_trial
+            self.trial_record['disturbance_path'] = self.disturbance_path[i]
+            self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
     def _start_wait(self):
@@ -86,27 +87,24 @@ class TargetTracking(Sequence):
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
 
-    
     def _start_target(self):
         self.target_index += 1
         self.frame_index = 0
-        self.total_distance_error = 0
-        self.plant_position.append(self._get_manual_position()[0]) 
-        
+        self.total_distance_error = 0        
 
     def _while_target(self):
-        #Calculate and sum distance between center of cursor and current target position
+        # Calculate and sum distance between center of cursor and current target position
         self.total_distance_error += self.test_in_target() 
         
-        #Add Disterbance
+        # Add Disturbance
         self.plant_position.append(self._get_manual_position()[0])
-        self.disterbance_position = self.add_disterbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disterbance_path[self.frame_index],self.disterbance_path[self.frame_index-1])
+        self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
 
-        #Move Target to next frame so it appears to be moving
+        # Move Target to next frame so it appears to be moving
         self.update_frame()
         
-        #Check if the trial is over and there are no more target frames to display
-        if np.shape(self.targs)[0]<= self.frame_index:
+        # Check if the trial is over and there are no more target frames to display
+        if self.frame_index >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
     
     def update_frame(self):
@@ -115,9 +113,7 @@ class TargetTracking(Sequence):
             self.tracker.move_to_position(np.array([0,0,self.targs[self.frame_index-30][2]/4]))
         self.targets[self.target_index].show()
         self.tracker.show()
-        self.sync_event('MOVE_TARGET', self.targs[self.frame_index])
         self.frame_index +=1
-        
 
     def _end_target(self):
         self.trial_timed_out = False
@@ -146,7 +142,7 @@ class TargetTracking(Sequence):
         distance error must be less than 2 cm on average of the whole trial.
         This means the center of the cursor was on average within 2cm of the center of the target.
         '''
-        return self.trial_timed_out and self.total_distance_error/self.frame_index < 2
+        return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
 
     def _test_timeout(self, time_in_state):
         '''
@@ -182,16 +178,16 @@ class TargetTracking(Sequence):
             self.tracker.reset()
         return d
     
-    def add_disterbance(self, current_position, current_velocity, disterbance,prev_disterbance):
-        return  current_position + current_velocity + disterbance - prev_disterbance
+    def add_disturbance(self, current_position, current_velocity, disturbance,prev_disturbance):
+        return  current_position + current_velocity + disturbance - prev_disturbance
 
 
 class ScreenTargetTracking(TargetTracking, Window):
     """Concrete implementation of Target Tracking task where the target is moving and
     are tracked by holding the cursor within the moving target"""
 
-    limit2d = True
-    limit1d = True
+    limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
+    limit1d = traits.Bool(True, desc="Limit cursor movement to 1D")
 
     sequence_generators = [
         'tracking_target_chain_1D', 'tracking_target_chain_2D'
@@ -260,8 +256,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        if self.disterbance_trial:
-            self.move_effector(self.disterbance_position)
+        if self.disturbance_trial:
+            self.move_effector(self.disturbance_position)
         else:
             self.move_effector()
         
@@ -324,8 +320,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.targets[self.target_index].show()    
         self.tracker.show()
         self.baseline.hide()
-        self.sync_event('TARGET_ON', self.gen_indices)
-        
+        self.sync_event('TRIAL_START', self.gen_indices)
+    
     def _start_reward(self):
         self.baseline.show()
         self.tracker.cue_trial_end_success()
@@ -340,6 +336,10 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.targets[self.target_index].hide()
         self.tracker.hide()
         self.tracker.reset()
+
+    def _start_timeout(self):
+        super()._start_timeout()
+        self.sync_event('TIMEOUT_PENALTY')
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
@@ -432,29 +432,29 @@ class ScreenTargetTracking(TargetTracking, Window):
         primes_ind = np.where(full_primes <= time_length)
         primes = full_primes[primes_ind]
         frames = int(np.round(time_length*60))
-        disterbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
+        disturbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
         random_start = random.randint(0, 1)
         
         for i in range(nblocks):
             for j in range(ntrials):
                 if idx % 2 == random_start:
                     y_primes_freq = primes[::2]
-                    disterbance_freq = primes[::2]
+                    disturbance_freq = primes[::2]
                 else:
                     y_primes_freq = primes[1::2]
-                    disterbance_freq = primes[1::2]
-                disterbance = False
-                disterbance_path = np.zeros((frames+2*buffer_space,1))
+                    disturbance_freq = primes[1::2]
+                disturbance = False
+                disturbance_path = np.zeros((frames+2*buffer_space,1))
                 trajectory = np.zeros((frames+2*buffer_space,3))
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
                 trajectory[:,2] = 6*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
-                if np.any(idx == disterbance_trials):
-                    disterb = ScreenTargetTracking.generate_trajectory(disterbance_freq,time_length,0.75)
+                if np.any(idx == disturbance_trials):
+                    disterb = ScreenTargetTracking.generate_trajectory(disturbance_trials,time_length,0.75)
                     disterbance_path = 6*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disterbance = True
                 pts.append(trajectory)
-                yield idx, pts, disterbance, disterbance_path
+                yield idx, pts, disturbance, disturbance_path
                 idx += 1
     
     @staticmethod
