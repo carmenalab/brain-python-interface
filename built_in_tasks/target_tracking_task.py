@@ -321,7 +321,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.targets[self.target_index].show()    
         self.tracker.show()
         self.baseline.hide()
-        self.sync_event('TRIAL_START', self.gen_indices)
+        self.sync_event('TRIAL_START')
     
     def _start_reward(self):
         self.baseline.show()
