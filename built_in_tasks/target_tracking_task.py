@@ -205,10 +205,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     # Runtime settable traits
     target_radius = traits.Float(.25, desc="Radius of targets in cm")
     tracker_radius = traits.Float(1, desc="Radius of targets in cm")
-   
-    target_color = traits.OptionsList("orange", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
+    target_color = traits.OptionsList("gold", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     tracker_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
-
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
@@ -243,7 +241,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.tracker = VirtualCircularTarget(target_radius=self.tracker_radius, target_color=target_colors[self.tracker_color])
             self.baseline = VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color],trajectory=np.zeros(120))
             for trials  in self.gen:
-                mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(trials[1])[:,2]),np.zeros(60)))
+                mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(trials[1])[:,2]),np.zeros(30)))
                 self.targets.append(VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color],trajectory=mytrajectory))
                 tmp_generator.append(trials)
             self.gen = (x for x in tmp_generator)
@@ -310,7 +308,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_wait()
         if self.calc_trial_num() == 0:
             self.add_model(self.baseline.graphics_models[0])
-            self.baseline.show()
+           
             self.add_model(self.tracker.graphics_models[0])
             self.tracker.hide()
             # Instantiate the targets here so they don't show up in any states that might come before "wait"
@@ -318,7 +316,8 @@ class ScreenTargetTracking(TargetTracking, Window):
                 for model in target.graphics_models:
                     self.add_model(model)
                     target.hide()
-            self.targets[self.target_index].hide()
+        self.baseline.show()
+        self.targets[self.target_index].hide()
 
     def _start_target(self):
         super()._start_target()
@@ -326,8 +325,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.tracker.show()
         self.baseline.hide()
         self.sync_event('TARGET_ON', self.gen_indices)
-    
+        
     def _start_reward(self):
+        self.baseline.show()
         self.tracker.cue_trial_end_success()
         self.sync_event('REWARD')
         #self.myRewardAudio._start_reward()
@@ -338,7 +338,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         
         #Adjust target displays
         self.targets[self.target_index].hide()
-        self.baseline.show()
         self.tracker.hide()
         self.tracker.reset()
 
@@ -380,7 +379,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             return _
 
     @staticmethod
-    def generate_trajectory(primes,base_period):
+    def generate_trajectory(primes,base_period, ramp = .5):
         hz = 60 # Hz -- sampling rate
         dt = 1/hz # sec -- sampling period
 
@@ -389,7 +388,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         P = 1 # number of periods in signal
         T = P*T0 # sec -- signal duration
-        r = .5 # "ramp" duration (see sum_of_sines_ramp)
+        r = ramp # "ramp" duration (see sum_of_sines_ramp)
         dw = 1/T # Hz -- frequency resolution
         W = dw*T/dt/2 # Hz -- signal bandwidth
 
@@ -428,7 +427,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        buffer_space = int(60*2.0) #0.5 seconds of straight line before and after trial
+        buffer_space = int(60*1.5) #1.5 seconds of straight line before and after trial
         full_primes = np.asarray([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199])
         primes_ind = np.where(full_primes <= time_length)
         primes = full_primes[primes_ind]
@@ -451,7 +450,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 pts = []
                 trajectory[:,2] = 6*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
                 if np.any(idx == disterbance_trials):
-                    disterb = ScreenTargetTracking.generate_trajectory(disterbance_freq,time_length)
+                    disterb = ScreenTargetTracking.generate_trajectory(disterbance_freq,time_length,0.75)
                     disterbance_path = 6*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disterbance = True
                 pts.append(trajectory)
