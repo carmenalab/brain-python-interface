@@ -415,6 +415,17 @@ class Subject(models.Model):
         subjects = Subject.objects.all().order_by("name")
         return [s.name for s in subjects]
 
+class Experimenter(models.Model):
+    name = models.CharField(max_length=128)
+    def __str__(self):
+        return "Experimenter[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
+
+    @staticmethod
+    def get_all_experimenters():
+        experimenters = Experimenter.objects.all().order_by("name")
+        return [s.name for s in experimenters]
 
 class Generator(models.Model):
     name = models.CharField(max_length=128)
@@ -610,10 +621,13 @@ class Sequence(models.Model):
 
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
+    experimenter = models.ForeignKey(Experimenter, null=True, on_delete=models.PROTECT)
     date = models.DateTimeField(auto_now_add=True)
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
     feats = models.ManyToManyField(Feature)
     sequence = models.ForeignKey(Sequence, blank=True, null=True, on_delete=models.PROTECT)
+    project = models.TextField()
+    session = models.TextField()
 
     params = models.TextField()
     report = models.TextField()
@@ -684,6 +698,48 @@ class TaskEntry(models.Model):
         from .json_param import Parameters
         data = Parameters(self.metadata).params
         return data
+
+    @staticmethod
+    def get_default_metadata():
+        subject = {
+            'type': 'Enum',
+            'default': '',
+            'desc': 'Who',
+            'hidden': 'visible',
+            'options':  Subject.get_all_subjects(),
+            'required': True
+        }
+        experimenter = {
+            'type': 'Enum',
+            'default': '',
+            'desc': 'Who is running the experiment',
+            'hidden': 'visible',
+            'options':  Experimenter.get_all_experimenters(),
+            'required': True
+        }
+        project = {
+            'type': 'String',
+            'default': '',
+            'desc': 'Which project are you working on',
+            'hidden': 'visible',
+            'value': '',
+            'required': True
+        }
+        session = {
+            'type': 'String',
+            'default': '',
+            'desc': 'Specific instance of the project',
+            'hidden': 'visible',
+            'value': '',
+            'required': True
+        }
+        metadata = {
+            'subject': subject,
+            'experimenter': experimenter,
+            'project': project,
+            'session': session,
+        }
+        return metadata
 
     def plexfile(self, path='/storage/plexon/', search=False):
         rplex = Feature.objects.get(name='relay_plexon')
@@ -764,15 +820,12 @@ class TaskEntry(models.Model):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
 
         # Add metadata
-        js['metadata'] = {}
-        subjects = {
-            'type': 'Enum',
-            'default': self.subject.name,
-            'desc': 'Who',
-            'hidden': 'visible',
-            'options':  Subject.get_all_subjects()
-        }
-        js['metadata']['subject'] = subjects
+        js['metadata'] = self.get_default_metadata()
+        js['metadata']['subject']['default'] = self.subject.name
+        if self.experimenter: 
+            js['metadata']['experimenter']['default'] = self.experimenter.name
+        js['metadata']['project']['value'] = self.project
+        js['metadata']['session']['value'] = self.session
         js['metadata'].update(dict([
             (
                 name, 
@@ -781,7 +834,8 @@ class TaskEntry(models.Model):
                     'default': '',
                     'desc': '',
                     'hidden': 'visible',
-                    'value': value
+                    'value': value,
+                    'required': False
                 }
             ) for name, value in self.task_metadata.items()
         ]))
