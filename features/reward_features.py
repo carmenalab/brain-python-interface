@@ -62,6 +62,45 @@ class RewardSystem(traits.HasTraits):
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
+class PelletReward(traits.HasTraits):
+
+    trials_per_reward = traits.Float(1, desc='Number of successful trials reward is delievered')
+    
+    def __init__(self, *args, **kwargs):
+        from riglib import reward
+        super().__init__(*args, **kwargs)
+        self.reward = reward.pellet_open()
+        self.reportstats['Reward #'] = 0
+
+    def run(self):
+        if self.reward is None:
+            raise Exception('Reward system could not be activated')
+        super().run()
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reportstats['Reward #'] += 1
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            self.reward.async_dispense()
+
+    def _end_reward(self):
+        if hasattr(super(), '_end_reward'):
+            super()._end_reward()
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
+
+    @control_decorator
+    def manual_reward( static=True):
+        from riglib import reward
+        reward_sys = reward.pellet_open()
+        reward_sys.async_dispense()
+
+
 class RewardAudio(traits.HasTraits):
     '''
     Play a sound in any reward state. Need to add other reward states you want to be included.
