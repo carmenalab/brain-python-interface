@@ -91,14 +91,14 @@ class TargetTracking(Sequence):
         self.target_index += 1
         self.frame_index = 0
         self.total_distance_error = 0
-        self.plant_position.append(self._get_manual_position()[0])
+        self.plant_position.append(self.plant.get_endpoint_pos())
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
         self.total_distance_error += self.test_in_target() 
         
         # Add Disturbance
-        self.plant_position.append(self._get_manual_position()[0])
+        self.plant_position.append(self.plant.get_endpoint_pos())
         self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2], self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
 
         # Move Target to next frame so it appears to be moving
