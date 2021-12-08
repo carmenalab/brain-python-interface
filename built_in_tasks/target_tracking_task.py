@@ -90,7 +90,8 @@ class TargetTracking(Sequence):
     def _start_target(self):
         self.target_index += 1
         self.frame_index = 0
-        self.total_distance_error = 0        
+        self.total_distance_error = 0
+        self.plant_position.append(self._get_manual_position()[0])
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
