@@ -36,7 +36,8 @@ class TargetTracking(Sequence):
     '''
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(success="reward", timeout="wait"),
+        target = dict(success="reward", timeout="penalty"),
+        penalty = dict(penalty_end = "wait", end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
@@ -53,7 +54,7 @@ class TargetTracking(Sequence):
     target_index = -1
     x_targ_positions = np.linspace(-10,10,60)
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
-    timeout_time = traits.Float(10, desc="Time allowed to go between targets")
+    penalty_time = traits.Float(.5, desc="Length of penalty")
     max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
 
     def init(self):
@@ -127,6 +128,10 @@ class TargetTracking(Sequence):
     def _end_reward(self):
         '''Nothing generic to do.'''
         pass
+    
+    def _start_penalty(self):
+        '''Nothing generic to do.'''
+        pass
 
     ################## State transition test functions ##################
     def _test_start_trial(self, time_in_state):
@@ -158,6 +163,12 @@ class TargetTracking(Sequence):
         Test the reward state has ended.
         '''
         return time_in_state > self.reward_time
+    
+    def _test_penalty_end(self, time_in_state):
+        '''
+        Test the penalty state has ended.
+        '''
+        return time_in_state > self.penalty_time
 
     def update_report_stats(self):
         '''
@@ -173,7 +184,7 @@ class TargetTracking(Sequence):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.tracker.get_position())
-        if d <= (self.tracker_radius - self.cursor_radius):
+        if d <= (self.target_radius - self.cursor_radius):
             self.tracker.cue_trial_end_success()
         else:
             self.tracker.reset()
@@ -200,8 +211,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     is_bmi_seed = True
 
     # Runtime settable traits
-    target_radius = traits.Float(.25, desc="Radius of targets in cm")
-    tracker_radius = traits.Float(1, desc="Radius of targets in cm")
+    target_radius = traits.Float(1, desc="Radius of targets in cm")
+    trajectory_radius = traits.Float(.25, desc="Radius of targets in cm")
     target_color = traits.OptionsList("gold", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     tracker_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
@@ -235,11 +246,11 @@ class ScreenTargetTracking(TargetTracking, Window):
         if instantiate_targets:
             tmp_generator = []
             self.targets = []
-            self.tracker = VirtualCircularTarget(target_radius=self.tracker_radius, target_color=target_colors[self.tracker_color])
-            self.baseline = VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color],trajectory=np.zeros(120))
+            self.tracker = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.tracker_color])
+            self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.target_color],trajectory=np.zeros(120))
             for trials  in self.gen:
                 mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(trials[1])[:,2]),np.zeros(30)))
-                self.targets.append(VirtualCableTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color],trajectory=mytrajectory))
+                self.targets.append(VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.target_color],trajectory=mytrajectory))
                 tmp_generator.append(trials)
             self.gen = (x for x in tmp_generator)
 
@@ -327,20 +338,18 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.baseline.show()
         self.tracker.cue_trial_end_success()
         self.sync_event('REWARD')
-        #self.myRewardAudio._start_reward()
 
     def _end_reward(self):
         super()._end_reward()
         self.sync_event('TRIAL_END')
-        
         #Adjust target displays
         self.targets[self.target_index].hide()
         self.tracker.hide()
         self.tracker.reset()
 
-    def _start_timeout(self):
-        super()._start_timeout()
-        self.sync_event('TIMEOUT_PENALTY')
+    def _start_penalty(self):
+        super()._start_penalty()
+        self.sync_event('OTHER_PENALTY')
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
