@@ -36,8 +36,8 @@ class TargetTracking(Sequence):
     '''
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(success="reward", timeout="penalty"),
-        penalty = dict(penalty_end = "wait", end_state=True),
+        target = dict(success="reward", timeout="timeout_penalty"),
+        timeout_penalty = dict(timeout_penalty_end = "wait", end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
@@ -127,9 +127,9 @@ class TargetTracking(Sequence):
 
     def _end_reward(self):
         '''Nothing generic to do.'''
-        pass
+    pass
     
-    def _start_penalty(self):
+    def _start_timeout_penalty(self):
         '''Nothing generic to do.'''
         pass
 
@@ -160,11 +160,11 @@ class TargetTracking(Sequence):
 
     def _test_reward_end(self, time_in_state):
         '''
-        Test the reward state has ended.
+        Test the reward state has ended
         '''
         return time_in_state > self.reward_time
     
-    def _test_penalty_end(self, time_in_state):
+    def _test_timeout_penalty_end(self, time_in_state):
         '''
         Test the penalty state has ended.
         '''
@@ -347,9 +347,14 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.tracker.hide()
         self.tracker.reset()
 
-    def _start_penalty(self):
-        super()._start_penalty()
+    def _start_timeout_penalty(self):
+        super()._start_timeout_penalty()
         self.sync_event('OTHER_PENALTY')
+        self.baseline.show()
+        self.targets[self.target_index].hide()
+        self.tracker.hide()
+        self.tracker.reset()
+
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
@@ -363,7 +368,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         a = amplitudes
         a = a.copy(); a.shape = (1,a.size)
 
-        p = phase_shifts
+        p = phase_shifts        
         p = p.copy(); p.shape = (1,p.size)
 
         assert f.shape == a.shape == p.shape,"Shape of frequencies, amplitudes, and phase shifts must match"
