@@ -302,6 +302,7 @@ class ScreenTargetTracking(TargetTracking, Window):
              self.task_data['current_trajectory_coord'] = self.targs[-1]
         else:
             self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
+
         super()._cycle()
 
     def move_effector(self):
