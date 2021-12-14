@@ -13,7 +13,7 @@ import numpy as np
 
 
 def init_exp(base_class, feats):
-    blocks = 1
+    blocks = 2
     trials = 2
     trial_length = 5
     seq = TrackingTask.rand_target_chain_2D()#blocks,trials,trial_length)
