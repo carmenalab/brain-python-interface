@@ -46,7 +46,7 @@ class TargetTracking(Sequence):
     frame_index = 0 # index in the frame in a trial
     total_distance_error = 0 # Euclidian distance between cursor and target during each trial
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
-    trial_timed_out = False # check if the trial is finished
+    trial_timed_out = True # check if the trial is finished
     sequence_generators = []
     plant_position = []
     disturbance_trial = False
@@ -56,7 +56,7 @@ class TargetTracking(Sequence):
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     penalty_time = traits.Float(.5, desc="Length of penalty")
     max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
-
+    
     def init(self):
         self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance_path', 'f8',(3,)), ('is_disturbance', '?')])
         super().init()
@@ -87,12 +87,12 @@ class TargetTracking(Sequence):
 
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
-
     def _start_target(self):
         self.target_index += 1
         self.frame_index = 0
         self.total_distance_error = 0
         self.plant_position.append(self.plant.get_endpoint_pos())
+        self.trial_timed_out = False
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
@@ -112,7 +112,7 @@ class TargetTracking(Sequence):
     def update_frame(self):
         self.targets[self.target_index].move_to_position(np.array([-self.frame_index/3,0,0]))
         if self.frame_index >= 30:
-            self.tracker.move_to_position(np.array([0,0,self.targs[self.frame_index-30][2]/4]))
+            self.tracker.move_to_position(np.array([0,0,self.targs[self.frame_index-30][2]]))
         self.targets[self.target_index].show()
         self.tracker.show()
         self.frame_index +=1
@@ -165,7 +165,7 @@ class TargetTracking(Sequence):
         return time_in_state > self.reward_time
     
     def _test_timeout_penalty_end(self, time_in_state):
-        '''
+        '''  
         Test the penalty state has ended.
         '''
         return time_in_state > self.penalty_time
@@ -261,6 +261,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
+        self.add_dtype('current_trajectory_coord', 'f8', (3,))
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
@@ -284,7 +285,13 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
-
+        
+        if self.trial_timed_out or np.shape(self.targs)[0] == self.frame_index:
+            self.task_data['current_trajectory_coord'] = np.array([0,0,0])
+            
+        else:
+            self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
+           
         super()._cycle()
 
     def move_effector(self):
@@ -463,10 +470,10 @@ class ScreenTargetTracking(TargetTracking, Window):
                 trajectory = np.zeros((frames+2*buffer_space,3))
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
-                trajectory[:,2] = 6*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
+                trajectory[:,2] = 4*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
                 if np.any(idx == disturbance_trials):
                     disterb = ScreenTargetTracking.generate_trajectory(disturbance_trials,time_length,0.75)
-                    disterbance_path = 6*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
+                    disterbance_path = 4*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disterbance = True
                 pts.append(trajectory)
                 yield idx, pts, disturbance, disturbance_path
