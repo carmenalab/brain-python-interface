@@ -9,7 +9,6 @@ import traceback
 import random
 from collections import OrderedDict
 
-#from features.reward_features import RewardAudio
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
@@ -85,8 +84,7 @@ class TargetTracking(Sequence):
 
         # number of times this sequence of targets has been attempted
         self.tries = 0
-    
-        target_index = -1
+
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
 
@@ -120,7 +118,7 @@ class TargetTracking(Sequence):
         self.frame_index +=1
 
     def _end_target(self):
-        '''Nothing generic to do.'''
+        self.trial_timed_out = False
         pass
 
     def _while_reward(self):
@@ -145,7 +143,10 @@ class TargetTracking(Sequence):
 
     def _test_success(self, time_in_state):
         '''
-        return true if the distance between center of cursor and target is smaller than the cursor radius
+        Test if the current state is successful and should transition to reward state.
+        In order to be successful it needs to be the end of the trial and the total 
+        distance error must be less than 2 cm on average of the whole trial.
+        This means the center of the cursor was on average within 2cm of the center of the target.
         '''
         return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
 
@@ -201,7 +202,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     limit1d = traits.Bool(True, desc="Limit cursor movement to 1D")
 
     sequence_generators = [
-        'rand_target_chain_2D'
+        'tracking_target_chain_1D', 'tracking_target_chain_2D'
     ]
 
     hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
@@ -219,10 +220,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
-    cursor_bounds = traits.Tuple((-15., 15., 0., 0., -15., 15.), desc='(x min, x max, y min, y max, z min, z max)')
+    cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
-    #reward_sound = traits.OptionsList("click.wav",desc="File in riglib/audio to play on each reward")
-   # myRewardAudio = RewardAudio()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -473,31 +472,37 @@ class ScreenTargetTracking(TargetTracking, Window):
                 yield idx, pts, disturbance, disturbance_path
                 idx += 1
     
-    ### Generator functions ####
     @staticmethod
-    def rand_target_chain_2D(nblocks=100, ntrials=1, boundaries=(-10,10,-10,10)):
+    def tracking_target_chain_2D(nblocks=1, ntrials=2, time_length = 5, boundaries=(-10,10,-10,10)):
         '''
-        Generates a sequence of 2D (x and z) target pairs.
+        Generates a sequence of 2D (x and z axis) target trajectories
 
         Parameters
         ----------
+        nblocks : int
+            The number of tracking trials in the sequence.
         ntrials : int
-            The number of target chains in the sequence.
-        chain_length : int
-            The number of targets in each chain
+            The number trials in a block
+        time_length : int
         boundaries: 4 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
         Returns
         -------
-        [ntrials x chain_length x 3] array of target coordinates
+        [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
-        rng = np.random.default_rng()
         idx = 0
+        x_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
+        y_primes_freq = np.array([3, 7, 13, 19, 29, 37, 43])
         for i in range(nblocks):
             for j in range(ntrials):
-            # Choose a random sequence of points within the boundaries
-                pts = rng.uniform(size=(1, 3))*((boundaries[1]-boundaries[0]), 0, (boundaries[3]-boundaries[2]))
-                pts = pts+(boundaries[0], 0, boundaries[2])
+                trajectory = np.zeros((time_length*60,3))
+                sum_of_sins_pathx = ScreenTargetTracking.generate_trajectory(x_primes_freq)
+                sum_of_sins_pathy = ScreenTargetTracking.generate_trajectory(y_primes_freq)
+                rand_start_index = np.random.randint(0,np.shape(sum_of_sins_pathy)[0]-(time_length*60))
+                pts = []
+                trajectory[:,0] = 4*sum_of_sins_pathx[rand_start_index:rand_start_index+time_length*60]
+                trajectory[:,2] = 4*sum_of_sins_pathy[rand_start_index:rand_start_index+time_length*60]
+                pts.append(trajectory)
                 yield idx, pts
                 idx += 1
