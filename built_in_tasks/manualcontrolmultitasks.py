@@ -146,10 +146,17 @@ class ManualControlMixin(traits.HasTraits):
 
         # Transform coordinates
         coords = self._transform_coords(raw_coords)
-
-        if self.limit2d:
-            coords[1] = 0
-
+        
+        try:
+            if self.limit2d:
+                coords[1] = 0
+            if self.limit1d:
+                coords[1] = 0
+                coords[0] = 0
+        except:
+            if self.limit2d:
+                coords[1] = 0
+                
         # Set cursor position
         if not self.velocity_control:
             self.current_pt = coords

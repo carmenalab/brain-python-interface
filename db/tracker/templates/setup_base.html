@@ -36,6 +36,36 @@
       })
     }
 
+    function add_new_experimenter() {
+      var data = {'experimenter_name': $("#new_experimenter_name").val()};
+      $.post("/setup/add/experimenter", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#new_experimenter_name").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td id=\"experimenter_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + 
+            "</td><td><input type=\"submit\" value=\"Remove\" onclick=\"remove_experimenter(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-experimenter-row').after(tr);
+        }
+      })
+    }
+
+    function remove_experimenter(id) {
+    data = {'id': id}
+      $.post("/setup/remove/experimenter", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
+        if (resp["status"] == "success") {
+          $("#experimenter_"+id).closest("tr").remove();
+        }
+      })
+    }
+
     function add_new_task() {
       var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
       $.post("/setup/add/task", data, function(resp) {
