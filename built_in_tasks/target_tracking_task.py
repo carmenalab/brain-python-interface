@@ -8,7 +8,7 @@ import math
 import traceback
 from collections import OrderedDict
 
-from features.reward_features import RewardAudio
+#from features.reward_features import RewardAudio
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
@@ -164,8 +164,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
-    reward_sound = traits.OptionsList("click.wav",desc="File in riglib/audio to play on each reward")
-    myRewardAudio = RewardAudio()
+    #reward_sound = traits.OptionsList("click.wav",desc="File in riglib/audio to play on each reward")
+    #myRewardAudio = RewardAudio()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -265,7 +265,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_reward(self):
         self.targets.cue_trial_end_success()
         self.sync_event('REWARD')
-        self.myRewardAudio._start_reward()
+        #self.myRewardAudio._start_reward()
 
     def _end_reward(self):
         super()._end_reward()
