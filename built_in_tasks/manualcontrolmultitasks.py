@@ -50,7 +50,7 @@ class ManualControlMixin(traits.HasTraits):
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
-    scale = traits.Float(1.0, desc="Control scale factor")
+    scale = traits.Array(value=[1.0, 1.0, 1.0], desc="Control scale factor")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
 
@@ -99,9 +99,9 @@ class ManualControlMixin(traits.HasTraits):
             [self.offset[0], self.offset[1], self.offset[2], 1]]
         )
         scale = np.array(
-            [[self.scale, 0, 0, 0], 
-            [0, self.scale, 0, 0], 
-            [0, 0, self.scale, 0], 
+            [[self.scale[0], 0, 0, 0], 
+            [0, self.scale[1], 0, 0], 
+            [0, 0, self.scale[2], 0], 
             [0, 0, 0, 1]]
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
@@ -133,7 +133,7 @@ class ManualControlMixin(traits.HasTraits):
 
         # Get raw input and save it as task data
  
-        raw_coords = np.multiply(self._get_manual_position(),[2,1,2.5]) # array of [3x1] arrays
+        raw_coords = np.multiply(self._get_manual_position(),[2,1.6,0]) # array of [3x1] arrays
 
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
