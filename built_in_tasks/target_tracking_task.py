@@ -62,9 +62,9 @@ class TargetTracking(Sequence):
         super().init()
 
     def _parse_next_trial(self):
-        '''Check that the generator has the required data'''
+        '''Get the required data from the generator'''
         self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial
-        #self.targs = np.concatenate((np.zeros(30),np.squeeze(self.targs,axis=0),np.zeros(60)))
+        
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
 
@@ -84,6 +84,7 @@ class TargetTracking(Sequence):
         # number of times this sequence of targets has been attempted
         self.tries = 0
 
+        #saved plant poitions
         self.plant_position = []
 
         # number of targets to be acquired in this trial
@@ -95,7 +96,6 @@ class TargetTracking(Sequence):
         self.frame_index = 0
         self.total_distance_error = 0
         self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
-        print("plant_pos: ",self.plant_position[-1])
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
@@ -103,12 +103,10 @@ class TargetTracking(Sequence):
         
         # Add Disturbance
         self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
-        print("plant_pos: ",self.plant_position[-1])
         self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2],
         self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
-        
 
-        # Move Target to next frame so it appears to be moving
+        # Move Target and trajectory to next frame so it appears to be moving
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
@@ -117,14 +115,14 @@ class TargetTracking(Sequence):
     
     def update_frame(self):
         self.trajectory[self.target_index].move_to_position(np.array([-self.frame_index/3,0,0]))
-        if self.frame_index >= 30:
+        if self.frame_index >= 30: #Offset tracker to move in sync with trajectory
             self.target.move_to_position(np.array([0,0,self.targs[self.frame_index-30][2]]))
         self.trajectory[self.target_index].show()
         self.target.show()
         self.frame_index +=1
 
     def _end_target(self):
-       
+        '''Nothing generic to do.'''
         pass
 
     def _while_reward(self):
@@ -133,7 +131,7 @@ class TargetTracking(Sequence):
 
     def _end_reward(self):
         '''Nothing generic to do.'''
-    pass
+        pass
     
     def _start_timeout_penalty(self):
         '''Nothing generic to do.'''
@@ -151,8 +149,8 @@ class TargetTracking(Sequence):
         '''
         Test if the current state is successful and should transition to reward state.
         In order to be successful it needs to be the end of the trial and the total 
-        distance error must be less than 2 cm on average of the whole trial.
-        This means the center of the cursor was on average within 2cm of the center of the target.
+        distance error must be less than max_distance_error cm on average of the whole trial.
+        This means the center of the cursor was on average within max_distance_error cm of the center of the target.
         '''
         return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
 
@@ -160,7 +158,7 @@ class TargetTracking(Sequence):
         '''
         This test if the trial has finshed unsuccessfully and should transition to the wait state
         _test_success() is called before this test function and so if the trial is over, but successful
-        it would transition to reward otherwise it will transition to the wait state here.
+        it would transition to reward otherwise it will transition to the penalty state.
         '''
         return  self.trial_timed_out or self.pause
 
@@ -186,7 +184,7 @@ class TargetTracking(Sequence):
     
     def test_in_target(self):
         '''
-        return true if the distance between center of cursor and target is smaller than the cursor radius
+        return the distance between center of cursor and cednter of the target
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.target.get_position())
@@ -197,10 +195,6 @@ class TargetTracking(Sequence):
         return d
     
     def add_disturbance(self, current_position, current_velocity, disturbance, prev_disturbance):
-        #print("current pos:     ",current_position)
-        #print("current verl:    ",current_velocity)
-        #print("disturbance:     ",[0,0,disturbance])
-        #print("prv disturbance: ",[0,0,prev_disturbance])
         return  current_position + current_velocity + [0,0,(disturbance - prev_disturbance)]
 
 
@@ -251,19 +245,23 @@ class ScreenTargetTracking(TargetTracking, Window):
                 self.add_model(model)
 
         # Instantiate the targets
-        
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
             tmp_generator = []
             self.trajectory = []
+            # This is the target at the center being followed by the user
             self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
             
+            #This generates the trajectory cables for all trials that will be used to give feedforward/look ahead time for the user
             for trials  in self.gen:
                 mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(trials[1])[:,2]),np.zeros(30)))
                 self.trajectory.append(VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory))
                 tmp_generator.append(trials)
             self.gen = (x for x in tmp_generator)
+            
+            #A cable trajectory that is just flat to have inbetween trials 
             self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(120))
+        
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
             self.add_dtype(*attr)
@@ -279,7 +277,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        if self.disturbance_trial:
+        if self.disturbance_trial: #If disturbance trial use disturbed position
             self.move_effector(self.disturbance_position)
         else:
             self.move_effector()
@@ -296,6 +294,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
         
+        #Save the target position at each cycle. 
         if np.shape(self.targs)[0] == self.frame_index:
              self.task_data['current_trajectory_coord'] = self.targs[-1]
         else:
@@ -374,7 +373,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
-
+        '''
+        Generates the trajectories for the experiment
+        '''
         t = times
         t = np.asarray(t).copy(); t.shape = (t.size,1)
 
@@ -396,7 +397,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     @staticmethod
     def calc_sum_of_sines_ramp(times, ramp, frequencies, amplitudes, phase_shifts):
-
+            '''
+            Adds a 1/t ramp up and ramp down at the start and end so the trajectories start and end at zero.
+            '''
             t = times
             t = np.asarray(t).copy(); t.shape = (t.size,1)
 
@@ -410,7 +413,10 @@ class ScreenTargetTracking(TargetTracking, Window):
             return _
 
     @staticmethod
-    def generate_trajectory(primes,base_period, ramp = .5):
+    def generate_trajectory(primes, base_period, ramp = .5):
+        '''
+        Sets up variables and uses prime numbers to call the above functions and generate then trajectories
+        '''
         hz = 60 # Hz -- sampling rate
         dt = 1/hz # sec -- sampling period
 
@@ -500,6 +506,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         ntrials : int
             The number trials in a block
         time_length : int
+        frequencies: numpy.ndarray
+            A list of frequencies used to generate the trajectories
         boundaries: 4 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
