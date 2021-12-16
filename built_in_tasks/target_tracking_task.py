@@ -480,7 +480,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
                 trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
-                if True:#np.any(idx == disturbance_trials):
+                if False:#np.any(idx == disturbance_trials):
                     disterb = ScreenTargetTracking.generate_trajectory(disturbance_freq,time_length,0.75)
                     disturbance_path = 5*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disturbance = True
@@ -489,9 +489,9 @@ class ScreenTargetTracking(TargetTracking, Window):
                 idx += 1
     
     @staticmethod
-    def tracking_target_chain_2D(nblocks=1, ntrials=2, time_length = 5, boundaries=(-10,10,-10,10)):
+    def tracking_target_training(nblocks=1, ntrials=2, time_length = 5, frequencies = np.array([1]),boundaries=(-10,10,-10,10)):
         '''
-        Generates a sequence of 2D (x and z axis) target trajectories
+        Generates a sequence of 1D (z axis) target trajectories for training
 
         Parameters
         ----------
@@ -508,17 +508,20 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        x_primes_freq = np.array([2, 5, 11, 17, 23, 31, 41])
-        y_primes_freq = np.array([3, 7, 13, 19, 29, 37, 43])
+        buffer_space = int(60*1.5) #1.5 seconds of straight line before and after trial
+        frames = int(np.round(time_length*60))
+        y_primes_freq = frequencies
+
         for i in range(nblocks):
             for j in range(ntrials):
-                trajectory = np.zeros((time_length*60,3))
-                sum_of_sins_pathx = ScreenTargetTracking.generate_trajectory(x_primes_freq)
-                sum_of_sins_pathy = ScreenTargetTracking.generate_trajectory(y_primes_freq)
-                rand_start_index = np.random.randint(0,np.shape(sum_of_sins_pathy)[0]-(time_length*60))
+                
+                disturbance = False
+                disturbance_path = np.zeros((frames+2*buffer_space,1))
+                trajectory = np.zeros((frames+2*buffer_space,3))
+                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
-                trajectory[:,0] = 4*sum_of_sins_pathx[rand_start_index:rand_start_index+time_length*60]
-                trajectory[:,2] = 4*sum_of_sins_pathy[rand_start_index:rand_start_index+time_length*60]
+                trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
                 pts.append(trajectory)
-                yield idx, pts
+                yield idx, pts, disturbance, disturbance_path
                 idx += 1
+
