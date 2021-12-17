@@ -46,7 +46,7 @@ class TargetTracking(Sequence):
     frame_index = 0 # index in the frame in a trial
     total_distance_error = 0 # Euclidian distance between cursor and target during each trial
     tries = 0 # Helper variable to keep track of the number of failed attempts at a given trial.
-    trial_timed_out = False # check if the trial is finished
+    trial_timed_out = True # check if the trial is finished
     sequence_generators = []
     plant_position = []
     disturbance_trial = False
@@ -238,7 +238,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
-
+        
         # Add graphics models for the plant and targets to the window
         if hasattr(self.plant, 'graphics_models'):
             for model in self.plant.graphics_models:
@@ -257,6 +257,8 @@ class ScreenTargetTracking(TargetTracking, Window):
                 mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(trials[1])[:,2]),np.zeros(30)))
                 self.trajectory.append(VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory))
                 tmp_generator.append(trials)
+            self.trial_length = np.shape(np.array(np.squeeze(tmp_generator[0][1])[:,2]))[0]
+            
             self.gen = (x for x in tmp_generator)
             
             #A cable trajectory that is just flat to have inbetween trials 
@@ -269,7 +271,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
-        self.add_dtype('current_trajectory_coord', '?', (3,))
+        self.add_dtype('current_trajectory_coord', 'f8', (3,))
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
@@ -295,8 +297,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.task_data['trial'] = self.calc_trial_num()
         
         #Save the target position at each cycle. 
-        if np.shape(self.targs)[0] == self.frame_index:
-             self.task_data['current_trajectory_coord'] = self.targs[-1]
+        if self.trial_timed_out or  self.trial_length == self.frame_index:
+             self.task_data['current_trajectory_coord'] = [0,0,0]
         else:
             self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
 
