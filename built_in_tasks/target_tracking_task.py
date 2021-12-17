@@ -95,14 +95,16 @@ class TargetTracking(Sequence):
         self.trial_timed_out = False
         self.frame_index = 0
         self.total_distance_error = 0
-        self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
+        self.plant_position.append(np.array(self._get_manual_position()))
+        #self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
         self.total_distance_error += self.test_in_target() 
         
         # Add Disturbance
-        self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
+        self.plant_position.append(np.array(self._get_manual_position()))
+        #self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
         self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2],
         self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
 
@@ -217,7 +219,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     # Runtime settable traits
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     trajectory_radius = traits.Float(.25, desc="Radius of targets in cm")
-    trajectory_color = traits.OptionsList("gold", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
+    trajectory_color = traits.OptionsList("gold", *target_colors, desc="Color of the trajectory", bmi3d_input_options=list(target_colors.keys()))
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
