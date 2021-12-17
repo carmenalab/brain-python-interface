@@ -96,7 +96,7 @@ class TargetTracking(Sequence):
         self.frame_index = 0
         self.total_distance_error = 0
         self.plant_position.append(np.array(self._get_manual_position()))
-        #self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
+        
 
     def _while_target(self):
         # Calculate and sum distance between center of cursor and current target position
@@ -104,9 +104,9 @@ class TargetTracking(Sequence):
         
         # Add Disturbance
         self.plant_position.append(np.array(self._get_manual_position()))
-        #self.plant_position.append(np.array([0,self.plant.get_endpoint_pos()[2],0]))
-        self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2],
-        self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
+        if self._get_manual_position() is not None:
+            self.disturbance_position = self.add_disturbance(self.plant_position[-1], self.plant_position[-1]-self.plant_position[-2],
+            self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
 
         # Move Target and trajectory to next frame so it appears to be moving
         self.update_frame()
@@ -281,7 +281,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        if self.disturbance_trial: #If disturbance trial use disturbed position
+        if self.disturbance_trial and self._get_manual_position() is not None: #If disturbance trial use disturbed position
             self.move_effector(self.disturbance_position)
         else:
             self.move_effector()
@@ -490,7 +490,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
                 trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
-                if False:#np.any(idx == disturbance_trials):
+                if np.any(idx == disturbance_trials):
                     disterb = ScreenTargetTracking.generate_trajectory(disturbance_freq,time_length,0.75)
                     disturbance_path = 5*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disturbance = True
