@@ -92,9 +92,9 @@ class Cable(TriMesh):
         theta = np.linspace(0, 2*np.pi, self.segments, endpoint=False)
         unit = np.array([np.ones(self.segments),np.cos(theta) ,np.sin(theta)]).T
         intial = np.array([[0,0,self.trial_trajectory[x]] for x in range(len(self.trial_trajectory))])
-        self.pts = (unit*[-30/1.36,self.radius,self.radius]) + intial[0]
+        self.pts = (unit*[-30/1.36,self.radius,self.radius])+intial[0]
         for i in range(1,len(intial)):
-            self.pts = np.vstack([self.pts, (unit*[(i-30)/3,self.radius,self.radius]+intial[i])])
+            self.pts = np.vstack([self.pts, (unit*[(i-30)/3,self.radius,self.radius])+intial[i]])
 
         self.normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
         self.polys = []

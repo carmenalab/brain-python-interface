@@ -56,7 +56,7 @@ class TargetTracking(Sequence):
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     penalty_time = traits.Float(.5, desc="Length of penalty")
     max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
-
+    
     def init(self):
         self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance_path', 'f8',(3,)), ('is_disturbance', '?')])
         super().init()
@@ -89,7 +89,6 @@ class TargetTracking(Sequence):
 
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
-
     def _start_target(self):
         self.target_index += 1
         self.trial_timed_out = False
@@ -171,7 +170,7 @@ class TargetTracking(Sequence):
         return time_in_state > self.reward_time
     
     def _test_timeout_penalty_end(self, time_in_state):
-        '''
+        '''  
         Test the penalty state has ended.
         '''
         return time_in_state > self.penalty_time
