@@ -105,8 +105,9 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             laser = self.lasers[idx]
             edges = self.laser_edges[idx]
-            # TODO set laser power
+            # set laser power
             power = self.laser_powers[idx]
+            laser.set_power(power)
             # Trigger digital wave
             wave = DigitalWave(laser, mask=1<<laser.port)
             wave.set_edges(edges, True)

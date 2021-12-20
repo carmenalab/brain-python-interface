@@ -2,6 +2,7 @@
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
 '''
+from features.laser_features import QwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
@@ -50,6 +51,7 @@ built_in_features = dict(
     relay_plexbyte=RelayPlexByte,
     blackrockbmi        = BlackrockBMI,
     relay_blackrockbyte = RelayBlackrockByte,
+    qwalor_laser = QwalorLaser,
 )
 
 # >>> features.built_in_features['autostart'].__module__
