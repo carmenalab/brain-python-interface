@@ -36,7 +36,7 @@ class QwalorLaser(traits.HasTraits):
         super().__init__(*args, **kwargs)
 
     def init(self, *args, **kwargs):
-        laser = QwalorLaserSerial('/dev/ttyUSB0', self.qwalor_channel, '/dev/ttyACM1', self.qwalor_trigger_pin)
+        laser = QwalorLaserSerial(self.qwalor_channel, '/dev/ttyACM1', self.qwalor_trigger_pin)
         laser.port = self.qwalor_trigger_pin
         laser.name = 'qwalor_laser'
         self.lasers.append(laser)
