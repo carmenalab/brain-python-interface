@@ -30,6 +30,9 @@ class QwalorLaser(traits.HasTraits):
     # laser_serial_port = traits.Str(desc="Serial port used to communicate with arduino")
     qwalor_trigger_pin = traits.Int(12, desc="Pin number for laser trigger")
     qwalor_channel = traits.Int(1, desc="Laser channel (1-red, 2-blue, 3-green, 4-blue)")
+    qwalor_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser power")
+
+    hidden_traits = ['qwalor_sensor_ach']
 
     def __init__(self, *args, **kwargs):
         self.lasers = []
