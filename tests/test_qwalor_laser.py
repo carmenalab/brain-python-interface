@@ -12,18 +12,18 @@ import unittest
 # Arduino setting
 LED_pin = 13
 pin = 12
-port_arduino = "/dev/ttyACM1"
+port_arduino = "/dev/crystalaser"
 
 # laser setting
 channel = 1
 mode = 'off'
 freq = 0
-gain = 0.3
+gain = 0.5
 b_rate = 115200
 port_laser = '/dev/ttyUSB0'
 
 # pulse_width_list = [0.00001, 0.00002, 0.00003, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.001, 0.002, 0.003, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 1]
-pulse_width_list = [0.1, 0.5]
+pulse_width_list = [0.5, 1]
 
 class LaserTests(unittest.TestCase):
 

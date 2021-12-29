@@ -39,8 +39,28 @@ class QwalorLaser(traits.HasTraits):
         super().__init__(*args, **kwargs)
 
     def init(self, *args, **kwargs):
-        laser = QwalorLaserSerial(self.qwalor_channel, '/dev/ttyACM1', self.qwalor_trigger_pin)
-        laser.port = self.qwalor_trigger_pin
-        laser.name = 'qwalor_laser'
-        self.lasers.append(laser)
+
+        # Attempt to open the laser connection, but fail gracefully if it is unavailable
+        try:
+            laser = QwalorLaserSerial(self.qwalor_channel, '/dev/crystalaser', self.qwalor_trigger_pin)
+            self.qwalor_laser_status = 'ok'
+            
+            # Add the laser to the list of available lasers
+            laser.port = self.qwalor_trigger_pin
+            laser.name = 'qwalor_laser'
+            self.lasers.append(laser)
+
+        except Exception as e:
+            self.qwalor_laser_status = 'Couldn\'t connect to laser modulator, make it is turned on!'
+            
         super().init(*args, **kwargs)
+
+    def run(self):
+        if not self.qwalor_laser_status == 'ok':
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write(self.qwalor_laser_status)
+            self.termination_err.seek(0)
+            self.state = None
+        super().run()
