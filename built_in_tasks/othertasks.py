@@ -55,7 +55,7 @@ class Conditions(Sequence):
     def gen_conditions(nreps, *args, ascend=True):
         ''' Generate a sequential sequence of all combinations of the given arguments'''
         unique = list(itertools.product(*args))
-        conds = np.tile(range(len(unique)), nreps)
+        conds = np.tile(range(len(unique)), (nreps, 1)).T.flatten()
         if not ascend: # descending
             conds = np.flipud(conds)
         seq = [[i % len(unique)] + list(unique[i % len(unique)]) for i in conds] # list of [index, arg1, arg2, ..., argn]

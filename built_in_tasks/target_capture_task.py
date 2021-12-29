@@ -536,7 +536,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             rng.shuffle(order)
             for t in range(ntargets):
                 idx = order[t]
-                theta = 2*np.pi*idx/ntargets
+                theta = 2*np.pi*(3-idx)/ntargets # put idx 1 at 12 o'clock
                 pos = np.array([
                     distance*np.cos(theta),
                     0,
