@@ -33,6 +33,7 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
+    channel_mapping_file = traits.Str("", desc="Name of channel mapping excel file")
     ecube_status = "Not initialized"
 
     def cleanup(self, database, saveid, **kwargs):
