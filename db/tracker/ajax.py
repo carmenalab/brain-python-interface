@@ -12,7 +12,7 @@ from django.db.models import ProtectedError
 
 from riglib import experiment
 from .json_param import Parameters
-from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder, KeyValueStore, import_by_path
+from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, Experimenter, DataFile, System, Decoder, KeyValueStore, import_by_path
 from .tasktrack import Track
 
 import logging
@@ -118,15 +118,7 @@ def task_info(request, idx, dbname='default'):
     templates = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
     template_info = [{'id': t.id, 'name': t.entry_name} for t in templates]
 
-    subject = {
-        'type': 'Enum',
-        'required': True,
-        'default': '',
-        'desc': 'Who',
-        'hidden': 'visible',
-        'options':  Subject.get_all_subjects()
-    }
-    metadata = {'subject': subject}
+    metadata = TaskEntry.get_default_metadata()
 
     task_info = dict(params=task.params(feats=feats), generators=task.get_generators(), \
         templates=template_info, metadata=metadata)
@@ -157,7 +149,7 @@ def exp_info(request, idx, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     try:
         entry_data = entry.to_json()
-    except:
+    except Exception as e:
         print("##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname))
         import traceback
         exception = traceback.format_exc()
@@ -285,8 +277,13 @@ def start_experiment(request, save=True, execute=True):
         feature_names = list(data['feats'].keys())
         subject_name = data['metadata'].pop('subject')
         subject = Subject.objects.get(name=subject_name)
+        experimenter_name = data['metadata'].pop('experimenter')
+        experimenter = Experimenter.objects.get(name=experimenter_name)
+        project = data['metadata'].pop('project')
+        session = data['metadata'].pop('session')
 
-        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id)
+        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id, experimenter_id=experimenter.id,
+            project=project, session=session)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
         if 'date' in data and data['date'] != "Today" and len(data['date'].split("-")) == 3:
@@ -532,6 +529,23 @@ def remove_subject(request):
         return _respond(dict(msg="Removed subject", status="success"))
     except ProtectedError:
         return _respond(dict(msg="Couldn't remove subject, there must be valid experiments that use it", status="error"))
+
+@csrf_exempt
+def add_new_experimenter(request):
+    exp_name = request.POST['experimenter_name']
+    exp = Experimenter(name=exp_name)
+    exp.save()
+
+    return _respond(dict(msg="Added new experimenter: %s" % exp.name, status="success", data=dict(id=exp.id, name=exp.name)))
+
+@csrf_exempt
+def remove_experimenter(request):
+    id = request.POST.get('id')
+    try:
+        Experimenter.objects.filter(id=id).delete()
+        return _respond(dict(msg="Removed experimenter", status="success"))
+    except ProtectedError:
+        return 
 
 @csrf_exempt
 def add_new_system(request):

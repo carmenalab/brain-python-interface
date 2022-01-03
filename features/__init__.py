@@ -2,10 +2,11 @@
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
 '''
+from features.laser_features import QwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
-from .reward_features import RewardSystem, TTLReward, JuiceLogging
+from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward
 from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
 from .optitrack_features import Optitrack
@@ -22,7 +23,8 @@ built_in_features = dict(
     keyboard=KeyboardControl,
     mouse=MouseControl,
     optitrack=Optitrack,
-    reward_system=RewardSystem,
+    reward_system=RewardSystem, 
+    pellet_reward=PelletReward,
     saveHDF=SaveHDF,
     autostart=Autostart,
     window2D=Window2D,
@@ -52,6 +54,7 @@ built_in_features = dict(
     relay_blackrockbyte = RelayBlackrockByte,
     ecube_playback_bmi = EcubeFileBMI,
     ecube_bmi = EcubeBMI,
+    qwalor_laser = QwalorLaser,
 )
 
 # >>> features.built_in_features['autostart'].__module__

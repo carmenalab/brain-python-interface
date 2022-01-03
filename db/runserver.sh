@@ -7,6 +7,10 @@ if [ "$HOST" = "pagaiisland2" ]; then
 elif [ "$HOST" = "peco" ]; then
     export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
     export LIBGL_ALWAYS_INDIRECT=0
+elif [ "$HOST" = "pagaiisland-surface" ]; then
+    export DISPLAY=localhost:0
+    export LIBGL_ALWAYS_INDIRECT=0
+    echo "success"
 fi
 
 # Find the BMI3D directory

@@ -570,7 +570,7 @@ TaskEntry.prototype.toggle_template = function() {
 
 /* callback for 'Copy Parameters' button.
  */
-TaskEntry.prototype.copy = function() {
+TaskEntry.prototype.copy = function(reset_metadata=true) {
     debug("TaskEntry.copy")
 
     // reset the task entry row
@@ -600,8 +600,11 @@ TaskEntry.prototype.copy = function() {
     this.notes.destroy();      // clear the notes
     this.report.hide();        // turn off the report pane
 
-    // update the task info, but leave the parameters alone
-    this._task_query(function(){}, false, true);
+    // update the task info
+    this._task_query(function(){}, false, false);
+    if (reset_metadata) {
+        this.metadata.reset();
+    }
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 
@@ -884,10 +887,10 @@ TaskEntry.prototype.link_new_files = function() {
 //
 function Metadata() {
     $("#metadata_table").html("")
-    var params = new Parameters();
+    var params = new Parameters(editable=true);
     this.params = params;
     $("#metadata_table").append(this.params.obj);
-    var add_new_row = $('<input id="paramadd" type="button" value="+"/>');
+    var add_new_row = $('<input class="paramadd" type="button" value="+"/>');
     add_new_row.on("click", function() {params.add_row();});
     this.add_new_row = add_new_row;
     $("#metadata_table").append(add_new_row);
@@ -906,6 +909,10 @@ Metadata.prototype.disable = function() {
 Metadata.prototype.get_data = function () {
     var data = this.params.to_json();
     return data;
+}
+Metadata.prototype.reset = function () {
+    // clear the metadata values but leave the fields alone
+    this.params.clear_all();
 }
 
 //
