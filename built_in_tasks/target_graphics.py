@@ -38,6 +38,7 @@ target_colors = {
     "hotpink":(1,0.0,0.606,.75),
     "gold": (0.941,0.637,0.25,0.75),
     "elephant":(0.5,0.5,0.5,0.5),
+    "white": (1, 1, 1, 0.75),
 }
 
 class CircularTarget(object): 
