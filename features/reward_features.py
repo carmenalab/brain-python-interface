@@ -188,6 +188,9 @@ class PenaltyAudioMulti(traits.HasTraits):
         self.reach_penalty_player.play()
 
 class HoldCompleteRewards(traits.HasTraits):
+    '''
+    Trigger an extra reward (duration set by hold_reward_time) after successful holds
+    '''
 
     hold_reward_time = traits.Float(0.05)
 
@@ -197,6 +200,21 @@ class HoldCompleteRewards(traits.HasTraits):
 
             # We just finished a hold/delay and there are more targets
             self.reward.async_drain(self.hold_reward_time)
+
+class JackpotRewards(traits.HasTraits):
+    '''
+    Every trials_for_jackpot trials, double reward is administered
+    '''
+
+    trials_for_jackpot = traits.Int(5, desc="How many successful trials before a jackpot is delivered")
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_for_jackpot == 0:
+            return ts > 2*self.reward_time
+        elif self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
