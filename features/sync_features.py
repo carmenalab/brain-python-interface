@@ -207,7 +207,7 @@ class ScreenSync(NIDAQSync):
             self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
         else:
             from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(self.screen_cm, self.sync_size))
-            pos = np.array([from_center[0]/2, self.screen_dist, from_center[1]/2])
+            pos = np.array([from_center[0]/2, 1-self.screen_dist, from_center[1]/2])
             self.sync_square = VirtualRectangularTarget(target_width=self.sync_size, target_height=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             # self.sync_square = VirtualCircularTarget(target_radius=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             for model in self.sync_square.graphics_models:
