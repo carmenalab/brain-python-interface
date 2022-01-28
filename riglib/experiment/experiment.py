@@ -585,7 +585,7 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
             
             # Create an empty task database if there isn't one already (may be empty if there was no task data)
             if not hasattr(h5file.root, "task"):
-                h5file.create_table("/", "task", 0., 'Nothing to see here')
+                h5file.create_table("/", "task", [('time', 'u8')])
 
             # Append to task data metadata
             for trait in traits:
