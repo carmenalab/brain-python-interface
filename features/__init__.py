@@ -4,7 +4,7 @@ task/experiment by multiple inheritance.
 '''
 from features.laser_features import QwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
-from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
+from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
 from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward, JackpotRewards
 from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
@@ -27,6 +27,7 @@ built_in_features = dict(
     pellet_reward=PelletReward,
     saveHDF=SaveHDF,
     autostart=Autostart,
+    poisson_wait=PoissonWait,
     window2D=Window2D,
     adaptive_generator=AdaptiveGenerator,
     button=Button,
