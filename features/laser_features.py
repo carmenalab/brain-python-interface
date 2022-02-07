@@ -43,6 +43,8 @@ class QwalorLaser(traits.HasTraits):
         # Attempt to open the laser connection, but fail gracefully if it is unavailable
         try:
             laser = QwalorLaserSerial(self.qwalor_channel, '/dev/crystalaser', self.qwalor_trigger_pin)
+            laser.set_mode('off')
+            laser.set_freq(0)
             self.qwalor_laser_status = 'ok'
             
             # Add the laser to the list of available lasers
