@@ -5,7 +5,7 @@ import json
 USERNAME = 'python'
 PASSWORD = 'python'
 WATCHTOWERURL = 'https://localhost:4343'
-CAMERA_SID_LIST = ['e3v822d','e3v821f','e3v821b']
+CAMERA_SID_LIST = ['e3v822d','e3v821f']#,'e3v821b']
 IFACE = ''
 CONFIG = '480p15'
 CODEC = 'H264'
@@ -30,9 +30,9 @@ class E3VisionInterface(object):
     def __init__(self,session_dict={}): #TODO: fit this into BMI3D
         self.username = USERNAME
         self.password = PASSWORD
-        self.wt_url = WATCHTOWERURL
+        self.watchtowerurl = WATCHTOWERURL
         self.camera_sid_list = CAMERA_SID_LIST
-        self.create_session_subdir(session_dict)
+        self._create_session_subdir(session_dict)
         self.iface = IFACE
         self.config = CONFIG
         self.codec = CODEC
@@ -41,9 +41,8 @@ class E3VisionInterface(object):
         urllib3.disable_warnings(
             urllib3.exceptions.InsecureRequestWarning
         )
-        self.apitoken = self.get_api_token()
-        self.bind_cameras()
-        self.connect_cameras()
+        self.apitoken = self.api_login()
+        # self.configure_cameras()
 
     def _create_session_subdir(self,session_dict): #TODO: Make this real
         """_create_session_subdir
@@ -72,12 +71,17 @@ class E3VisionInterface(object):
         for k, v in kwargs.items():
             data_key = k + '[]' if isinstance(v,list) else k
             data[data_key] = v
-        data['apitoken'] = self.apitoken
-        return requests.post(
+        if hasattr(self,'apitoken'):
+            data['apitoken'] = self.apitoken
+        # print(data)
+        r = requests.post(
             api_call,
             data = data,
             verify = False,
         )
+        # print(r)
+        # print(r.text)
+        return r
 
     def api_login(self):
         """get_api_token
@@ -90,7 +94,8 @@ class E3VisionInterface(object):
         r = self.api_request(
             '/api/login',
             username=self.username,
-            password=self.password)
+            password=self.password,
+        )
         j = json.loads(r.text)
         return j['apitoken']
 
@@ -165,7 +170,7 @@ class E3VisionInterface(object):
             cs (str): Camera serial ID number.
         """
         self.api_request(
-            'api/cameras/action',
+            '/api/cameras/action',
             Serial=cs,
             Action='CONNECT',
             Iface='',
