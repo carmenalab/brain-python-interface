@@ -1,11 +1,11 @@
-import requests
+import requests as re
 import urllib3
 import json
 
 USERNAME = 'python'
 PASSWORD = 'python'
 WATCHTOWERURL = 'https://localhost:4343'
-CAMERA_SID_LIST = ['e3v822d','e3v821f']#,'e3v821b']
+# CAMERA_SID_LIST = ['e3v822d','e3v821f']#,'e3v821b']
 IFACE = ''
 CONFIG = '480p15'
 CODEC = 'H264'
@@ -31,7 +31,7 @@ class E3VisionInterface(object):
         self.username = USERNAME
         self.password = PASSWORD
         self.watchtowerurl = WATCHTOWERURL
-        self.camera_sid_list = CAMERA_SID_LIST
+        # self.camera_sid_list = CAMERA_SID_LIST
         self._create_session_subdir(session_dict)
         self.iface = IFACE
         self.config = CONFIG
@@ -54,17 +54,17 @@ class E3VisionInterface(object):
         """
         self.subdir = 'asdf'
 
-    def api_request(self,api_call_str,**kwargs): #TODO: This is completely bare. Put some exception handling on this vis a vis HTTP code (401, 404, etc)
-        """api_request
+    def api_post(self,api_call_str,**kwargs): #TODO: This is completely bare. Put some exception handling on this vis a vis HTTP code (401, 404, etc)
+        """api_post
 
-        Wrapper method for all e3Vision Watchtower HTTP RESTful API requests.
+        Wrapper method for all e3Vision Watchtower API POST re.
 
         Args:
             api_call_str (str): HTTP API request string. Defines request type. Examples: '/api/login', '/api/cameras/action'
-            **kwargs: keyword and value pairs populating request data dict
+            **kwargs: keyword and value pairs populating request data dict.
 
         Returns:
-            r (request.Request): API call return in request.Request format.
+            r (request.Request): API call return in re.Request format.
         """
         api_call = self.watchtowerurl + api_call_str
         data = {}
@@ -74,13 +74,40 @@ class E3VisionInterface(object):
         if hasattr(self,'apitoken'):
             data['apitoken'] = self.apitoken
         # print(data)
-        r = requests.post(
+        r = re.post(
             api_call,
             data = data,
             verify = False,
         )
         # print(r)
         # print(r.text)
+        return r
+
+    def api_get(self,api_call_str,**kwargs):
+        """api_get
+        
+        Wrapper method for all e3Vision Watchtower API GET requests.
+
+        Args:
+            api_call_str (str): HTTP API request string.
+            **kwargs: keyword and value pairs populating request param dict.
+
+        Returns:
+            r (request.Request): API call return.
+
+        """
+        api_call = self.watchtowerurl + api_call_str
+        params = {}
+        for k, v in kwargs.items():
+            param_key = k + '[]' if isinstance(v,list) else k
+            params[param_key] = v
+        if hasattr(self,'apitoken'):
+            params['apitoken'] = self.apitoken
+        r = re.post(
+            api_call,
+            params=params,
+            verify=False
+        )
         return r
 
     def api_login(self):
@@ -91,7 +118,7 @@ class E3VisionInterface(object):
         Returns:
             apitoken (str): auth token for the current session. 
         """
-        r = self.api_request(
+        r = self.api_post(
             '/api/login',
             username=self.username,
             password=self.password,
@@ -99,15 +126,31 @@ class E3VisionInterface(object):
         j = json.loads(r.text)
         return j['apitoken']
 
+    def update_camera_dict(self):
+        """update_camera_dict
+
+        Gets current camera list and updates self.camera_list
+        """
+        self.api_get(
+            '/api/cameras/scan'
+        )
+        r_cameras = self.api_get(
+            '/api/cameras'
+        )
+        self.camera_list = json.loads(r_cameras.text)
+        for cam in self.camera_list:
+            print(f"{cam['Id']}")
+
     def configure_cameras(self):
         """configure_cameras
 
         Binds, syncs and connects to all cameras in interface serial ID list using the desired configuration.
         """
-        for cs in self.camera_sid_list:
-            self._bind_camera(cs)
-            self._update_sync(cs)
-            self._connect_camera(cs)
+        for cam in self.camera_list:
+            id = cam['Id']
+            self._bind_camera(id)
+            self._update_sync(id)
+            self._connect_camera(id)
 
     def start_rec(self):
         """start_rec
@@ -115,9 +158,9 @@ class E3VisionInterface(object):
         Begin recording a video file to the session subdirectory. Records from all connected cameras simulataneously to separate files.
         File names have the following form: <global_dir>/<session_subdir>/[cameraname]-[starttime]-[endtime].[avi | mp4]
         """
-        self.api_request(
+        self.api_post(
             '/api/cameras/action',
-            SerialGroup=self.camera_sid_list,
+            IdGroup=[cam['Id'] for cam in self.camera_list],
             Action='RECORDGROUP',
             AdditionalPath=self.subdir,
         )
@@ -127,51 +170,51 @@ class E3VisionInterface(object):
 
         Stop all current video file recordings.
         """
-        self.api_request(
+        self.api_post(
             '/api/cameras/action',
-            SerialGroup=self.camera_sid_list,
+            IdGroup=[cam['Id'] for cam in self.camera_list],
             Action='STOPRECORDGROUP',
         )
 
-    def _bind_camera(self,cs):
+    def _bind_camera(self,cid):
         """_bind_camera
 
         Binds the camera with serial ID cs. This establishes a secure authenticated session with the camera.
 
         Args:
-            cs (str): Camera serial ID number.
+            cid (str): Camera ID.
         """
-        self.api_request(
+        self.api_post(
             '/api/cameras/action',
-            Serial=cs,
+            Id=cid,
             Action='BIND',
         )
 
-    def _update_sync(self,cs):
+    def _update_sync(self,cid):
         """_update_sync
 
         Updates camera synchronization for camera with serial ID cs.
 
         Args:
-            cs (str): Camera serial ID number.
+            cid (str): Camera ID.
         """
-        self.api_request(
+        self.api_post(
             '/api/cameras/action',
-            Serial=cs,
+            Id=cid,
             Action='UPDATEMC',
         )
     
-    def _connect_camera(self,cs):
+    def _connect_camera(self,cid):
         """_connect_camera
 
         Connects to camera with serial ID cs according to the specified configuration.
 
         Args:
-            cs (str): Camera serial ID number.
+            cid (str): Camera serial ID number.
         """
-        self.api_request(
+        self.api_post(
             '/api/cameras/action',
-            Serial=cs,
+            Id=cid,
             Action='CONNECT',
             Iface='',
             Config=self.config,
