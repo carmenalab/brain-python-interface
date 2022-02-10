@@ -82,10 +82,10 @@ class QwalorLaserSerial:
     the 'off' mode, which can be used for TTL operation. Only need to set the power.
     '''
 
-    channel = 1
-    mode = 0
-    gain = 0
-    freq = 0
+    channel = 2
+    mode = 'off'
+    gain = 0.
+    freq = 0.
 
     def __init__(self, laser_channel, arduino_port, arduino_pin, laser_port='/dev/ttyUSB0', laser_baud_rate=115200):
         '''
