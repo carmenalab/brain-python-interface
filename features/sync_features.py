@@ -26,12 +26,12 @@ rig1_sync_events = dict(
 
 rig1_sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 8,
+        sync_protocol_version = 9,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
         event_sync_dict = rig1_sync_events,
-        event_sync_max_data = 0xf,
+        event_sync_max_data = 0xe,
         screen_sync_nidaq_pin = 8,
         screen_sync_dch = 24,
         screen_measure_dch = [5],
