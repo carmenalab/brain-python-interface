@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 from scipy.stats import poisson
 
-MAX_EDGES = 1000
+MAX_RECORD_EDGES = 32
 
 class Conditions(Sequence):
 
@@ -82,7 +82,7 @@ class LaserConditions(Conditions):
             ('index', 'u4'),
             ('laser', 'S32'),
             ('power', 'f8'),
-            ('edges', 'V', MAX_EDGES)
+            ('edges', 'f8', MAX_RECORD_EDGES),
             ])
         super(Conditions, self).init()
         if not (hasattr(self, 'lasers') and len(self.lasers) > 0):
@@ -99,7 +99,8 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             self.trial_record['laser'] = self.lasers[idx].name
             self.trial_record['power'] = self.laser_powers[idx]
-            self.trial_record['edges'] = np.array(self.laser_edges[idx]).tobytes()
+            record_laser_edges = self.laser_edges[idx][:MAX_RECORD_EDGES]
+            self.trial_record['edges'] = np.pad(record_laser_edges, (0, MAX_RECORD_EDGES - len(record_laser_edges)), constant_values=np.nan)
             self.sinks.send("trials", self.trial_record)
 
     def _start_trial(self):
