@@ -8,6 +8,7 @@ import time
 import os
 import math
 import traceback
+from scipy.spatial.transform import Rotation as R
 
 from riglib.experiment import traits
 
@@ -50,6 +51,7 @@ class ManualControlMixin(traits.HasTraits):
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
+    pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     scale = traits.Float(1.0, desc="Control scale factor")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
@@ -106,7 +108,8 @@ class ManualControlMixin(traits.HasTraits):
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
         new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
-        return new[0:3]
+        pertubation_rot = R.from_euler('z', self.pertubation_rotation, degrees=True)
+        return np.matmul(pertubation_rot.as_matrix(), new[0:3])
 
     def _get_manual_position(self):
         '''
