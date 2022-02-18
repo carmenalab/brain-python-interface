@@ -108,7 +108,7 @@ class ManualControlMixin(traits.HasTraits):
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
         new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
-        pertubation_rot = R.from_euler('z', self.pertubation_rotation, degrees=True)
+        pertubation_rot = R.from_euler('y', self.pertubation_rotation, degrees=True)
         return np.matmul(pertubation_rot.as_matrix(), new[0:3])
 
     def _get_manual_position(self):
