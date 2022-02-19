@@ -103,7 +103,7 @@ class E3VisionInterface(object):
             params[param_key] = v
         if hasattr(self,'apitoken'):
             params['apitoken'] = self.apitoken
-        r = re.post(
+        r = re.get(
             api_call,
             params=params,
             verify=False
