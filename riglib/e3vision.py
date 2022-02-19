@@ -17,14 +17,14 @@ class E3VisionInterface(object):
 
     White-Matter e3Vision camera system interface class.
 
-    Currently hard-coded to the aoLab booth camera setup.
+    Designed for the aoLab booth camera setup. Configure cameras in whitematter GUI before experiment.
 
     Example use:
 
     e3vi = E3VisionInterface()
-    e3vi.update_cameras()
-    e3vi.configure_cameras()
+    e3vi.update_camera_status()
     e3vi.start_rec()
+    ...
     e3vi.stop_rec()
 
     """
@@ -74,14 +74,12 @@ class E3VisionInterface(object):
             data[data_key] = v
         if hasattr(self,'apitoken'):
             data['apitoken'] = self.apitoken
-        # print(data)
         r = re.post(
             api_call,
             data = data,
             verify = False,
         )
-        # print(r)
-        # print(r.text)
+        r.raise_for_status()
         return r
 
     def api_get(self,api_call_str,**kwargs):
@@ -109,6 +107,7 @@ class E3VisionInterface(object):
             params=params,
             verify=False
         )
+        r.raise_for_status()
         return r
 
     def api_login(self):
@@ -127,8 +126,8 @@ class E3VisionInterface(object):
         j = json.loads(r.text)
         return j['apitoken']
 
-    def update_camera_dict(self):
-        """update_camera_dict
+    def update_camera_status(self):
+        """update_camera_status
 
         Gets current camera list and updates self.camera_list
         """
