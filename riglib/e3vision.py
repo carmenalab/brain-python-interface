@@ -22,6 +22,7 @@ class E3VisionInterface(object):
     Example use:
 
     e3vi = E3VisionInterface()
+    e3vi.update_cameras()
     e3vi.configure_cameras()
     e3vi.start_rec()
     e3vi.stop_rec()
