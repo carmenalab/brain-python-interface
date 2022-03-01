@@ -4,16 +4,17 @@ BMI tasks in the new structure, i.e. inheriting from manualcontrolmultitasks
 import numpy as np
 import pickle
 
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 
-from ..riglib.bmi import goal_calculators, ppfdecoder, feedback_controllers
-from ..riglib.bmi.bmi import BMILoop
-from ..riglib.bmi.assist import Assister, FeedbackControllerAssist
-from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
+from riglib.bmi import goal_calculators, ppfdecoder, feedback_controllers
+from riglib.bmi.bmi import BMILoop
+from riglib.bmi.assist import Assister, FeedbackControllerAssist
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
-from ..riglib.stereo_opengl.window import WindowDispl2D
+from riglib.stereo_opengl.window import WindowDispl2D
 from .target_capture_task import ScreenTargetCapture
-from ..features.bmi_task_features import LinearlyDecreasingAssist
+from features.bmi_task_features import LinearlyDecreasingAssist
+from .target_graphics import target_colors
 
 np.set_printoptions(suppress=False)
 
@@ -197,6 +198,8 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
 
     background = (.5,.5,.5,1) # Set the screen background color to grey
     reset = traits.Int(0, desc='reset the decoder state to the starting configuration')
+    cursor_color = traits.OptionsList("orange", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
+
 
     ordered_traits = ['session_length', 'assist_level', 'assist_level_time', 'reward_time','timeout_time','timeout_penalty_time']
     exclude_parent_traits = ['marker_count', 'marker_num', 'goal_cache_block']

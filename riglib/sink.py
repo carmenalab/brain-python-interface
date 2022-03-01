@@ -64,7 +64,7 @@ class SinkManager(singleton.Singleton):
         sink : DataSink
             Newly-created data sink
         '''
-        print(("sinkmanager start %s"%output))
+        # print(("sinkmanager start %s"%output))
         sink = DataSink(target_class=output, target_kwargs=kwargs, log_filename=log_filename)
         sink.start()
         self.registrations[sink] = set()

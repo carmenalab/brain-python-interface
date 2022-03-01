@@ -228,7 +228,7 @@ class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([0,0]))
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array(self.starting_pos[::2]))
 
 class Mouse():
     '''
@@ -243,18 +243,7 @@ class Mouse():
         self.pos[1] = start_pos[1]
 
     def get(self):
-
-        # Update position but keep mouse in center
-        pygame.event.set_grab(True)
-        rel = pygame.mouse.get_rel()
-        self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
-        self.pos[1] -= rel[1] / self.window_size[1] * self.screen_cm[1] # pygame counts (0,0) as the top left
-        if self.pos[0] < -self.screen_cm[0]:
-            self.pos[0] = -self.screen_cm[0]
-        elif self.pos[0] > self.screen_cm[0]:   
-            self.pos[0] = self.screen_cm[0]
-        if self.pos[1] < -self.screen_cm[1]:
-            self.pos[1] = -self.screen_cm[1]
-        elif self.pos[1] > self.screen_cm[1]:
-            self.pos[1] = self.screen_cm[1]
+        pos = pygame.mouse.get_pos()
+        self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
+        self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
         return [self.pos]

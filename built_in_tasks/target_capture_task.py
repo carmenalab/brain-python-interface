@@ -3,10 +3,12 @@ A generic target capture task
 '''
 import numpy as np
 
-from ..riglib.experiment import traits, Sequence
-from ..riglib import plants
 
-from ..riglib.stereo_opengl.window import Window
+from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
+from riglib.stereo_opengl import ik
+from riglib import plants
+
+from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 
 ## Plants
@@ -73,9 +75,6 @@ class TargetCapture(Sequence):
 
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
-
-        # Update the report stat on trials
-        self.reportstats['Trial #'] = self.calc_trial_num()
 
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
@@ -197,7 +196,7 @@ class TargetCapture(Sequence):
         return True
 
     def _test_timeout(self, time_in_state):
-        return time_in_state > self.timeout_time
+        return time_in_state > self.timeout_time or self.pause
 
     def _test_hold_complete(self, time_in_state):
         '''
@@ -250,7 +249,7 @@ class TargetCapture(Sequence):
 
     def _test_leave_target(self, time_in_state):
         '''This function is task-specific and not much can be done generically'''
-        return False
+        return self.pause
 
     def update_report_stats(self):
         '''
@@ -264,7 +263,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    limit2d = 1
+    limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
 
     sequence_generators = [
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
@@ -281,7 +280,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
+    cursor_color = traits.OptionsList("dark_purple", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
@@ -291,7 +290,6 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Initialize the plant
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
-        self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant.set_bounds(np.array(self.cursor_bounds))
         self.plant.set_color(target_colors[self.cursor_color])
         self.plant.set_cursor_radius(self.cursor_radius)
@@ -321,6 +319,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         super().init()
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
     def _cycle(self):
         '''
@@ -373,7 +372,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
-        return d <= (self.target_radius - self.cursor_radius)
+        return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(ts)
 
     def _test_leave_target(self, ts):
         '''
@@ -382,7 +381,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
         rad = self.target_radius - self.cursor_radius
-        return d > rad
+        return d > rad or super()._test_leave_target(ts)
 
     #### STATE FUNCTIONS ####
     def _start_wait(self):
@@ -475,6 +474,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
         self.sync_event('REWARD')
+        
     
     def _end_reward(self):
         super()._end_reward()
@@ -531,7 +531,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             rng.shuffle(order)
             for t in range(ntargets):
                 idx = order[t]
-                theta = 2*np.pi*idx/ntargets
+                theta = 2*np.pi*(3-idx)/ntargets # put idx 1 at 12 o'clock
                 pos = np.array([
                     distance*np.cos(theta),
                     0,
@@ -729,13 +729,13 @@ class ScreenReachAngle(ScreenTargetCapture):
         targets = np.array([
             [0, 0.5],
             [1, 0.5],
-            [0.5, 1],
             [1, 0],
             [0, 0],
             [0.25, 0.25],
             [0.75, 0.25],
             [0.25, 0.75],
             [0.75, 0.75],
+            [0.5, 1],
         ])
         rng = np.random.default_rng()
         for _ in range(nblocks):

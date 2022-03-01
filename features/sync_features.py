@@ -7,7 +7,7 @@ import numpy as np
 import tables
 import time
 
-rig1_sync_events_ver_4 = dict(
+rig1_sync_events = dict(
     EXP_START               = 0x1,
     TRIAL_START             = 0x2,
     TARGET_ON               = 0x10,
@@ -26,6 +26,23 @@ rig1_sync_events_ver_4 = dict(
     PAUSE                   = 0xfe,
     EXP_END                 = 0xff,    # For ease of implementation, the last event must be the highest possible value
 )
+
+rig1_sync_params = dict(
+        sync_protocol = 'rig1',
+        sync_protocol_version = 9,
+        sync_pulse_width = 0.003,
+        event_sync_nidaq_mask = 0xff,
+        event_sync_dch = range(16,24),
+        event_sync_dict = rig1_sync_events,
+        event_sync_max_data = 0xe,
+        screen_sync_nidaq_pin = 8,
+        screen_sync_dch = 24,
+        screen_measure_dch = [5],
+        screen_measure_ach = [5],
+        reward_measure_ach = [0],
+        right_eye_ach = [8, 9],
+        left_eye_ach = [10, 11],
+    )
 
 def encode_event(dictionary, event_name, event_data):
     value = int(dictionary[event_name] + event_data)
@@ -47,23 +64,9 @@ def decode_event(dictionary, value):
 
 class NIDAQSync(traits.HasTraits):
 
-    sync_params = dict(
-        sync_protocol = 'rig1',
-        sync_protocol_version = 4,
-        sync_pulse_width = 0.003,
-        event_sync_nidaq_mask = 0xff,
-        event_sync_dch = range(16,24),
-        event_sync_dict = rig1_sync_events_ver_4,
-        event_sync_max_data = 0xf,
-        screen_sync_nidaq_pin = 8,
-        screen_sync_dch = 24,
-        screen_measure_dch = [5],
-        screen_measure_ach = [5],
-        reward_measure_ach = [0],
-    )
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.sync_params = rig1_sync_params
         self.sync_gpio = NIGPIO()
         self.sync_every_cycle = True
 
@@ -181,7 +184,10 @@ class ScreenSync(NIDAQSync):
     sync_size = traits.Float(1, desc="Sync square size (cm)") 
     sync_color_off = traits.Tuple((0.,0.,0., 1.), desc="Sync off color (R,G,B,A)")
     sync_color_on = traits.Tuple((1.,1.,1., 1.), desc="Sync on color (R,G,B,A)")
-    sync_state_duration = 1 # How long to delay the start of the experiment (seconds)
+    sync_state_duration = traits.Float(2., desc="How long to delay the start of the experiment (seconds)")
+    sync_state_fps = traits.Float(30., desc="Frame rate during the sync state (lower helps to measure the screen latency)")
+
+    hidden_traits = ['sync_color_off', 'sync_color_on', 'sync_state_duration', 'sync_state_fps']
 
     def __init__(self, *args, **kwargs):
 
@@ -204,7 +210,7 @@ class ScreenSync(NIDAQSync):
             self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
         else:
             from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(self.screen_cm, self.sync_size))
-            pos = np.array([from_center[0]/2, self.screen_dist, from_center[1]/2])
+            pos = np.array([from_center[0]/2, 1-self.screen_dist, from_center[1]/2])
             self.sync_square = VirtualRectangularTarget(target_width=self.sync_size, target_height=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             # self.sync_square = VirtualCircularTarget(target_radius=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             for model in self.sync_square.graphics_models:
@@ -227,39 +233,22 @@ class ScreenSync(NIDAQSync):
         self.add_dtype('sync_square', bool, (1,))
         super().init()
 
-    def _while_sync(self):
-        '''
-        Deliberate "startup sequence":
-            1. Send a clock pulse to denote the start of the FSM loop
-            2. Turn off the clock and send a single, longer, impulse
-                to enable measurement of the screen latency
-            3. Turn the clock back on
-        '''
-        
-        # Turn off the clock after the first cycle is synced
-        if self.cycle_count == 1:
-            self.sync_every_cycle = False
-
-        # Send an impulse to measure latency halfway through the sync state
-        key_cycle = int(self.fps*self.sync_state_duration/2)
-        impulse_duration = 5 # cycles, to make sure it appears on the screen
-        if self.cycle_count == key_cycle:
-            self.sync_every_cycle = True
-        elif self.cycle_count == key_cycle + 1:
-            self.sync_every_cycle = False
-        elif self.cycle_count == key_cycle + impulse_duration:
-            self.sync_every_cycle = True
-        elif self.cycle_count == key_cycle + impulse_duration + 1:
-            self.sync_every_cycle = False
+    def _start_sync(self):
+        self._tmp_fps = copy.deepcopy(self.fps)
+        self.fps = self.sync_state_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
 
     def _end_sync(self):
-        self.sync_every_cycle = True
+        self.fps = self._tmp_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
+        #     print("restore update rate")
 
     def _test_start_experiment(self, ts):
         return ts > self.sync_state_duration
 
     def _cycle(self):
-        super()._cycle()
 
         # Update the sync state
         if self.sync_every_cycle:
@@ -270,3 +259,5 @@ class ScreenSync(NIDAQSync):
         if not hasattr(self, 'is_pygame_display'):
             color = self.sync_color_on if self.sync_state else self.sync_color_off
             self.sync_square.cube.color = color
+
+        super()._cycle()

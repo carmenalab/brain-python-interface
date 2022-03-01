@@ -3,7 +3,8 @@ Features which have task-like functionality w.r.t. task...
 '''
 
 import random
-from ..riglib.experiment import traits
+import numpy as np
+from riglib.experiment import traits
 
 class Autostart(traits.HasTraits):
     '''
@@ -63,3 +64,88 @@ class IgnoreCorrectness(object):
 
     def _test_incorrect(self, ts):
         return False
+
+
+class MultiHoldTime(traits.HasTraits):
+    '''
+    Deprecated--Use RandomDelay instead. 
+    Allows the hold time parameter to be multiple values per target in a given sequence chain. For instance,
+    center targets and peripheral targets can have different hold times.
+    '''
+
+    hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears. \
+        Can be a single number or a list of numbers to apply to each target in the sequence (center, out, etc.)")
+
+    def _test_hold_complete(self, time_in_state):
+        '''
+        Test whether the target is held long enough to declare the
+        trial a success
+
+        Possible options
+            - Target held for the minimum requred time (implemented here)
+            - Sensorized object moved by a certain amount
+            - Sensorized object moved to the required location
+            - Manually triggered by experimenter
+        '''
+        if len(self.hold_time) == 1:
+            hold_time = self.hold_time[0]
+        else:
+            hold_time = self.hold_time[self.target_index]
+        return time_in_state > hold_time
+
+class RandomDelay(traits.HasTraits):
+    '''
+    Replaces 'delay_time' with 'rand_delay', an interval on which the delay period is selected uniformly.
+    '''
+    
+    rand_delay = traits.Tuple((0., 0.), desc="Delay interval")
+    exclude_parent_traits = ['delay_time']
+
+    def _start_wait(self):
+        '''
+        At the start of the 'wait' state, draw a sample from the rand_delay interval for this trial.
+        '''
+        s, e = self.rand_delay
+        self.delay_time = random.random()*(e-s) + s
+        super()._start_wait()
+
+class TransparentDelayTarget(traits.HasTraits):
+    '''
+    Feature to make the delay period show a semi-transparent target rather than the full target. Used 
+    for training the go cue. Gradually increase the alpha from 0 to 0.75 once a long enough delay 
+    period has been established.
+    '''
+
+    delay_target_alpha = traits.Float(0.25, desc="Transparency of the next target during delay periods")
+
+    def _start_delay(self):
+        super()._start_delay()
+
+        # Set the alpha of the next target
+        next_idx = (self.target_index + 1)
+        if next_idx < self.chain_length:
+            target = self.targets[next_idx % 2]
+            self._old_target_color = np.copy(target.sphere.color)
+            new_target_color = list(target.sphere.color)
+            new_target_color[3] = self.delay_target_alpha
+            target.sphere.color = tuple(new_target_color)
+
+    def _start_target(self):
+        super()._start_target()
+
+        # Reset the transparency of the current target
+        if self.target_index > 0:
+            target = self.targets[self.target_index % 2]
+            target.sphere.color = self._old_target_color
+
+class PoissonWait(traits.HasTraits):
+    '''
+    Draw each trial's wait time from a poisson random distribution    
+    '''
+    
+    poisson_mu = traits.Float(0.5, desc="Mean duration between trials (s)")
+    exclude_parent_traits = ['wait_time']
+
+    def _parse_next_trial(self):
+        self.wait_time = np.random.poisson(lam=self.poisson_mu)
+        super()._parse_next_trial()

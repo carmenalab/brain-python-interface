@@ -5,7 +5,9 @@ import time
 import os
 import numpy as np
 from datetime import datetime
-from ..riglib.experiment import traits
+from riglib.experiment import traits
+from riglib import ecube, source
+from features.neural_sys_features import CorticalBMI, CorticalData
 import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
@@ -34,7 +36,12 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
-    ecube_status = None
+    channel_mapping_file = traits.String("", desc="Name of channel mapping excel file")
+    drmap_chamber = traits.String("", desc="Name of the recording chamber (e.g. LM1)")
+    drmap_drive_type = traits.String("", desc="Type of recording drive (e.g. ECoG244)")
+    drmap_implant_date = traits.String("", desc="Date recording drive was implanted (YYMMDD)")
+    drmap_config_date = traits.String("", desc="Date channel mapping was configured (YYMMDD)")
+    ecube_status = "Not initialized"
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -50,7 +57,7 @@ class RecordECube(traits.HasTraits):
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
-        time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
+        time.sleep(3) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
             self._ecube_cleanup(saveid)
         except Exception as e:
@@ -58,7 +65,8 @@ class RecordECube(traits.HasTraits):
             traceback.print_exc()
             log_exception(e)
             print('\n\neCube recording could not be stopped! Please manually stop the recording\n\n')
-            return False
+            # return False
+            # Actually we should still save the recording to the database, since no files have to be moved. LS 9/10/2021
 
         # Save file to database
         print("Saving ecube file to database...")
@@ -100,7 +108,7 @@ class RecordECube(traits.HasTraits):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
-        cls.ecube_status = None
+        cls.ecube_status = "Not initialized"
         if saveid is not None:
             from ..riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
@@ -112,6 +120,10 @@ class RecordECube(traits.HasTraits):
                 if record_headstage:
                     ec.add(('Headstages', headstage_connector, headstage_channels))
                 ec.remotesave(session_name)
+                if record_headstage:
+                    ec.remove(('Headstages', headstage_connector))
+                ec.remove(('AnalogPanel',))
+                ec.remove(('DigitalPanel',))
                 active_sessions = ec.listremotesessions()
                 if session_name in active_sessions:
                     cls.ecube_status = "recording"
@@ -124,8 +136,27 @@ class RecordECube(traits.HasTraits):
                 cls.ecube_status = e
             
         else:
-            cls.ecube_status = "testing"
-        super().pre_init(saveid=saveid, **kwargs)
+            # Just a test, try to connect to servernode to make sure it's working
+            from riglib.ecube import pyeCubeStream
+            session_name = make_ecube_session_name(saveid)
+            log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
+            try:
+                ec = pyeCubeStream.eCubeStream()
+                ec.add(('AnalogPanel',))
+                ec.add(('DigitalPanel',))
+                if record_headstage:
+                    ec.add(('Headstages', headstage_connector, headstage_channels))
+                    ec.remove(('Headstages', headstage_connector))
+                ec.remove(('AnalogPanel',))
+                ec.remove(('DigitalPanel',))
+                cls.ecube_status = "testing"
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                log_exception(e)
+                cls.ecube_status = "Could not connect to eCube. Make sure servernode is running!\n"
+        if hasattr(super(), 'pre_init'):
+            super().pre_init(saveid=saveid, **kwargs)
 
     def run(self):
         if not self.ecube_status in ["testing", "recording"]:
@@ -145,6 +176,104 @@ class RecordECube(traits.HasTraits):
                 log_exception(ee)
             finally:
                 raise e
+
+class EcubeFileData(CorticalData, traits.HasTraits):
+    '''
+    Streams data from an ecube file into BMI3D as neurondata
+    '''
+
+    ecube_bmi_filename = traits.String("", desc="File to playback in BMI")
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Query the file to see the channels
+        file = ecube.file.parse_file(self.ecube_bmi_filename)
+        self.cortical_channels = file.channels
+
+        # These get read by CorticalData when initializing the extractor
+        self._neural_src_type = source.MultiChanDataSource
+        self._neural_src_kwargs = dict(
+            send_data_to_sink_manager=self.send_data_to_sink_manager, 
+            channels=self.cortical_channels,
+            ecube_bmi_filename=self.ecube_bmi_filename)
+        self._neural_src_system_type = ecube.File
+        
+    @property 
+    def sys_module(self):
+        return ecube   
+
+class ManualPositionDecodeTest():
+    '''
+    Test feature for ecube data
+    '''
+    
+    def init(self):
+        super().init()
+        from riglib.bmi.extractor import LFPMTMPowerExtractor
+        self.extractor = LFPMTMPowerExtractor(self.neurondata, channels=[1], bands=[(50,200)])
+
+    def _get_manual_position(self):
+        '''
+        Fetches neurondata position
+        '''
+        if not hasattr(self, 'neurondata'):
+            return
+        ext = self.extractor(4) # start time can be anything
+        
+        power = ext['lfp_power'][0][0]
+        pt = [-power, 0, 0]
+
+        print(pt)
+        return [pt]
+
+class EcubeData(CorticalData, traits.HasTraits):
+    '''
+    Streams neural data using ecube as the datasource. Use this if you want online neural data
+    but don't want to use a decoder.
+    '''
+
+    streaming_channels = traits.Tuple((1,1), desc="Range of channels to stream")
+
+    def init(self):
+        self.cortical_channels = list(range(*self.streaming_channels))
+        super().init()
+
+    @property 
+    def sys_module(self):
+        return ecube   
+
+class EcubeFileBMI(EcubeFileData, CorticalBMI):
+    '''
+    Streams data from an ecube file into a BMI decoder
+    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.cortical_channels = [int(ch) for ch in self.decoder.units[:,0]]
+
+        # These get read by CorticalData when initializing the extractor
+        self._neural_src_type = source.MultiChanDataSource
+        self._neural_src_kwargs = dict(
+            send_data_to_sink_manager=self.send_data_to_sink_manager, 
+            channels=self.cortical_channels,
+            ecube_bmi_filename=self.ecube_bmi_filename)
+        self._neural_src_system_type = ecube.File
+
+class EcubeBMI(CorticalBMI):
+    '''
+    BMI using ecube as the datasource.
+    '''
+
+    bmi_ecube_headstage = traits.Int(7, desc="Which headstage to use for BMI data")
+
+    def init(self):
+        self.neural_src_kwargs = dict(headstage=self.bmi_ecube_headstage)
+        super().init()
+
+    @property 
+    def sys_module(self):
+        return ecube   
 
 
 class TestExperiment():

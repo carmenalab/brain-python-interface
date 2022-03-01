@@ -581,7 +581,7 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
             
             # Create an empty task database if there isn't one already (may be empty if there was no task data)
             if not hasattr(h5file.root, "task"):
-                h5file.create_table("/", "task", 0., 'Nothing to see here')
+                h5file.create_table("/", "task", [('time', 'u8')])
 
             # Append to task data metadata
             for trait in traits:
@@ -599,7 +599,8 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     @control_decorator
     def play_pause(self):
         self.pause = not self.pause
-        
+        self.sync_event("PAUSE", immediate=True)
+
         if self.pause:
             print("Paused!")
         else:
@@ -622,6 +623,7 @@ class LogExperiment(Experiment):
         super().update_report_stats()
         n_rewards = self.calc_state_occurrences('reward')
         n_trials = max(1, self.calc_trial_num())
+        self.reportstats['Trial #'] = n_trials - 1
         self.reportstats['Success rate'] = "{} %".format(int(100*n_rewards/n_trials))
         self.reportstats['Success rate (10 trials)'] = "{} %".format(int(100*self.calc_events_per_trial("reward", 10)))
 

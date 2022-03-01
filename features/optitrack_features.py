@@ -105,8 +105,9 @@ class Optitrack(traits.HasTraits):
         '''
         See riglib.experiment.Experiment.join(). Re-join the motiondata source process before cleaning up the experiment thread
         '''
-        print("Joining optitrack datasource")
-        self.motiondata.join()
+        if self.optitrack_status in ['recording', 'streaming']:
+            print("Joining optitrack datasource")
+            self.motiondata.join()
         super().join()
 
     def cleanup(self, database, saveid, **kwargs):
@@ -187,6 +188,15 @@ class OptitrackPlayback(Optitrack):
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.motiondata)
         super(Optitrack, self).init()
+
+class HidePlantOnPause():
+    '''
+    Makes the cursor hidden when the game is paused.
+    '''
+
+    def _cycle(self):
+        self.plant_visible = not self.pause
+        super()._cycle()
 
 # Helper class for natnet logging
 import logging

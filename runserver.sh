@@ -6,12 +6,27 @@ if [ "$HOST" = "pagaiisland2" ]; then
     export DISPLAY=':0.1'
 elif [ "$HOST" = "peco" ]; then
     export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
-    export LIBGL_ALWAYS_INDIRECT=1
+    export LIBGL_ALWAYS_INDIRECT=0
+elif [ "$HOST" = "pagaiisland-surface" ]; then
+    export DISPLAY=localhost:0
+    export LIBGL_ALWAYS_INDIRECT=0
+    echo "success"
 fi
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
 BMI3D=$(dirname $FILE)
+cd $BMI3D/db/
+
+# Start logging
+if [ -z "$1" ] # no arguments
+then 
+    echo "Turning on logging..."
+    # Make the log directory if it doesn't already exist
+    mkdir -p $BMI3D/log
+    /bin/bash ./runserver.sh -log | tee -a $BMI3D/log/runserver_log
+    exit 0
+fi
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
@@ -40,9 +55,6 @@ fi
 #         echo "Neural recording system computer already mounted at $MOUNT_POINT"
 #     fi
 # fi
-
-# Make the log directory if it doesn't already exist
-mkdir -p $BMI3D/log
 
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
@@ -90,6 +102,8 @@ celery flower -A bmi3d.db.tracker --address=0.0.0.0 --port=5555 &
 
 # Start servernode-control
 if [ "$HOST" = "pagaiisland2" ]; then
+    gnome-terminal -- ssh 10.155.207.19 sh ~/start-servernode.sh
+    sleep 1
     gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
 fi
 

@@ -24,7 +24,7 @@ class Box(Group):
         Box instance
         '''
         bcolor = (181/256., 116/256., 96/256., 1)
-        sidelen = 16
+        sidelen = 10
         linerad=.1
         self.vert_box = Group([
             Cylinder(radius=linerad, height=sidelen, color=bcolor).translate(-sidelen/2, -sidelen/2, -sidelen/2),

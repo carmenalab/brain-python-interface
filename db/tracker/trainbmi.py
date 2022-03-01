@@ -18,17 +18,8 @@ def cache_plx(plxfile):
     """
     Create cache for plexon file
     """
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
     from plexon import plexfile
-    plexfile.openFile(str(plxfile))
+    plexfile.openFile(plxfile.encode('utf-8'))
 
 @app.task
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):
@@ -70,6 +61,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
     print("make bmi")
+
     extractor_cls = namelist.extractors[extractorname]
     print('Training with extractor class:', extractor_cls)
 
@@ -106,7 +98,12 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     else:
         raise Exception('Unknown extractor class!')
 
-    task_update_rate = 60 # NOTE may not be true for all tasks?!
+    # task_update_rate = 60 # NOTE may not be true for all tasks?!
+    entry_data = models.TaskEntry.objects.get(id=entry).to_json()
+    if hasattr(entry_data, 'params') and hasattr(entry_data['params'], 'fps'):
+        task_update_rate = entry_data['params']['fps']
+    else:
+        task_update_rate = 60.
 
     extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
@@ -122,8 +119,6 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         pass
     else:
         raise Exception("Unknown extractor_cls: %s" % extractor_cls)
-
-    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
@@ -144,12 +139,13 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
     decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key,
-        zscore=zscore)
+        zscore=zscore, update_rate_hz=task_update_rate)
     decoder.te_id = entry
 
     tf = tempfile.NamedTemporaryFile('wb')
     pickle.dump(decoder, tf, 2)
     tf.flush()
+    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(*args, **kwargs):

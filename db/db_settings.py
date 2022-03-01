@@ -189,3 +189,6 @@ LOGGING = {
 
 APPEND_SLASH=False
 ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]
+
+CELERY_BROKER_URL = 'amqp://bmi3d:verysecurel0l@aolab.wanprc.washington.edu:5672//'
+

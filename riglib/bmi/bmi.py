@@ -1382,8 +1382,8 @@ class BMILoop(object):
             # Create the HDF table with the datatype above
             dtype = np.dtype(dtype)
 
-            h5file = tables.openFile(hdf_fname, mode='a')
-            arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+            h5file = tables.open_file(hdf_fname, mode='a')
+            arr = h5file.create_table("/", 'clda', dtype, filters=compfilt)
 
             null_update = np.zeros((1,), dtype=dtype)
             for col_name in table_col_names:

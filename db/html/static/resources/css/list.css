@@ -276,7 +276,7 @@ input:invalid {
 	box-shadow:0px 0px 10px red;
 }
 
-#paramadd {
+.paramadd {
     margin-top: 5px;
     margin-left: 290px;
 }
@@ -289,8 +289,8 @@ input:invalid {
 	font-size:10pt;
 }
 
-fieldset#report {
-    max-height:500px;
+fieldset:not(#parameters, #bmi) {
+    max-height:400px;
     /*width:100%;*/
     /*width : 460px;*/
     overflow:auto;
@@ -298,6 +298,23 @@ fieldset#report {
 
 #report td {
 	/*width : 200px;*/
+}
+
+#controls button {
+	padding: 5px 10px;
+	margin-bottom: 5px;
+	font-size: 16px;
+	border: none;
+    color: white;
+}
+#controls button:enabled {
+	background-color: black;
+}
+#controls button:hover:enabled {
+	box-shadow: 0px 0px 5px black;
+}
+#controls button:disabled {
+	background-color: gray;
 }
 
 .report_table {

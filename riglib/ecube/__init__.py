@@ -1,24 +1,28 @@
 from .pyeCubeStream import eCubeStream
-from .dataset import Dataset
-from dataclasses import dataclass
 import numpy as np
 import time
+from .file import *
+import aopy
+from riglib.source import DataSourceSystem
 
 '''
-#to do list
-where to calculate spikes?
+eCube streaming sources
 '''
 
-from ..source import DataSourceSystem
+def multi_chan_generator(data_block, channels, downsample=1):
+    for idx in range(len(channels)):
+        yield (channels[idx], data_block[::downsample,idx]) # yield one channel at a time
+
 class Broadband(DataSourceSystem):
     '''
     Wrapper class for pyecubestream compatible with using in DataSource for
-    buffering neural data.
+    buffering neural data. Compatible with riglib.source.MultiChanDataSource
     '''
     # Required by DataSourceSystem: update_freq and dtype (see make() below)
-    update_freq = 25000/728.
+    update_freq = 25000.
+    dtype = np.dtype('float')
 
-    def __init__(self, headstages=[7], channels=[(1, 640)]):
+    def __init__(self, headstage=7, channels=[1]):
         '''
         Constructor for ecube.Broadband
 
@@ -27,77 +31,113 @@ class Broadband(DataSourceSystem):
             channels [tuple array]: channel range (start, stop) for each headstage (1-indexed)
         '''
         # Initialize the servernode-control connection
-        self.conn = eCubeStream(debug=True)
-        self.headstages = headstages
+        self.conn = eCubeStream(debug=False)
+        self.headstage = headstage
         self.channels = channels
 
     def start(self):
+        print("Starting ecube streaming datasource...")
+
+        # Remove all existing sources
+        subscribed = self.conn.listadded()
+        if len(subscribed[0]) > 0:
+            self.conn.remove(('Headstages', self.headstage))
+        if len(subscribed[1]) > 0:
+            self.conn.remove(('AnalogPanel',))
+        if len(subscribed[2]) > 0:
+            self.conn.remove(('DigitalPanel',))
 
         # Add the requested headstage channels if they are available
-        available = self.conn.listavailable()[0] # (headstages, analog, digital)
-        for idx in range(len(self.headstages)):
-            if idx >= len(self.channels):
-                raise ValueError('channels must be the same length as headstages')
-            elif self.channels[idx][1] > available[self.headstages[idx]-1]: # hs are 1-indexed
-                raise RuntimeError('requested channels {} are not available ({} available)'.format(
-                    self.channels[idx], available[self.headstages[idx]]))
-            else:
-                self.conn.add(('Headstages', self.headstages[idx], self.channels[idx]))
-        
-        added = self.conn.listadded() # in debug mode this prints out the added channels
+        available = self.conn.listavailable()[0][self.headstage-1] # (headstages, analog, digital); hs are 1-indexed
+        for ch in self.channels:
+            if ch > available:
+                raise RuntimeError('requested channel {} is not available ({} connected)'.format(
+                    ch, available))
+            self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
+        subscribed = self.conn.listadded() # in debug mode this prints out the added channels
 
         # Start streaming
         self.conn.start()
+
+        # Start with an empty generator
+        self.gen = iter(())
+
+        # Call get once to make sure we have the right channels
+        data_block = self.conn.get()
+        assert data_block[1] == "Headstages"
+        assert data_block[2].shape[1] == len(self.channels)
+        print(f"Started streaming from ecube, packet size {data_block[2].shape[0]}")
     
     def stop(self):
 
         # Stop streaming
-        self.conn.stop()
+        if not self.conn.stop():
+            del self.conn # try to force the streaming to end by deleting the ecube connection object
+            self.conn = eCubeStream(debug=True)
 
         # Remove the added sources
-        for idx in range(len(self.headstages)):
-            self.conn.remove(('Headstages', self.headstages[idx]))
-
+        self.conn.remove(('Headstages', self.headstage))
+        
     def get(self):
-        '''
+        '''data
         Retrieve a packet from the server
         '''
-        data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
-        return_value = np.empty((1,), dtype=self.dtype)
-        return_value['timestamp'] = data_block[0]
-        return_value['data'] = data_block[2]
-        return return_value
+        try:
+            return next(self.gen)
+        except StopIteration:
+            data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+            # while data_block[1] != "Headstages":
+            #     data_block = self.conn.get() # ideally this shouldn't happen.
+            self.gen = multi_chan_generator(data_block[2], self.channels)
+            return next(self.gen)
 
-# System definition function
-def make(cls, headstages=[7], channels=[(1, 640)], **kwargs):
-    """
-    This ridiculous function dynamically creates a class with a new init function
-    """
-    def init(self):
-        super(self.__class__, self).__init__(headstages, channels, **kwargs)
-    
-    # Sum over all the channels to know how big to make the buffer
-    nch = int(np.sum([1+ch[1]-ch[0] for ch in channels]))
-    dtype = np.dtype([('timestamp', 'u8'), ('data', 'i4', (728,nch))])
-    return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
+class LFP(Broadband):
+    '''
+    Downsample the incoming data to 1000Hz. Compatible with riglib.source.MultiChanDataSource
+    '''
 
-# File loading functions
-@dataclass
-class Info():
-    length = int
-    units = list
+    update_freq = 1000.
 
-def parse_file(filepath):
-    n_channels = 0
-    n_samples = 0
-    dat = Dataset(filepath)
-    recordings = dat.listrecordings()
-    for r in recordings: # r: (data_source, n_channels, n_samples)
-        if 'Headstages' in r[0]:
-            n_samples += r[2]  
-            n_channels = r[1]
-    samplerate = dat.samplerate
-    length = n_samples/samplerate
-    units = list(range(n_channels))
-    info = Info(length, units)
-    return info
+    def get(self):
+        '''data
+        Retrieve a packet from the server
+        '''
+        try:
+            return next(self.gen)
+        except StopIteration:
+            data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+            self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+            return next(self.gen)
+
+class File(DataSourceSystem):
+    '''
+    Wrapper class for pyecubestream compatible with using in DataSource for
+    buffering neural data. Compatible with riglib.source.MultiChanDataSource
+    '''
+    # Required by DataSourceSystem: update_freq and dtype (see make() below)
+    update_freq = 1000.
+    chunksize = 728
+    dtype = np.dtype('float')
+
+    def __init__(self, ecube_bmi_filename, channels):
+
+        # Open the file
+        self.channels = channels
+        zero_idx_channels = [ch-1 for ch in channels]
+        self.file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "Headstages", channels=zero_idx_channels, chunksize=self.chunksize)
+
+    def get(self):
+        '''data
+        Read a "packet" worth of data from the file
+        '''
+        try:
+            return next(self.gen)
+        except (StopIteration, AttributeError):
+            time.sleep(1./(25000/self.chunksize))
+            try:
+                data_block = next(self.file)
+            except StopIteration:
+                data_block = np.zeros((int(728/25),1))
+            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            return next(self.gen)
+

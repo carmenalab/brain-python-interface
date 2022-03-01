@@ -26,7 +26,7 @@ function interface_fn_completed() {
     $("#start_buttons").hide()
     $("#stop_buttons").hide();
     $("#finished_task_buttons").show();
-    $("#bmi").hide();
+    // $("#bmi").hide();
     
     $("#report").show()
     $("#notes").show()      
@@ -289,6 +289,7 @@ function TaskEntry(idx, info) {
     $("#content").removeClass("error running testing")
     $("#files").hide();
     $('#newentry').hide()
+    $('#te_table_header').unbind("click");
     $('#te_table_header').click(
         function() {
             if (te) te.destroy();
@@ -443,7 +444,7 @@ TaskEntry.prototype.update = function(info) {
     this.files.show();
     this.files.update_filelist(info.datafiles, this.idx);
 
-    if (this.files.neural_data_found){
+    if (info.bmi && info.bmi._neuralinfo) {
         // Create the JS object to represent the BMI menu
         this.bmi = new BMI(this.idx, info.bmi, info.notes);
     }
@@ -569,7 +570,7 @@ TaskEntry.prototype.toggle_template = function() {
 
 /* callback for 'Copy Parameters' button.
  */
-TaskEntry.prototype.copy = function() {
+TaskEntry.prototype.copy = function(reset_metadata=true) {
     debug("TaskEntry.copy")
 
     // reset the task entry row
@@ -596,11 +597,14 @@ TaskEntry.prototype.copy = function() {
     this.report.destroy();     // clear the report data
     this.files.clear();        // clear the datafile data
     this.files.hide();
-    $("#notes textarea").val("").removeAttr("disabled");       // clear the notes
+    this.notes.destroy();      // clear the notes
     this.report.hide();        // turn off the report pane
 
-    // update the task info, but leave the parameters alone
-    this._task_query(function(){}, false, true);
+    // update the task info
+    this._task_query(function(){}, false, false);
+    if (reset_metadata) {
+        this.metadata.reset();
+    }
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 
@@ -626,6 +630,7 @@ TaskEntry.prototype.destroy = function() {
 
     // Re-bind a callback to when the row is clicked
     var idx = this.idx
+    this.tr.unbind("click");
     this.tr.click(
         function() {
             if (te) te.destroy();
@@ -882,10 +887,10 @@ TaskEntry.prototype.link_new_files = function() {
 //
 function Metadata() {
     $("#metadata_table").html("")
-    var params = new Parameters();
+    var params = new Parameters(editable=true);
     this.params = params;
     $("#metadata_table").append(this.params.obj);
-    var add_new_row = $('<input id="paramadd" type="button" value="+"/>');
+    var add_new_row = $('<input class="paramadd" type="button" value="+"/>');
     add_new_row.on("click", function() {params.add_row();});
     this.add_new_row = add_new_row;
     $("#metadata_table").append(add_new_row);
@@ -904,6 +909,10 @@ Metadata.prototype.disable = function() {
 Metadata.prototype.get_data = function () {
     var data = this.params.to_json();
     return data;
+}
+Metadata.prototype.reset = function () {
+    // clear the metadata values but leave the fields alone
+    this.params.clear_all();
 }
 
 //
@@ -935,6 +944,9 @@ Notes.prototype.destroy = function() {
     if (this.last_TO != null)
         clearTimeout(this.last_TO);
         this.save();
+
+    // reset the textarea
+    $("#notes textarea").val("").removeAttr("disabled"); 
 }
 Notes.prototype.save = function() {
     this.last_TO = null;
@@ -950,25 +962,51 @@ Notes.prototype.save = function() {
 // Controls class
 //
 
-function create_control_callback(control_str, args) {
-    return function() {trigger_control(control_str, args)}
+function create_control_callback(i, control_str, args, static=false) {
+    return function() {trigger_control(i, control_str, args, static)}
 }
 
-function trigger_control(control, params) {
+function trigger_control(i, control, params, static) {
     debug("Triggering control: " + control)
-    $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
-        debug("Control response", resp)
-    })
+    if (static) {
+        var data = {
+            "control": control, 
+            "params": JSON.stringify(params.to_json()), 
+            "base_class": $('#tasks').val(),
+            "feats": JSON.stringify(feats.get_checked_features())
+        }
+        $.post("trigger_control", data, function(resp) {
+            debug("Control response", resp);
+            if (resp["status"] == "success") {
+                $('#controls_btn_' + i.toString()).css({"background-color": "green"});
+                $('#controls_btn_' + i.toString()).animate({"background-color": "black"}, 500 );
+            }
+        })
+    } else {
+        $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
+            debug("Control response", resp);
+            params.clear_all();
+            if (resp["status"] == "pending") {
+                $('#controls_btn_' + i.toString()).css({"background-color": "yellow"});
+                $('#controls_btn_' + i.toString()).animate({"background-color": "black"}, 500 );
+            }
+        })
+    }
 }
 
 function Controls() {
     this.control_list = [];
+    this.static_control_list = [];
     this.params_list = [];
+    this.static_params_list = [];
 }
 Controls.prototype.update = function(controls) {
     debug("Updating controls");
     $("#controls_table").html('');
     this.control_list = [];
+    this.static_control_list = [];
+    this.params_list = [];
+    this.static_params_list = [];
     for (var i = 0; i < controls.length; i += 1) {
 
         var new_params = new Parameters();
@@ -978,15 +1016,21 @@ Controls.prototype.update = function(controls) {
             {
                 text: controls[i].name,
                 id: "controls_btn_" + i.toString(),
-                click: create_control_callback(controls[i].name, new_params),
+                click: create_control_callback(i, controls[i].name, new_params, controls[i].static),
                 type: "button"
             }
         );
 
         $("#controls_table").append(new_button);
         $("#controls_table").append(new_params.obj)
-        this.control_list.push(new_button);
-        this.params_list.push(new_params)
+
+        if (controls[i].static) { // static controls are always active
+            this.static_control_list.push(new_button);
+            this.static_params_list.push(new_params)
+        } else {
+            this.control_list.push(new_button);
+            this.params_list.push(new_params)
+        }
 
     }
     if (this.control_list.length > 0) this.show();

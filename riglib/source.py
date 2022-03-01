@@ -242,7 +242,7 @@ class MultiChanDataSource(mp.Process):
         dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
         self.idxs = shm.RawArray('l', self.n_chan)
-        self.last_read_idxs = np.zeros(self.n_chan)
+        self.last_read_idxs = np.zeros(self.n_chan, dtype='int')
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
 
 

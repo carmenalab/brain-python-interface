@@ -48,8 +48,8 @@
       reset_date_on_new_task();
     })
 
-    $("#copybtn").click(function() {
-        if (te) te.copy();
+    $("#copybtn").click(function(e) {
+        if (te) te.copy(!e.shiftKey); // shift key determines whether metdata is cleared or not
     }); // run the TaskEntry prototype copy function to make new parameters
     $("#hidebtn").change(
       function () {
@@ -120,8 +120,8 @@
     $("tr.template").hide();
 
 
-    // hotkeys for simple TE tasks
-      document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function(event) {
+        // hotkeys for simple TE tasks
         if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
             if (event.keyCode == 86) {
                 // visible ('v')
@@ -150,10 +150,27 @@
                 console.log('going to "next" TE', next_table_row_id);
 
             }
+        // hotkeys for controls
+        } else if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null)) {
+            if (te.controls && event.keyCode >= 49 && event.keyCode < 58) {
+                // digits 1-9 control buttons 0-8
+                var button = $("#controls_btn_" + (event.keyCode - 49).toString());
+                if (button.length) {
+                    console.log("Clicking button ", button.text)
+                    button.click()
+                }
+            } else if (te.controls && event.keyCode >= 97 && event.keyCode < 105) {
+                // keypad 1-9 also control buttons 0-8
+                var button = $("#controls_btn_" + (event.keyCode - 97).toString());
+                if (button.length) {
+                    console.log("Clicking button ", button.text)
+                    button.click()
+                }
+            }
         } else {
           console.log("keydown handler ignoring!");
         }
-      });
+    });
 
     window.onclick = function(event) {
       if (event.target == document.getElementById("file_modal")) {
@@ -299,14 +316,14 @@
           <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
-            <input id="copybtn" class="btn" type="button" value="Copy parameters">
+            <input id="copybtn" class="btn" type="button" value="Copy parameters" title="Hold shift to copy metadata">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
             <input id="backupbtn" type="checkbox" checked="off" name="hist_checkbox">Flagged for backup?
             <input id="templatebtn" type="checkbox" checked="off" name="hist_checkbox">Use as template
           </div>
 
           <div id="start_buttons">
-            <input id="testbtn" class="btn startbtn" type="submit" value="Test">
+            <input id="testbtn" class="btn startbtn" type="submit" value="Test" title="Run the experiment without saving any data">
             <input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
             <input id="saverecbtn" class="btn startbtn" type="submit" value="Save Record" title="Save a record of an already complete experiment">
           </div>
@@ -585,11 +602,7 @@
                               <label for='zscore'>zscore neural features</label>
                           </td>
                           <td>
-                              <select id='zscore'>
-                                  {% for var in zscores %}
-                                      <option>{{ var }}</option>
-                                  {% endfor %}
-                              </select>
+                              <input id='zscore' type="checkbox">
                           </td>
                       </tr>
                       <!-- Slider for specifying the time range of the block to use for training the decoder-->

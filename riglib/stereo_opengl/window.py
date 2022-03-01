@@ -99,6 +99,8 @@ class Window(LogExperiment):
         glClearColor(*self.background)
         glClearDepth(1.0)
         glDepthMask(GL_TRUE)
+        glEnable(GL_CULL_FACE) # temporary solution to alpha blending issue with spheres. just draw the front half of the sphere
+        glCullFace(GL_FRONT) # actually it's the back half of the sphere we want since everything is mirrored
 
         self.renderer = self._get_renderer()
 
@@ -171,10 +173,10 @@ class Window(LogExperiment):
         self.renderer._queue_render(self.world)
 
     def _cycle(self):
-        self.requeue()
-        self.draw_world()
         super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
         self.event = self._get_event()
+        self.requeue()
+        self.draw_world()
 
 
 class WindowWithExperimenterDisplay(Window):
@@ -386,8 +388,9 @@ class Window2D():
     '''
     def screen_init(self):
         super().screen_init()
-        glBlendEquation(GL_MAX)
-        glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
+    #     glBlendEquation(GL_MAX)
+    #     glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
+        glCullFace(GL_BACK) # temporary solution #2 to alpha blending issue with spheres. just draw the front half of the sphere
 
     def _get_renderer(self):
         return render.Renderer2D(self.screen_cm)

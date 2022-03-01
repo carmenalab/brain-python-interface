@@ -121,7 +121,7 @@ def save_bmi(name, entry, filename, dbname='default'):
         d = dbfn.TaskEntry(entry.pk)
         d_list = d.get_decoders_trained_in_block()
         for d in d_list:
-            print(d.pk, d.name)
+            print(f"{d.pk}, {d.name}")
     print("Saved decoder to %s"%os.path.join(base, pklname))
 
 def cleanup(entry, dbname='default'):
@@ -129,7 +129,12 @@ def cleanup(entry, dbname='default'):
     Final cleanup after a task is finished
     '''
     te = TaskEntry.objects.using(dbname).get(id=entry)
-    te.make_hdf_self_contained()
+    tries = 3
+    while tries > 0:
+        if te.make_hdf_self_contained():
+            break
+        time.sleep(1) # wait for the hdf file to be created
+        tries -= 1
 
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)

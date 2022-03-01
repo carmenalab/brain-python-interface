@@ -7,9 +7,10 @@ if (typeof(require) !== 'undefined') {
     var $ = jQuery = require('jquery')(dom.window);
 }
 
-function Parameters() {
+function Parameters(editable=false) {
     this.obj = document.createElement("table");
     this.traits = {};
+    this.editable = editable;
 }
 Parameters.prototype.update = function(desc) {
     // Update the parameters descriptor to include the updated values
@@ -66,6 +67,7 @@ Parameters.prototype.append = function(desc) {
         "Enum":             this.add_enum,
         "OptionsList":      this.add_enum,
         "Bool":             this.add_bool,
+        "List":             this.add_list,
     }
 
     for (var name in desc) {
@@ -77,6 +79,7 @@ Parameters.prototype.append = function(desc) {
             debug(desc[name]['type']);
     }
 }
+
 Parameters.prototype.show_all_attrs = function() {
 
 
@@ -122,6 +125,17 @@ Parameters.prototype.add_to_table = function(name, info) {
 
     td.appendChild(label);
 
+    // optionally add a minus button
+    if (this.editable && !info["required"]) {
+        var remove_row = document.createElement("input");
+        remove_row.setAttribute("class", "paramremove");
+        remove_row.setAttribute("type", "button");
+        remove_row.setAttribute("value", "-");
+        var this_ = this;
+        $(remove_row).on("click", function() {this_.remove_row(name);});
+        td.appendChild(remove_row);
+    }
+
     // label.style.visibility = hidden;
     if (hidden === 'hidden') {
         this.hidden_parameters[name] = $(label).closest("tr");
@@ -144,13 +158,11 @@ Parameters.prototype.add_tuple = function(name, info) {
         input.type = "text";
         input.name = name;
         input.placeholder = JSON.stringify(info['default'][i]);
-        if (!info['required'] && typeof(info['value']) != "undefined")
+        if (typeof(info['value']) != "undefined")
             if (typeof(info['value'][i]) != "string")
                 input.value = JSON.stringify(info['value'][i]);
             else
                 input.value = info['value'][i];
-        else if (info['required'])
-            input.required = "required";
         if (input.value == input.placeholder)
             input.value = null
         wrapper.appendChild(input);
@@ -162,7 +174,7 @@ Parameters.prototype.add_tuple = function(name, info) {
         this.traits[name].inputs[i].onchange = function() {
             if (this.value.length > 0) {
                 for (var j in inputs)
-                    inputs[j].required = "required";
+                    if (inputs[j].placeholder.length == 0) inputs[j].required = "required";
             } else {
                 for (var j in inputs)
                     inputs[j].removeAttribute("required");
@@ -172,6 +184,7 @@ Parameters.prototype.add_tuple = function(name, info) {
             else if (this.required)
                 this.removeAttribute("required");
         }
+        this.traits[name].inputs[i].onchange();
     }
 }
 
@@ -186,18 +199,19 @@ Parameters.prototype.add_int = function (name, info) {
     input.type = "number";
     input.name = name;
     input.id = "param_"+name;
+    if (typeof(info['value']) != "undefined")
+        input.value = info['value'];
+    else
+        input.value = info['default'];
     if (info['required']) {
-        input.required = "required";
         input.onchange = function() {
             if (this.value.length == 0)
                 this.required = "required";
             else if (this.required)
                 this.removeAttribute("required");
         }
-    } else if (typeof(info['value']) != "undefined")
-        input.value = info['value'];
-    else
-        input.value = info['default'];
+        input.onchange();
+    } 
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_float = function (name, info) {
@@ -212,22 +226,21 @@ Parameters.prototype.add_float = function (name, info) {
     input.name = name;
     input.id = "param_"+name;
     input.pattern = "-?[0-9]*\.?[0-9]*";
-    if (!info['required']) { // leave empty if required field
-        input.placeholder = info['default'];
-        if (typeof(info['value']) == "string")
-            input.value = info.value;
-        else if (typeof(info['value']) != "undefined")
-            input.value = JSON.stringify(info.value);
-        if (input.value == input.placeholder)
-            input.value = null;
-    } else {
-        input.required = "required";
+    input.placeholder = info['default'];
+    if (typeof(info['value']) == "string")
+        input.value = info.value;
+    else if (typeof(info['value']) != "undefined")
+        input.value = JSON.stringify(info.value);
+    if (input.value == input.placeholder)
+        input.value = null;
+    if (info['required']) {
         input.onchange = function() {
             if (this.placeholder.length == 0 && this.value.length == 0)
                 this.required = "required";
             else if (this.required)
                 this.removeAttribute("required");
         }
+        input.onchange();
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
@@ -255,35 +268,7 @@ Parameters.prototype.add_array = function (name, info) {
         for (var i=0; i < this.traits[name].inputs.length; i++)
             this.traits[name].inputs[i].pattern = '[0-9\\(\\)\\[\\]\\.\\,\\s\\-]*';
     } else {
-        var trait = this.add_to_table(name, info);
-        var div = document.createElement("td");
-        var input = document.createElement("input");
-        trait.appendChild(div);
-        div.appendChild(input);
-        this.obj.appendChild(trait);
-
-        input.type = "text";
-        input.name = name;
-        input.id = "param_"+name;
-        if (!info['required']) { // leave empty if required field
-            input.placeholder = info['default'];
-            if (typeof(info['value']) == "string")
-                input.value = info['value'];
-            else if (typeof(info['value']) != "undefined")
-                input.value = JSON.stringify(info['value']);
-            if (input.value == input.placeholder)
-                input.value = null
-        } else {
-            input.required = "required";
-            input.onchange = function() {
-                if (this.placeholder.length == 0 && this.value.length == 0)
-                    this.required = "required";
-                else if (this.required)
-                    this.removeAttribute("required");
-            }
-        }
-        input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
-        this.traits[name] = {"obj":trait, "inputs":[input]};
+        this.add_list(name, info);
     }
 }
 Parameters.prototype.add_string = function (name, info) {
@@ -298,21 +283,20 @@ Parameters.prototype.add_string = function (name, info) {
     $(input).addClass("string");
     input.name = name;
     input.id = "param_"+name;
-    if (!info['required']) { // leave empty if required field
-        input.placeholder = info['default'];
-        if (typeof(info['value']) != "undefined") {
-            input.setAttribute("value", info['value']);
-        }
-        if (input.value == input.placeholder)
-            input.value = null;
-    } else {
-        input.required = "required";
+    input.placeholder = info['default'];
+    if (typeof(info['value']) != "undefined") {
+         input.setAttribute("value", info['value']);
+    }
+    if (input.value == input.placeholder)
+        input.value = null;
+    if (info['required']) {
         input.onchange = function() {
             if (this.placeholder.length == 0 && this.value.length == 0)
                 this.required = "required";
             else if (this.required)
                 this.removeAttribute("required");
         }
+        input.onchange();
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
@@ -388,7 +372,37 @@ Parameters.prototype.add_enum = function(name, info) {
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
+Parameters.prototype.add_list = function(name, info) { // comma separated list of string values
+    var trait = this.add_to_table(name, info);
+    var div = document.createElement("td");
+    var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
 
+    input.type = "text";
+    input.name = name;
+    input.id = "param_"+name;
+    input.is_list = true;
+    input.placeholder = info['default'];
+    if (typeof(info['value']) == "string")
+        input.value = info['value'];
+    else if (typeof(info['value']) != "undefined")
+        input.value = JSON.stringify(info['value']);
+    if (input.value == input.placeholder)
+        input.value = null
+    if (info['required']) {
+        input.onchange = function() {
+            if (this.placeholder.length == 0 && this.value.length == 0)
+                this.required = "required";
+            else if (this.required)
+                this.removeAttribute("required");
+        }
+        input.onchange();
+    }
+    input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
+    this.traits[name] = {"obj":trait, "inputs":[input], "list":true};
+}
 /*
 * Function to ask user for a new row
 */
@@ -400,9 +414,10 @@ Parameters.prototype.add_row = function() {
     td.css("textAlign", "right");
     trait.append(td);
     var label = $('<input type="text" placeholder="New entry">');
+    label.prop("required",true);
     label.css({"border": "none", "border-color": "transparent"});
     var div = $("<td>");
-    var input = $('<input type="text" required>');
+    var input = $('<input type="text" class="string" required>');
     input.on("change", function() {
         if (this.value.length == 0)
             this.required = "required";
@@ -423,9 +438,19 @@ Parameters.prototype.add_row = function() {
             trait.attr('id', 'param_'+name);
             new_label = $("<label>")
             new_label.css("textAlign", "right");
+            new_label.addClass("string");
             new_label.html(name);
             label.replaceWith(new_label);
             _this.traits[name] = {"obj":trait.get(0), "inputs":[input.get(0)]}
+            if (_this.editable) {
+                // add a minus button
+                var remove_row = document.createElement("input");
+                remove_row.setAttribute("class", "paramremove");
+                remove_row.setAttribute("type", "button");
+                remove_row.setAttribute("value", "-");
+                $(remove_row).on("click", function() {_this.remove_row(name);});
+                new_label.after(remove_row);
+            }
         } else {
 
             // Otherwise delete the row
@@ -434,9 +459,25 @@ Parameters.prototype.add_row = function() {
     })
 }
 
+Parameters.prototype.remove_row = function(name) {
+    if (typeof(this.traits[name]) != "undefined") {
+        var trait = this.traits[name]
+        trait.obj.remove();
+        delete this.traits[name];
+    }
+}
+
 function get_param_input(input_obj) {
     if (input_obj.type == 'checkbox') {
         return input_obj.checked;
+    } else if (input_obj.is_list && input_obj.value.length > 0) {
+        var list = input_obj.value.replace(/\[|\]/g,"").split(/[ ,]+/);
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
+    } else if (input_obj.is_list) {
+        var list = input_obj.placeholder
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
     } else if (input_obj.value.length > 0) {
         return input_obj.value;
     } else {
@@ -463,7 +504,20 @@ Parameters.prototype.to_json = function(get_all) {
     return jsdata;
 }
 
+Parameters.prototype.clear_all = function() {
+    for (var name in this.traits) {
+        var trait = this.traits[name];
+        for (var i = 0; i < trait.inputs.length; i++) {
+            trait.inputs[i].value = null;
+            if (trait.inputs[i].onchange)
+                trait.inputs[i].onchange();
+        }
+    }
+}
+
+
 if (typeof(module) !== 'undefined' && module.exports) {
   exports.Parameters = Parameters;
   exports.$ = $;
 }
+

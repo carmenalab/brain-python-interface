@@ -25,4 +25,29 @@
   {% endfor %}
 
   </table>
+
+  <h2>Experimenters</h2>
+  <table class="table table-hover table-sm" style="width: auto;" id="experimenter-table">
+    <thead>
+      <th>Index</th><th>Name</th>
+    </thead>
+  
+    <!-- Row to add new subjects -->
+    <tr id="new-experimenter-row">
+      <td><input type="submit" value="Add New" onclick="add_new_experimenter()"></td>
+      <td><input type="text" id="new_experimenter_name"></td>
+      <td></td>
+    </tr>
+  
+    {% for experimenter in experimenters %}
+    <tr id="experimenter_{{experimenter.id}}">
+      <td>{{experimenter.id}}</td>
+      <td>{{experimenter.name}}</td>
+      <td>
+        <input type="submit" value="Remove" onclick="remove_experimenter({{experimenter.id}})">
+      </td>
+    </tr>
+    {% endfor %}
+  
+    </table>
 {% endblock %}
