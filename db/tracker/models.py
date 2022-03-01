@@ -22,7 +22,7 @@ from collections import OrderedDict
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
-from ...riglib import calibrations, experiment
+from riglib import calibrations, experiment
 
 def import_by_path(import_path):
     path_components = import_path.split(".")

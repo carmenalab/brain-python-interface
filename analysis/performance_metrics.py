@@ -6,7 +6,7 @@ from collections import OrderedDict, defaultdict
 
 import os
 import tables
-from ..riglib.bmi import robot_arms, train
+from riglib.bmi import robot_arms, train
 
 
 min_per_sec = 1./60

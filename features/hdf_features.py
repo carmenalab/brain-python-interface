@@ -3,8 +3,8 @@ HDF-saving features
 '''
 import tempfile
 import os
-from ..riglib import sink
-from ..riglib.experiment.experiment import control_decorator
+from riglib import sink
+from riglib.experiment.experiment import control_decorator
 import hdfwriter # from ..riglib.hdfwriter import hdfwriter # <-- now a package on PyPI
 
 class SaveHDF():

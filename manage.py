@@ -2,7 +2,7 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-from bmi3d.boot_django import boot_django
+from db.boot_django import boot_django
 
 def main():
     try:

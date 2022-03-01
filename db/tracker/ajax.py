@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import ProtectedError
 
-from ...riglib import experiment
+from riglib import experiment
 from .json_param import Parameters
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, Experimenter, DataFile, System, Decoder, KeyValueStore, import_by_path
 from .tasktrack import Track

@@ -4,7 +4,7 @@ import numpy as np
 import traceback
 import time
 
-from ..riglib.source import DataSourceSystem
+from riglib.source import DataSourceSystem
 
 class SerialPortSource(DataSourceSystem):
     default_response = []

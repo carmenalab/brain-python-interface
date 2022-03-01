@@ -1,9 +1,9 @@
 '''
 Generic features for interfacing with cortical recording systems (Plexon Omniplex, Blackrock Neuroport, etc.)
 '''
-from ..riglib import source, sink
-from ..riglib.experiment import traits
-from ..riglib.bmi.bmi import Decoder 
+from riglib import source, sink
+from riglib.experiment import traits
+from riglib.bmi.bmi import Decoder 
 
 class CorticalData(object):
     '''

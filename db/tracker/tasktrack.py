@@ -11,7 +11,7 @@ from datetime import datetime
 import multiprocessing as mp
 
 from . import websocket
-from ...riglib import experiment, singleton
+from riglib import experiment, singleton
 from .json_param import Parameters
 
 log_path = os.path.join(os.path.dirname(__file__), '../../../log')

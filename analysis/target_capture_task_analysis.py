@@ -9,9 +9,9 @@ from collections import OrderedDict, defaultdict
 import os
 import tables
 
-from ..riglib.bmi import robot_arms, train, kfdecoder, ppfdecoder
-from ..db import dbfunctions
-from ..db import dbfunctions as dbfn
+from riglib.bmi import robot_arms, train, kfdecoder, ppfdecoder
+from db import dbfunctions
+from db import dbfunctions as dbfn
 
 from .performance_metrics import get_task_axis_error_measures
 

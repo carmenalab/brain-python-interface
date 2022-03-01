@@ -3,9 +3,9 @@ import numpy as np
 import tempfile
 import glob
 np.set_printoptions(suppress=True)
-from ..riglib.sink import sinks, PrintSink
-from ..riglib import source
-from ..riglib import motiontracker, hdfwriter, nidaq
+from riglib.sink import sinks, PrintSink
+from riglib import source
+from riglib import motiontracker, hdfwriter, nidaq
 
 Motion = motiontracker.make(38, motiontracker.System)
 datasource = source.DataSource(Motion)

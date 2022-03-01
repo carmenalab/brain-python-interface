@@ -6,7 +6,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import numpy as np
 from .stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube, Chain
-from ..riglib.bmi import robot_arms
+from .bmi import robot_arms
 
 import math
 import time
@@ -15,7 +15,7 @@ import select
 import numpy as np
 from collections import namedtuple
 
-from ..utils.constants import *
+from utils.constants import *
 
 class RefTrajectories(dict):
     '''

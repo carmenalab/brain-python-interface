@@ -4,8 +4,8 @@ Features for the eyetracker system
 
 import tempfile
 import numpy as np
-from ..riglib import calibrations
-from ..riglib.experiment import traits
+from riglib import calibrations
+from riglib.experiment import traits
 
 ###### CONSTANTS
 sec_per_min = 60

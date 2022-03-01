@@ -2,7 +2,7 @@ import re
 import os
 import json
 import glob
-from ..db.tracker import models
+from db.tracker import models
 
 plexon = models.System.objects.get(name='plexon')
 plex2 = models.System.objects.get(name='plexon2')

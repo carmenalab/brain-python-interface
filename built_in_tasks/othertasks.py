@@ -1,8 +1,8 @@
 ''' Tasks which don't include any visuals or bmi, such as laser-only or camera-only tasks'''
 
-from ..riglib.experiment import LogExperiment, Sequence
-from ..features.laser_features import DigitalWave
-from ..riglib.experiment import traits
+from riglib.experiment import LogExperiment, Sequence
+from features.laser_features import DigitalWave
+from riglib.experiment import traits
 import itertools
 import numpy as np
 from scipy.stats import poisson

@@ -5,7 +5,7 @@ Features for interacting with Blackrock's Neuroport neural recording system
 import time
 import fnmatch
 from .neural_sys_features import CorticalData, CorticalBMI
-from ..riglib import blackrock
+from riglib import blackrock
 
 class RelayBlackrock(object):
     '''Sends full data directly into the Blackrock system.'''

@@ -1,8 +1,8 @@
 '''
 Features for sending digital sync data
 '''
-from ..riglib.experiment import traits
-from ..riglib.gpio import NIGPIO, DigitalWave
+from riglib.experiment import traits
+from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
 import tables
 import time

@@ -3,8 +3,8 @@ For capturing frames from a camera
 '''
 import time
 import os
-from ..riglib.experiment import traits
-from ..riglib.mp_calc import MultiprocShellCommand
+from riglib.experiment import traits
+from riglib.mp_calc import MultiprocShellCommand
 
 class SingleChannelVideo(traits.HasTraits):
     def __init__(self, *args, **kwargs):

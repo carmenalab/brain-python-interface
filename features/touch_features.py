@@ -2,8 +2,8 @@
 '''
 Features for a touch sensor on the neurosync arduino
 '''
-from ..riglib.experiment import traits
-from ..riglib import touch_data
+from riglib.experiment import traits
+from riglib import touch_data
 
 ########################################################################################################
 # Touch sensor datasources

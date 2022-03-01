@@ -5,7 +5,7 @@ recording for Plexon/Blackrock/TDT systems and also synchronize data between the
 import time
 import numpy as np
 import os
-from ..riglib import serial_dio
+from riglib import serial_dio
 import glob
 import datetime
 import serial

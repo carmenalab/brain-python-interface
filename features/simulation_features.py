@@ -2,8 +2,8 @@
 Features for use in simulation tasks
 '''
 import numpy as np
-from ..riglib.bmi import clda, extractor, sim_neurons, kfdecoder, train
-from ..riglib.bmi.sim_neurons import KalmanEncoder
+from riglib.bmi import clda, extractor, sim_neurons, kfdecoder, train
+from riglib.bmi.sim_neurons import KalmanEncoder
 
 class FakeHDF(object):
     def __init__(self):

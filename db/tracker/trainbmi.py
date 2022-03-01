@@ -11,7 +11,7 @@ import numpy as np
 from celery import chain
 from .celery import app
 
-from ...riglib.bmi import extractor
+from riglib.bmi import extractor
 
 @app.task
 def cache_plx(plxfile):

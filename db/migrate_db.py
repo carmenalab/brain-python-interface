@@ -2,7 +2,7 @@
 # > python manage.py shell
 # > from bmi3d.db.migrate_db import *
 
-from ..boot_django import boot_django
+from .boot_django import boot_django
 boot_django()
 
 from .tracker import models

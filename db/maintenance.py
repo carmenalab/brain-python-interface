@@ -1,4 +1,4 @@
-from ..boot_django import boot_django
+from .boot_django import boot_django
 boot_django()
 
 from .tracker import models

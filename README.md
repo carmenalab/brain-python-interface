@@ -64,7 +64,7 @@ If successful, you'll see the pygame window pop up looking like a poorly-made vi
 
 # Setting up a test database
 ```bash
-cd bmi3d/db
+cd db
 touch db.sql 				   # Make empty file for database
 python3 manage.py makemigrations
 python3 manage.py migrate
@@ -87,7 +87,7 @@ python3 manage.py runserver
 
 ## Use the database models in analysis
 ```python
-from bmi3d.db import dbfunctions as db
+from db import dbfunctions as db
 te = db.get_task_entries()
 ```
 

@@ -2,7 +2,7 @@
 Code for getting data from kinarm
 '''
 import numpy as np
-from ..riglib.source import DataSourceSystem
+from .source import DataSourceSystem
 import serial
 
 class TouchData(DataSourceSystem):

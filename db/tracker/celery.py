@@ -3,7 +3,7 @@ import os
 from celery import Celery
 
 # set the default Django settings module for the 'celery' program.
-from ...boot_django import boot_django
+from ..boot_django import boot_django
 boot_django()
 
 app = Celery('tracker')

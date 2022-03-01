@@ -1,7 +1,7 @@
 '''
 Features for the kinarm which is sending packets blindly to the BMI machine
 '''
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 
 ########################################################################################################
 # Phasespace datasources

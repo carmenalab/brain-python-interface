@@ -1,6 +1,6 @@
-from riglib.gpio import ArduinoGPIO
+from .gpio import ArduinoGPIO
 from multiprocessing import Process
-from riglib import singleton
+from . import singleton
 import time
 
 class Basic(singleton.Singleton):

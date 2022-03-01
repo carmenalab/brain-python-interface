@@ -1,8 +1,8 @@
 '''
 Features for the Optitrack motiontracker
 '''
-from ..riglib.experiment import traits
-from ..riglib.optitrack_client import optitrack
+from riglib.experiment import traits
+from riglib.optitrack_client import optitrack
 from datetime import datetime
 import time
 import numpy as np

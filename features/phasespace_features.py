@@ -2,8 +2,8 @@
 Features for the phasephase motiontracker
 '''
 import numpy as np
-from ..riglib import calibrations
-from ..riglib.experiment import traits
+from riglib import calibrations
+from riglib.experiment import traits
 
 mm_per_cm = 1./10
 

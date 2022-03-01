@@ -5,11 +5,11 @@ import tables
 import pickle
 
 #import bmimultitasks, cursor_clda_tasks
-from ..riglib.bmi.bmi import BMILoop
-from ..riglib.bmi import extractor, clda, feedback_controllers, goal_calculators
-from ..riglib.experiment import Experiment, traits
-from ..features.simulation_features import SimHDF
-from ..riglib import plants
+from riglib.bmi.bmi import BMILoop
+from riglib.bmi import extractor, clda, feedback_controllers, goal_calculators
+from riglib.experiment import Experiment, traits
+from features.simulation_features import SimHDF
+from riglib import plants
 
 def sim_target_seq_generator_multi(n_targs, n_trials):
     '''

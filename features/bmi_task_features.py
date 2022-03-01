@@ -3,7 +3,7 @@ BMI task features
 '''
 import time
 import numpy as np
-from ..riglib.experiment import traits, experiment
+from riglib.experiment import traits, experiment
 
 ###### CONSTANTS
 sec_per_min = 60

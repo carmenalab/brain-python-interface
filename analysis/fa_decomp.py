@@ -1,6 +1,6 @@
 import numpy as np
 import sklearn.decomposition as skdecomp
-from ..db import dbfunctions as dbfn
+from db import dbfunctions as dbfn
 import tables
 #import test_reconst_bmi_traj as trbt
 import matplotlib.pyplot as plt

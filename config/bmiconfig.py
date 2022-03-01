@@ -1,6 +1,6 @@
 import numpy as np
-from ..riglib import bmi
-from ..riglib.bmi import state_space_models, train, extractor
+from riglib import bmi
+from riglib.bmi import state_space_models, train, extractor
 
 bmi_update_rates = [10, 20, 30, 60, 120, 180]
 

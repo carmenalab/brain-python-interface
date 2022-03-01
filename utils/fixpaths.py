@@ -2,7 +2,7 @@ import os
 import glob
 import json
 import datetime
-from ..db.tracker import models
+from db.tracker import models
 
 def run(simulate=True):
     moved = set()
