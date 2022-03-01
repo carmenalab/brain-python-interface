@@ -76,7 +76,7 @@ The first argument is the default value for the trait and the second is a docstr
 
         1) all data files must be associated with a system. So make a new system, e.g., the ``'misc'`` system::
 
-            from ..db.tracker import models
+            from db.tracker import models
             data_sys = models.System.make_new_sys('misc')
 
         if the system already exists, then the code above will not do anything, so you can safely always try to make the new system

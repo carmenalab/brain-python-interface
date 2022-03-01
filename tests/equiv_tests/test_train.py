@@ -3,8 +3,8 @@
 Equivalence test for changes to vfb training procedure (riglib.bmi.train._train_KFDecoder_visual_feedback)
 '''
 import numpy as np
-from ..db import dbfunctions as dbfn
-from ..db.tracker import models
+from db import dbfunctions as dbfn
+from db.tracker import models
 from riglib.bmi import kfdecoder, ppfdecoder
 from riglib.bmi import train
 from riglib.bmi import extractor, state_space_models

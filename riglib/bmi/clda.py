@@ -10,7 +10,8 @@ from . import kfdecoder, ppfdecoder, train
 import re
 import copy
 
-from ...utils.angle_utils import *
+from utils.angle_utils import *
+from riglib.mp_calc import MPCompute
 
 inv = np.linalg.inv
 
@@ -353,7 +354,6 @@ class RegexKeyDict(dict):
 ##############################################################################
 ## Updaters
 ##############################################################################
-from ...riglib.mp_calc import MPCompute
 class Updater(object):
     '''
     Wrapper for MPCompute computations running in another process

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from ..features import blackrock_features
+from features import blackrock_features
 import blackrock
 from riglib import source
 import time

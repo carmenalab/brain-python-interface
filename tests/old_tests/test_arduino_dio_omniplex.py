@@ -2,7 +2,7 @@
 '''
 Test the remote start and data sending capabilities of the arduino for omniplex
 '''
-from ..features.arduino_features import PlexonSerialDIORowByte
+from features.arduino_features import PlexonSerialDIORowByte
 import serial, glob
 
 f = PlexonSerialDIORowByte()

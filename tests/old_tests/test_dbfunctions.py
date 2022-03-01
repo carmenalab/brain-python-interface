@@ -8,7 +8,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'db.settings')
 django.setup()
 
-from ..db.tracker import models
+from db.tracker import models
 import db.dbfunctions as dbfn
 
 id = 77

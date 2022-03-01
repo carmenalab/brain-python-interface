@@ -1,13 +1,13 @@
-from ..db import dbfunctions
-from ..db import json_param
-from ..db.tracker import models
+from db import dbfunctions
+from db import json_param
+from db.tracker import models
 
 from riglib import experiment
-from ..features.generator_features import Autostart
-from ..features.hdf_features import SaveHDF
-from ..features.phasespace_features import MotionData
+from features.generator_features import Autostart
+from features.hdf_features import SaveHDF
+from features.phasespace_features import MotionData
 
-from ..features.plexon_features import PlexonBMI
+from features.plexon_features import PlexonBMI
 from riglib.experiment import generate
 
 from analysis import performance

@@ -269,7 +269,7 @@ class Positioner(object):
     def data_available(self):
         return self.port.inWaiting()
 
-# from ..features.generator_features import Autostart
+# from features.generator_features import Autostart
 class PositionerTaskController(Sequence):
     '''
     Interface between the positioner and the task interface. The positioner should run asynchronously

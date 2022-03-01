@@ -6,6 +6,10 @@ from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
 import tables
 import time
+import copy
+import pygame
+from built_in_tasks.target_graphics import VirtualRectangularTarget
+from riglib.stereo_opengl.window import TRANSPARENT
 
 rig1_sync_events = dict(
     EXP_START               = 0x1,
@@ -159,11 +163,6 @@ class NIDAQSync(traits.HasTraits):
             for param in self.sync_params.keys():
                 h5file.root.sync_events.attrs[param] = self.sync_params[param]
             h5file.close()
-    
-import copy
-import pygame
-from ..built_in_tasks.target_graphics import VirtualRectangularTarget
-from riglib.stereo_opengl.window import TRANSPARENT
 
 class ScreenSync(NIDAQSync):
     '''Adds a square in one corner that switches color with every flip.'''

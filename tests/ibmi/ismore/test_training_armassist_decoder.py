@@ -1,6 +1,6 @@
 from riglib.bmi import train, extractor
 import numpy as np
-from ..db.tracker import models
+from db.tracker import models
 
 
 TRAIN_SPIKE = True

@@ -1,10 +1,10 @@
 #!/usr/bin/pyhon
-from ..db import dbfunctions as dbfn
+from db import dbfunctions as dbfn
 from tasks import performance
 import matplotlib.pyplot as plt
 import plotutil
 import numpy as np
-from ..db.tracker import models
+from db.tracker import models
 
 
 reload(performance)

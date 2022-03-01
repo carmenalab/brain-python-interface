@@ -5,7 +5,7 @@ import time
 
 from riglib import experiment
 from riglib.experiment.mocks import MockSequenceWithGenerators
-from ..features.hdf_features import SaveHDF
+from features.hdf_features import SaveHDF
 import h5py
 
 from riglib import sink

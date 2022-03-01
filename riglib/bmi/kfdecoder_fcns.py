@@ -1,7 +1,7 @@
 
-from ...db.tracker import models
-from ...db import dbfunctions as dbfn
-from ...db.tracker import trainbmi
+from db.tracker import models
+from db import dbfunctions as dbfn
+from db.tracker import trainbmi
 import numpy as np
 from .kfdecoder import KalmanFilter, KFDecoder
 from . import train

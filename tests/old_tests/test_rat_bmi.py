@@ -1,9 +1,9 @@
 
-from ..features.hdf_features import SaveHDF
-from ..features.plexon_features import PlexonBMI
-from ..features.generator_features import Autostart
-from ..features.arduino_features import PlexonSerialDIORowByte
-from ..features.reward_features import RewardSystem
+from features.hdf_features import SaveHDF
+from features.plexon_features import PlexonBMI
+from features.generator_features import Autostart
+from features.arduino_features import PlexonSerialDIORowByte
+from features.reward_features import RewardSystem
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_state
 
 from riglib import experiment
@@ -18,8 +18,8 @@ from riglib.bmi.state_space_models import StateSpaceEndptVel2D
 from riglib.bmi import feedback_controllers
 
 from tasks import rat_bmi_tasks
-from ..db.tracker import models
-from ..db.json_param import Parameters
+from db.tracker import models
+from db.json_param import Parameters
 
 decoder_trained_id = 5431
 decoder_list_ix = 0
@@ -51,7 +51,7 @@ task.init()
 task.run()
 
 #Cleanup
-from ..db.tracker import dbq
+from db.tracker import dbq
 cleanup_successful = task.cleanup(dbq, saveid, subject=task.subj)
 task.decoder.save()
 task.cleanup_hdf()

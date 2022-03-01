@@ -482,13 +482,13 @@ def sim_bmi(baseline_data, t1, t2, midpoint, timeout, timeout_pause, p):
 def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None, session_length=0.):
     import ismore.invasive.bmi_ismoretasks as bmi_ismoretasks
     from riglib import experiment
-    from ..features.hdf_features import SaveHDF
+    from features.hdf_features import SaveHDF
     from ismore.brainamp_features import SimBrainAmpData
     import datetime
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
-    from ..features.blackrock_features import BlackrockBMI
+    from features.blackrock_features import BlackrockBMI
     from ismore.exo_3D_visualization import Exo3DVisualizationInvasive
 
     targets = bmi_ismoretasks.SimBMIControlReplayFile.sleep_gen(length=100)

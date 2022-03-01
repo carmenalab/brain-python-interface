@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
 Test case to check that the current state of the code is able to reconstruct a TaskEntry using the BMIControlMulti task '''
-from ..db import dbfunctions as dbfn
+from db import dbfunctions as dbfn
 from analysis import performance
 from scipy.io import loadmat
 import numpy as np

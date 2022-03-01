@@ -1,6 +1,6 @@
 import unittest
 from riglib.bmi import train
-from ..db import dbfunctions
+from db import dbfunctions
 import numpy as np
 
 class TestDecoderTraining(unittest.TestCase):

@@ -144,7 +144,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
 
         if not os.path.isfile(nev_hdf_fname):
             # convert .nev file to hdf file using our own blackrock_parse_files:
-            from ..db.tracker import models
+            from db.tracker import models
             task_entry = int(nev_fname[-8:-4])
             _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
     else:
@@ -484,7 +484,7 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
 def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None, **kwargs):
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(te_id)
     files = dict(hdf=te.hdf_filename, plexon=te.plx_filename)
 
@@ -518,7 +518,7 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     timeout_pause=0., freq_lim = [-1, 1], targets_matrix=None, session_length=0, saturate_perc=90,
     skip_sim=False):
 
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(te_id)
     files = dict(hdf=te.hdf_filename, blackrock=te.blackrock_filenames)
     entry = te.id
@@ -553,7 +553,7 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
     pickle.dump(decoder, open('/storage/decoders/sleep_from_te'+str(te_id)+'.pkl', 'wb'))
-    from ..db.tracker import dbq
+    from db.tracker import dbq
     dbq.save_bmi('sleep_from_te'+str(te_id), te_id, '/storage/decoders/sleep_from_te'+str(te_id)+'.pkl')
     return decoder, nrewards
 
@@ -566,7 +566,7 @@ def create_ratBMIdecoder(task_params):
     rat_decoder.extractor_kwargs = task_params['extractor_kwargs']
     import tempfile
     import pickle
-    from ..db.tracker import dbq
+    from db.tracker import dbq
 
     rat_decoder.te_id = task_params['te_id']
     tf = tempfile.NamedTemporaryFile('wb')
@@ -592,13 +592,13 @@ def create_lindecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm
 
 def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
     #First make sure we're training from the correct task entry: spike counts n_units == BMI units
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
     hdf = te.hdf
     sc_n_units = hdf.root.task[0]['spike_counts'].shape[0]
 
 
-    from ..db.tracker import models
+    from db.tracker import models
     te_arr = models.Decoder.objects.filter(entry=decoder_training_te)
     search_flag = 1
     for te in te_arr:
@@ -622,7 +622,7 @@ def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
     if dec_n_units != sc_n_units:
         raise Exception('Cant use TE for BMI training and FA training -- n_units mismatch')
 
-    from ..db import trainbmi
+    from db import trainbmi
     trainbmi.save_new_decoder_from_existing(dec, decoder_old, suffix='_w_fa_dict_from_'+str(fa_te))
 
 def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use_main=True):
@@ -633,7 +633,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     # #Now, retrain:
     binlen = decoder.binlen
 
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te_id = dbfn.TaskEntry(decoder.te_id)
     files = dict(plexon=te_id.plx_filename, hdf = te_id.hdf_filename)
     extractor_cls = decoder.extractor_cls
@@ -692,12 +692,12 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
 
 def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False, tslice=None):
 
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
     hdf = te.hdf
     sc_n_units = hdf.root.task[0]['spike_counts'].shape[0]
 
-    from ..db.tracker import models
+    from db.tracker import models
     te_arr = models.Decoder.objects.filter(entry=decoder_training_te)
     search_flag = 1
     for te in te_arr:
@@ -724,7 +724,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     else:
         raise Exception('Make an FA dict decoder first, then re-train that')
 
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te_id = dbfn.TaskEntry(fa_te)
 
     files = dict(plexon=te_id.plx_filename, hdf = te_id.hdf_filename)
@@ -775,7 +775,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     decoder_split.extractor_cls = extractor_cls
     decoder_split.extractor_kwargs = extractor_kwargs
 
-    from ..db import trainbmi
+    from db import trainbmi
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,

@@ -1,4 +1,4 @@
-from ..features.arduino_features import BlackrockSerialDIORowByte, SerialDIORowByte
+from features.arduino_features import BlackrockSerialDIORowByte, SerialDIORowByte
 from riglib import experiment
 
 class par(object):

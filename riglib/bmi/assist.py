@@ -6,8 +6,8 @@ some knowledge of the task goals is available.
 
 import numpy as np 
 from ..bmi import feedback_controllers
-from ...utils.angle_utils import *
-from ...utils.constants import *
+from utils.angle_utils import *
+from utils.constants import *
 
 class Assister(object):
     '''

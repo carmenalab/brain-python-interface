@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from ..db import dbfunctions
+from db import dbfunctions
 from tasks import bmimultitasks
 import numpy as np
 from riglib.bmi import state_space_models, kfdecoder, train

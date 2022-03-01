@@ -941,7 +941,7 @@ class LFPButterBPFPowerExtractor(object):
             nsx_hdf_fname = nsx_fname + '.hdf'
             if not os.path.isfile(nsx_hdf_fname):
                 # convert .nsx file to hdf file using Blackrock's n2h5 utility
-                from ..db.tracker import models
+                from db.tracker import models
                 models.parse_blackrock_file(None, [nsx_fname], )
 
         import h5py

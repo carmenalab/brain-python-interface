@@ -14,7 +14,7 @@ nsx_fs['.ns6'] = 30000
 NSP_channels = np.arange(128) + 1
 
 # files = [u'/storage/blackrock/20140709-161439/20140709-161439-003.ns3']
-from ..db.tracker import models
+from db.tracker import models
 files = models.TaskEntry.objects.get(pk=62).get_nsx_files
 
 lengths = []

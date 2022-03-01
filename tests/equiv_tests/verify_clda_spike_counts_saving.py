@@ -1,5 +1,5 @@
 # coding: utf-8
-from ..db import dbfunctions as dbfn
+from db import dbfunctions as dbfn
 import numpy as np
 
 task_entry = 2023

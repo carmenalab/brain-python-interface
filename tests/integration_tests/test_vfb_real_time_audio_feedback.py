@@ -13,12 +13,12 @@ import time
 import tables
 
 
-from ..features.hdf_features import SaveHDF
+from features.hdf_features import SaveHDF
 from riglib import experiment
 from riglib import sink
-from ..features import serial_port_sensor
+from features import serial_port_sensor
 from riglib import source
-from ..built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 
 class SimLFPSensor(serial_port_sensor.SerialPortSource):

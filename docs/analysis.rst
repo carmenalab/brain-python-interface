@@ -12,7 +12,7 @@ Suppose you have a task ``Task1`` with runtime-configurable parameters ``paramA`
 
     import os
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from ..db.tracker import models
+    from db.tracker import models
     te = models.TaskEntry.objects.get(id=ID_NUMBER)
     te.params['paramA']
 
@@ -26,7 +26,7 @@ Most tasks will typically have at least one file linked as well to store all the
 
 This is a perfectly valid way to get the data, but will get old in a hurry. The purpose of the ``db.dbfunctions`` module is to reduce the number of steps required to accomplish simple database tasks::
 
-    from ..db import dbfunctions as dbfn
+    from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(ID_NUMBER)
     paramA = te.paramA
     hdf = te.hdf
