@@ -4,9 +4,9 @@ from ..features.plexon_features import PlexonBMI
 from ..features.generator_features import Autostart
 from ..features.arduino_features import PlexonSerialDIORowByte
 from ..features.reward_features import RewardSystem
-from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_state
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_state
 
-from ..riglib import experiment
+from riglib import experiment
 import plantlist
 
 import numpy as np
@@ -14,8 +14,8 @@ import os, shutil, pickle
 import pickle
 import time, datetime
 
-from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D
-from ..riglib.bmi import feedback_controllers
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D
+from riglib.bmi import feedback_controllers
 
 from tasks import rat_bmi_tasks
 from ..db.tracker import models

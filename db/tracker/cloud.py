@@ -1,7 +1,7 @@
 """Upload data to google cloud platfom via IoT core. This code is based
 on an 'end-to-end' example provided by the GCP documentation"""
 import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 
 import argparse
 import datetime

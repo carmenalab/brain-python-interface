@@ -19,7 +19,7 @@ class RewardSystem(traits.HasTraits):
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
 
     def __init__(self, *args, **kwargs):
-        from ..riglib import reward
+        from riglib import reward
         super().__init__(*args, **kwargs)
         self.reward = reward.open()
         self.reportstats['Reward #'] = 0
@@ -220,7 +220,7 @@ class RewardSystem_Crist(traits.HasTraits):
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
 
     def __init__(self, *args, **kwargs):
-        from ..riglib import reward_crist
+        from riglib import reward_crist
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward_crist.open()
         self.reportstats['Reward #'] = 0

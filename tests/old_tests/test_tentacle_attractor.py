@@ -4,7 +4,7 @@ import plantlist
 from tasks import bmi_recon_tasks
 import dbfunctions as dbfn
 
-from ..riglib.bmi import goal_calculators
+from riglib.bmi import goal_calculators
 
 class TentacleAttractorBMIRecon(bmi_recon_tasks.BMIReconstruction):
     def get_target_BMI_state(self, *args):

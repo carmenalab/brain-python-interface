@@ -7,7 +7,7 @@ from collections import Counter
 import os
 import array
 
-from ..riglib.source import DataSourceSystem
+from riglib.source import DataSourceSystem
 from . import plexnet
 
 PL_SingleWFType = 1

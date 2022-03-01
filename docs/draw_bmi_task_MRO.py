@@ -4,8 +4,8 @@ Test script to run the visual feedback task from the command line
 from ..db import dbfunctions
 from ..db.tracker import models
 
-from ..riglib import experiment
-from ..riglib.experiment import features
+from riglib import experiment
+from riglib.experiment import features
 
 # Tell linux to use Display 0 (the monitor physically attached to the 
 # machine. Otherwise, if you are connected remotely, it will try to run 

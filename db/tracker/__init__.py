@@ -1,4 +1,4 @@
-default_app_config = "bmi3d.db.tracker.apps.TrackerConfig"
+default_app_config = "db.tracker.apps.TrackerConfig"
 
 
 # This will make sure the app is always imported when

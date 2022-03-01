@@ -18,11 +18,11 @@ class KinarmData(traits.HasTraits):
         kinarm system and registers the source with the SinkRegister so that the data gets saved 
         to file as it is collected.
         '''
-        from ..riglib import source
-        from ..riglib import kinarmdata
+        from riglib import source
+        from riglib import kinarmdata
         System = Motion = kinarmdata.Kinarmdata
         self.kinarmdata = source.DataSource(System)
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.kinarmdata)
         super(KinarmData, self).init()
@@ -32,7 +32,7 @@ class KinarmData(traits.HasTraits):
         '''
         Specify the source class as a function
         '''
-        from ..riglib import kinarmdata
+        from riglib import kinarmdata
         return kinarmdata.Kinarmdata()
 
     def run(self):

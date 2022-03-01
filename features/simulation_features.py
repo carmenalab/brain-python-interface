@@ -186,7 +186,7 @@ class SimKalmanEnc(SimNeuralEnc):
         Instantiate the feature accumulator used to implement rate matching between the Decoder and the task,
         e.g. using a 10 Hz KFDecoder in a 60 Hz task
         '''
-        from ..riglib.bmi import accumulator
+        from riglib.bmi import accumulator
         feature_shape = [self.decoder.n_features, 1]
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
@@ -198,7 +198,7 @@ class SimCosineTunedEnc(SimNeuralEnc):
     
     def _init_neural_encoder(self):
         ## Simulation neural encoder
-        from ..riglib.bmi.sim_neurons import GenericCosEnc#CLDASimCosEnc
+        from riglib.bmi.sim_neurons import GenericCosEnc#CLDASimCosEnc
         print('SimCosineTunedEnc SSM:', self.ssm)
         self.encoder = GenericCosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6)
         
@@ -213,7 +213,7 @@ class SimCosineTunedEnc(SimNeuralEnc):
 class SimNormCosineTunedEnc(SimNeuralEnc):
 
     def _init_neural_encoder(self):
-        from ..riglib.bmi.sim_neurons import NormalizedCosEnc
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
         self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=True, return_ts=False, 
             DT=self.update_rate, tick=self.update_rate, gain=self.fov)
     
@@ -230,7 +230,7 @@ class SimLFPCosineTunedEnc(SimNeuralEnc):
     bands = [(51, 100)]
 
     def _init_neural_encoder(self):
-        from ..riglib.bmi.sim_neurons import NormalizedCosEnc
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
         self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=False, return_ts=False, 
             DT=self.update_rate, tick=self.update_rate, n_bands=len(self.bands), gain=self.fov)
     
@@ -258,13 +258,13 @@ class SimFAEnc(SimCosineTunedEnc):
                 print('setting new weights: ', self.encoder.wt_sources)
         
         else:
-            from ..riglib.bmi.sim_neurons import FACosEnc
+            from riglib.bmi.sim_neurons import FACosEnc
             self.encoder = FACosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6, **self.FACosEnc_kwargs)
 
 
 class SimCosineTunedPointProc(SimNeuralEnc):
     def _init_neural_encoder(self):
-        # from ..riglib.bmi import sim_neurons
+        # from riglib.bmi import sim_neurons
         # decoder_fname = '/storage/decoders/grom20150102_14_BPPF01021655.pkl'
         # decoder = pickle.load(open(decoder_fname))
 
@@ -447,7 +447,7 @@ class SimKFDecoderRandom(SimKFDecoder):
         '''
         Create a 'seed' decoder for the simulation which is simply randomly initialized
         '''
-        from ..riglib.bmi import state_space_models
+        from riglib.bmi import state_space_models
         ssm = state_space_models.StateSpaceEndptVel2D()
         self.decoder = train.rand_KFDecoder(ssm, self.encoder.get_units())
         super(SimKFDecoderRandom, self).load_decoder()

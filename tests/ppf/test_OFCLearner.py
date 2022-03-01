@@ -1,7 +1,7 @@
 
 from scipy.io import loadmat
 import numpy as np
-from ..riglib.bmi import clda
+from riglib.bmi import clda
 
 
 data = loadmat('/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat')

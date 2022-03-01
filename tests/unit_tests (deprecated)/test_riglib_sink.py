@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from ..riglib import sink
+from riglib import sink
 import time
 
 class DataSinkTarget(object):

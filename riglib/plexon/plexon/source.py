@@ -3,7 +3,7 @@ This module appears to be deprecated.....
 '''
 
 from . import plexnet
-from ..riglib.source import DataSource
+from riglib.source import DataSource
 
 class _PlexCont(object):
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):

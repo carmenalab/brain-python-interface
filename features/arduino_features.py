@@ -55,7 +55,7 @@ class SerialDIORowByte(object):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         self.nidaq = sink_manager.start(serial_dio.SendRowByte)
         self.dbq_kwargs = dict()
@@ -259,7 +259,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         self.nidaq = sink_manager.start(self.ni_out)
         super(TDTSerialDIORowByte, self).init()
@@ -271,7 +271,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
         # TODO ni_out ---> iface
-        from ..riglib import serial_dio
+        from riglib import serial_dio
         return serial_dio.SendRowByte
 
     def run(self):

@@ -13,7 +13,7 @@ import ntpath
 import sys
 import fnmatch
 
-from ..riglib.bmi import bmi, kfdecoder
+from riglib.bmi import bmi, kfdecoder
 
 # name of .mat file is passed as first argument
 matfile = sys.argv[1]

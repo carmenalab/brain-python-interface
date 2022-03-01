@@ -352,7 +352,7 @@ class FACosEnc(GenericCosEnc):
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
 
-from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D
 class NormalizedCosEnc(GenericCosEnc):
     '''
     Generates neural observations (spikes or LFP) based on normalized scaling within the bounds of 
@@ -473,7 +473,7 @@ class NormalizedCosEnc(GenericCosEnc):
             return lfp_data
 
 def from_file_to_FACosEnc(plot=False):
-    from ..riglib.bmi import state_space_models as ssm
+    from riglib.bmi import state_space_models as ssm
     import pickle
     import os
     import matplotlib.pyplot as plt
@@ -607,7 +607,7 @@ def sim_enc(enc):
 
 
 def make_FACosEnc(num):
-    from ..riglib.bmi import state_space_models as ssm
+    from riglib.bmi import state_space_models as ssm
     import pickle
     num_neurons = 20;
     SSM = ssm.StateSpaceEndptVel2D()

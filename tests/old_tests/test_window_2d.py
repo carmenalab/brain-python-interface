@@ -1,10 +1,10 @@
 #!/usr/bin/python
-from ..riglib.stereo_opengl import window
-from ..riglib.stereo_opengl.primitives import Sphere
-from ..riglib.experiment import traits, Sequence
-from ..riglib.stereo_opengl.render import stereo, Renderer
+from riglib.stereo_opengl import window
+from riglib.stereo_opengl.primitives import Sphere
+from riglib.experiment import traits, Sequence
+from riglib.stereo_opengl.render import stereo, Renderer
 
-from ..riglib.stereo_opengl.window import Window
+from riglib.stereo_opengl.window import Window
 
 import pygame
 import numpy as np

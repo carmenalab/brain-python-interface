@@ -6,7 +6,7 @@ for a basic introduction
 '''
 
 import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
 import pickle
 import inspect
@@ -318,7 +318,7 @@ class Feature(models.Model):
             return ''
 
     def get(self, update_builtin=False):
-        from ...features import built_in_features
+        from features import built_in_features
         if self.import_path is not None:
             return import_by_path(self.import_path)
         elif self.name in built_in_features:
@@ -560,7 +560,7 @@ class Sequence(models.Model):
         return self.__str__()
 
     def get(self):
-        from ...riglib.experiment import generate
+        from riglib.experiment import generate
         from .json_param import Parameters
 
         if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
@@ -659,7 +659,7 @@ class TaskEntry(models.Model):
 
     def get(self, feats=()):
         from .json_param import Parameters
-        from ..riglib import experiment
+        from riglib import experiment
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
         params = Parameters(self.params)
         params.trait_norm(Exp.class_traits())
@@ -786,7 +786,7 @@ class TaskEntry(models.Model):
 
             ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
             # try:
-            #     from ..db import dbfunctions
+            #     from db import dbfunctions
             #     te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
             #     rpt['Decoder name'] = te.decoder_record.name + ' (trained in block %d)' % te.decoder_record.entry_id
             # except AttributeError:
@@ -1338,7 +1338,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
     #  1) determine the last timestamp in the file
     #  2) create a list of units that had spikes in this file
     '''
-    from ..riglib.blackrock.brpylib import NevFile, NsxFile
+    from riglib.blackrock.brpylib import NevFile, NsxFile
 
     # First parse the NEV file:
     if nev_fname is not None:

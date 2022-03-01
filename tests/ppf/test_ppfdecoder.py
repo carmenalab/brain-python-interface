@@ -4,9 +4,9 @@ Test case for PPFDecoder
 '''
 import numpy as np
 from scipy.io import loadmat, savemat
-from ..riglib.bmi import sim_neurons
+from riglib.bmi import sim_neurons
 import matplotlib.pyplot as plt
-from ..riglib.bmi import ppfdecoder, train
+from riglib.bmi import ppfdecoder, train
 import plotutil
 
 plt.close('all')

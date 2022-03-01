@@ -643,7 +643,7 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         n_subbins = counts.shape[1]
 
         # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
-        # NOTE: this code is mostly copied from ..riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
+        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
         ts_data = []
         cycle_rate = self.cycle_rate
         for k in range(n_subbins):

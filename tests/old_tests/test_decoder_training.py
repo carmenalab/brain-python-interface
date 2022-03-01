@@ -1,5 +1,5 @@
 import unittest
-from ..riglib.bmi import train
+from riglib.bmi import train
 from ..db import dbfunctions
 import numpy as np
 

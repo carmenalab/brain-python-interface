@@ -4,7 +4,7 @@ Interface between the Django database methods/models and data analysis code
 # django initialization
 import os
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-from ..boot_django import boot_django
+from .boot_django import boot_django
 from django.db import connection
 from django.db.utils import OperationalError
 
@@ -359,7 +359,7 @@ class TaskEntry(object):
             self._plx = plexfile.openFile(str(self.plx_filename))
 
             # parse out events
-            from ..riglib.dio import parse
+            from riglib.dio import parse
             self.strobe_data = parse.parse_data(self._plx.events[:].data)
         return self._plx
 

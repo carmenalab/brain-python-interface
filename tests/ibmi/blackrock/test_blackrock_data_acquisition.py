@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 import scipy.io as sio
-from ..riglib.bmi import extractor
+from riglib.bmi import extractor
 
 
 channels = list(range(33))
@@ -15,7 +15,7 @@ class BlackrockData(object):
     '''Stream Blackrock neural data.'''
 
     def init(self, data_type, channels):
-        from ..riglib import blackrock, source
+        from riglib import blackrock, source
 
         if data_type is 'spike':  # e.g., 'spike_counts'
             self.neurondata = source.DataSource(blackrock.Spikes, channels=channels)

@@ -14,10 +14,10 @@ import tables
 
 
 from ..features.hdf_features import SaveHDF
-from ..riglib import experiment
-from ..riglib import sink
+from riglib import experiment
+from riglib import sink
 from ..features import serial_port_sensor
-from ..riglib import source
+from riglib import source
 from ..built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 

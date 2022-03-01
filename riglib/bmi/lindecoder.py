@@ -196,7 +196,7 @@ class PosVelScaleFilter(LinearScaleFilter):
         self.state.update(out)  
 
 def create_lindecoder(ssm, units, neural_data, unit_to_state, decoder_to_plant=None, smoothing_window=1, vel_control=False, update_rate=0.1):
-    from ..riglib.bmi import Decoder
+    from riglib.bmi import Decoder
     filt_counts = smoothing_window # only used for smoothing since we're fixing the gains
     filt = PosVelScaleFilter(vel_control, filt_counts, ssm.n_states, len(units), unit_to_state, smoothing_window, decoder_to_plant, call_rate=1/update_rate)
     

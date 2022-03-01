@@ -33,7 +33,7 @@ class BMIReconstruction(BMILoop, Experiment):
         if entry_id is None and (hdf_filename is None or decoder_filename is None):
             raise ValueError("Not enough data to reconstruct a BMI! Specify a database entry OR an HDF file + decoder file")
         if entry_id is not None:
-            from ..db import dbfunctions as dbfn
+            from db import dbfunctions as dbfn
             te = dbfn.TaskEntry(entry_id)
             self.hdf_ref = te.hdf
             self.decoder = te.decoder

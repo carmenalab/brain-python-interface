@@ -74,7 +74,7 @@ class NIDAQSync(traits.HasTraits):
 
         # Create a record array for sync events
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
-            from ..riglib import sink
+            from riglib import sink
             self.sinks = sink.SinkManager.get_instance()
         dtype = np.dtype([('time', 'u8'), ('event', 'S32'), ('data', 'u4'), ('code', 'u1')]) # 64-bit time (cycle number), string event, 32-bit data, 8-bit code
         self.sync_event_record = np.zeros((1,), dtype=dtype)
@@ -163,7 +163,7 @@ class NIDAQSync(traits.HasTraits):
 import copy
 import pygame
 from ..built_in_tasks.target_graphics import VirtualRectangularTarget
-from ..riglib.stereo_opengl.window import TRANSPARENT
+from riglib.stereo_opengl.window import TRANSPARENT
 
 class ScreenSync(NIDAQSync):
     '''Adds a square in one corner that switches color with every flip.'''
@@ -195,7 +195,7 @@ class ScreenSync(NIDAQSync):
         if isinstance(self.status, dict):
             self.status["sync"] = dict(start_experiment="wait", stoppable=False)
         else:
-            from ..riglib.fsm.fsm import StateTransitions
+            from riglib.fsm.fsm import StateTransitions
             self.status.states["sync"] = StateTransitions(start_experiment="wait", stoppable=False)
         self.state = "sync"
 

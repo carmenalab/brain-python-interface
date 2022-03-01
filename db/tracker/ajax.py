@@ -568,7 +568,7 @@ def remove_system(request):
 
 @csrf_exempt
 def toggle_features(request):
-    from ...features import built_in_features
+    from features import built_in_features
     from . import models
 
     name = request.POST.get('name')

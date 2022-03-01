@@ -377,7 +377,7 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
         vel = np.array([vx, vy, vz])
 
         # Convert to joint velocities
-        from ..riglib.stereo_opengl import ik
+        from riglib.stereo_opengl import ik
         joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
         return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
 

@@ -1,6 +1,6 @@
 import time
-from ..riglib import source
-from ..riglib.plexon import Spikes
+from riglib import source
+from riglib.plexon import Spikes
 import pickle
 
 ds = source.DataSource(Spikes)

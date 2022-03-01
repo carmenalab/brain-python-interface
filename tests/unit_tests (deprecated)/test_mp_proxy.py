@@ -2,7 +2,7 @@ import unittest
 import os
 import time
 
-from ..riglib.mp_proxy import RPCProcess
+from riglib.mp_proxy import RPCProcess
 
 
 class MockTask(object):

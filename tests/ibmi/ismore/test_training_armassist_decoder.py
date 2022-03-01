@@ -1,4 +1,4 @@
-from ..riglib.bmi import train, extractor
+from riglib.bmi import train, extractor
 import numpy as np
 from ..db.tracker import models
 

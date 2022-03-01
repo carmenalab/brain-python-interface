@@ -1,7 +1,7 @@
 import numpy as np
 from ..db import dbfunctions as dbfn
 from ..db.tracker import models
-from ..riglib.bmi import train, kfdecoder, ppfdecoder
+from riglib.bmi import train, kfdecoder, ppfdecoder
 import unittest
 
 datafiles = models.DataFile.objects.filter(entry_id=3)
@@ -17,7 +17,7 @@ for system_name in system_names:
         inputdata[system_name] = files[0]  # just one file
 
 
-from ..riglib.bmi import extractor
+from riglib.bmi import extractor
 
 
 channels = list(range(1, 7))

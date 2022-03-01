@@ -5,7 +5,7 @@ Equivalence test for changes to vfb training procedure (riglib.bmi.train._train_
 import numpy as np
 from ..db import dbfunctions as dbfn
 from ..db.tracker import models
-from ..riglib.bmi import train
+from riglib.bmi import train
 reload(train)
 
 te = dbfn.get_task_entry(1844)

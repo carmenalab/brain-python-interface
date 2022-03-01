@@ -8,9 +8,9 @@ import numpy as np
 import math
 import time
 import cProfile
-from ..riglib.bmi import train, clda, bmi, ppfdecoder, extractor
+from riglib.bmi import train, clda, bmi, ppfdecoder, extractor
 from tasks import bmimultitasks, generatorfunctions as genfns
-from ..riglib.bmi.train import unit_conv
+from riglib.bmi.train import unit_conv
 
 from tasks import bmi_recon_tasks
 

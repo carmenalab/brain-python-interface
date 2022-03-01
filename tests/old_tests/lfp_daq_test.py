@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 import scipy.io as sio
 
 #remember to change "plexnet_softserver_oldfiles" back to "plexnet" in LFP.__init__
@@ -16,7 +16,7 @@ class PlexonLFPData(traits.HasTraits):
     '''Stream neural LFP data from the Plexon system'''
     
     def init(self):
-        from ..riglib import plexon, source
+        from riglib import plexon, source
         print(channels)
         self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=channels, chan_offset=chan_offset)
         try:

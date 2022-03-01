@@ -18,7 +18,7 @@ class Joystick(object):
         Prior to starting the task, this 'init' instantiates a DataSource with 2 channels for the two analog 
         inputs from the phidgets joystick. 
         '''
-        from ..riglib import source, phidgets, sink
+        from riglib import source, phidgets, sink
         sink_manager = sink.SinkManager.get_instance()
         #System = phidgets.make(2, 1)
         #self.joystick = source.DataSource(System)
@@ -28,7 +28,7 @@ class Joystick(object):
         sink_manager.register(self.joystick)
 
     def register_num_channels(self):
-        from ..riglib import source, phidgets, sink
+        from riglib import source, phidgets, sink
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
 
@@ -55,14 +55,14 @@ class ArduinoJoystick(Joystick):
         '''
         Same as above, w/o Phidgets import
         '''
-        from ..riglib import source, sink
+        from riglib import source, sink
         self.sinks = sink.sinks # sink_manager = sink.SinkManager.get_instance()
         self.register_num_channels()
         super(Joystick, self).init()
         self.sinks.register(self.joystick)
 
     def register_num_channels(self):
-        from ..riglib import arduino_joystick, source, sink
+        from riglib import arduino_joystick, source, sink
         System = arduino_joystick.make(2, 1)
         self.joystick = source.DataSource(System)
 
@@ -73,7 +73,7 @@ class ArduinoIMU(object):
         Prior to starting the task, this 'init' instantiates a DataSource with 2 channels for the
         inputs from the IMU
         '''
-        from ..riglib import sink
+        from riglib import sink
         self.register_num_channels()
         super(ArduinoIMU, self).init()
 
@@ -81,7 +81,7 @@ class ArduinoIMU(object):
         sink_manager.register(self.arduino_imu)
 
     def register_num_channels(self):
-        from ..riglib import source, arduino_imu
+        from riglib import source, arduino_imu
         System = arduino_imu.make(6, 1)
         self.arduino_imu = source.DataSource(System)
 
@@ -108,7 +108,7 @@ class Joystick_plus_TouchSensor(Joystick):
     code to use touch sensor (attached to joystick in exorig) plus joystick
     '''
     def register_num_channels(self):
-        from ..riglib import source, phidgets, sink
+        from riglib import source, phidgets, sink
         System = phidgets.make(3, 1)
         self.joystick = source.DataSource(System)
 
@@ -122,7 +122,7 @@ class DualJoystick(object):
         Prior to starting the task, this 'init' creates a 4-channel DataSource, two channels for each joystick
         -------
         '''
-        from ..riglib import source, phidgets
+        from riglib import source, phidgets
         System = phidgets.make(4, 1)
         self.dualjoystick = source.DataSource(System)
         super(DualJoystick, self).init()

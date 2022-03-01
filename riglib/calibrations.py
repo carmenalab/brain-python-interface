@@ -267,7 +267,7 @@ class AutoAlign(object):
         -------
         '''
         print("Making autoaligner from reference %s"%reference)
-        from ..riglib.stereo_opengl import xfm
+        from riglib.stereo_opengl import xfm
         self._quat = xfm.Quaternion
         self.ref = np.load(reference)['reference']
         self.xfm = xfm.Quaternion()

@@ -3,9 +3,9 @@ import os
 import numpy as np
 import time
 
-from ..riglib.experiment.mocks import *
-from ..riglib import experiment
-from ..riglib import sink
+from riglib.experiment.mocks import *
+from riglib import experiment
+from riglib import sink
 
 from mocks import MockDatabase
 
@@ -113,7 +113,7 @@ class TestTaskWithFeatures(unittest.TestCase):
         exp()
 
     def test_mock_seq_with_features(self):
-        from ..riglib.experiment.mocks import MockSequenceWithGenerators
+        from riglib.experiment.mocks import MockSequenceWithGenerators
         from ..features.hdf_features import SaveHDF
         import h5py
 

@@ -1,6 +1,6 @@
 # run with manage.py:
 # > python manage.py shell
-# > from bmi3d.db.migrate_db import *
+# > from db.migrate_db import *
 
 from .boot_django import boot_django
 boot_django()

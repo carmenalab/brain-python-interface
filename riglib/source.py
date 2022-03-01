@@ -276,7 +276,7 @@ class MultiChanDataSource(mp.Process):
         try:
             from ismore.brainamp import brainamp_hdf_writer
         except:
-            from ..riglib.ismore import brainamp_hdf_writer
+            from riglib.ismore import brainamp_hdf_writer
         self.supp_hdf = brainamp_hdf_writer.BrainampData(self.supp_hdf_file, self.channels, self.send_to_sinks_dtype)
 
 
@@ -284,7 +284,7 @@ class MultiChanDataSource(mp.Process):
         try:
             from ismore.brainamp.brainamp_features import verify_data_arrival
         except:
-            from ..riglib.ismore.brainamp.brainamp_features import verify_data_arrival
+            from riglib.ismore.brainamp.brainamp_features import verify_data_arrival
 
         
 

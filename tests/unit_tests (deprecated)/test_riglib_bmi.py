@@ -5,8 +5,8 @@ from requirements import *
 
 ###############################################################################
 ## Kalman filter ##############################################################
-from ..riglib.bmi.kfdecoder import KalmanFilter
-from ..riglib.bmi.bmi import GaussianState
+from riglib.bmi.kfdecoder import KalmanFilter
+from riglib.bmi.bmi import GaussianState
 
 # 48, 59, 82-84, 101, 146, 149, 158-171, 206-242, 263-279, 298-307, 327-336, 347, 
 # 353-357, 365-368, 397-417, 428-432, 440-454, 458-476, 486-515, 521-524, 530-532, 
@@ -73,8 +73,8 @@ class TestKalmanFilter(unittest.TestCase):
 
 ###############################################################################
 ## Kalman filter decoder ######################################################
-from ..riglib.bmi.kfdecoder import KFDecoder
-from ..riglib.bmi.state_space_models import State, StateSpace
+from riglib.bmi.kfdecoder import KFDecoder
+from riglib.bmi.state_space_models import State, StateSpace
 
 class TestKFDecoder(unittest.TestCase):
     def test_kfdecoder_prediction(self):
@@ -107,7 +107,7 @@ class TestKFDecoder(unittest.TestCase):
 
 ###############################################################################
 ## Accumulators ###############################################################
-from ..riglib.bmi import accumulator
+from riglib.bmi import accumulator
 
 class TestRectAccumulator(unittest.TestCase):
     def setUp(self):
@@ -154,7 +154,7 @@ class TestNullAccumulator(unittest.TestCase):
 
 ###############################################################################
 ## GaussianState ##############################################################
-from ..riglib.bmi.bmi import GaussianState
+from riglib.bmi.bmi import GaussianState
 
 class TestGaussianState(unittest.TestCase):
     def test_mul_by_scalara(self):
@@ -188,7 +188,7 @@ class TestGaussianState(unittest.TestCase):
 
 ###############################################################################
 ## Goal calculators ###########################################################
-from ..riglib.bmi import goal_calculators, state_space_models
+from riglib.bmi import goal_calculators, state_space_models
 class TestZeroVelocityGoal(unittest.TestCase):
     def test_zero_velocity_goal(self):
         ssm = state_space_models.StateSpaceEndptVel2D()

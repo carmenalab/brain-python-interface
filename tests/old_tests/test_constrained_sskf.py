@@ -20,7 +20,7 @@ drives_neurons = np.array([False, False, True, True, True])
 Q = riglib.bmi.kfdecoder.project_Q(C[:,2:4], Q_hat)
 
 # create a riglib.bmi.KalmanFilter object and compute the steady-state Kalman filter
-from ..riglib.bmi.kfdecoder import KalmanFilter
+from riglib.bmi.kfdecoder import KalmanFilter
 kf = KalmanFilter(A, W, C, Q_hat)
 [F, K] = kf.get_sskf()
 

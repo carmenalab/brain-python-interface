@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 import scipy.io as sio
-from ..riglib.bmi import extractor
+from riglib.bmi import extractor
 
 
 #channels = [1, 2, 3, 4]
@@ -19,8 +19,8 @@ class BrainAmpData(object):
     '''Stream BrainAmp neural data.'''
 
     def init(self):
-        from ..riglib import source
-        from ..riglib.brainamp import rda
+        from riglib import source
+        from riglib.brainamp import rda
 
         self.emgdata = source.MultiChanDataSource(rda.EMGData, channels=channels)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from ..features import blackrock_features
 import blackrock
-from ..riglib import source
+from riglib import source
 import time
 import numpy as np
 

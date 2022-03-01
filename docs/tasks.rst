@@ -29,7 +29,7 @@ A state transition definition is written in the code as a nested dictionary with
 
 Alternatively, a slightly more abstracted declaration might be::
 
-    from ..riglib.experiment import FSMTable, StateTransitions
+    from riglib.experiment import FSMTable, StateTransitions
     status = FSMTable(
             wait = StateTransitions(start_trial="trial", premature="penalty", stoppable=False),
             trial = StateTransitions(correct="reward", incorrect="penalty", timeout="penalty"),
@@ -219,7 +219,7 @@ The base experiment class is a barebones FSM implementation. Typical tasks will 
     3) "Declare" the sequence generator. 
         Each task should specify the possible sequence generators in the class attribute ``sequence_generators``, which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be static methods of that same task class. An example::
 
-        from ..riglib.experiment import Sequence
+        from riglib.experiment import Sequence
         class NewSequenceTask(Sequence):
             sequence_generators = ['seq1', 'seq2']
 

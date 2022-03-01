@@ -125,7 +125,7 @@ MIDDLEWARE = [
 ]
 
 
-ROOT_URLCONF = 'bmi3d.db.urls'
+ROOT_URLCONF = 'db.urls'
 
 TEMPLATE_DIRS = (
     os.path.join(BASE_DIR, "html", "templates"),
@@ -139,7 +139,7 @@ STATICFILES_DIRS = (
 )
 ADMIN_MEDIA_PREFIX = '/static/admin/'
 INSTALLED_APPS = (
-    'bmi3d.db.tracker',
+    'db.tracker',
     'django.contrib.auth',
     'django.contrib.admin',    
     'django.contrib.contenttypes',
@@ -154,7 +154,7 @@ TEMPLATES = [
         'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
-            'environment': 'bmi3d.db.tracker.jinja2.environment'
+            'environment': 'db.tracker.jinja2.environment'
         },
     },
     {

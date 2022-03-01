@@ -52,7 +52,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     pos_key : string
         TODO
     """
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     from . import models
     from .json_param import Parameters
     from .tasktrack import Track
@@ -152,7 +152,7 @@ def cache_and_train(*args, **kwargs):
     """
     Cache plexon file (if using plexon system) and train BMI.
     """
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     from . import models
 
     recording_sys = models.KeyValueStore.get('recording_sys', None)
@@ -190,14 +190,14 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     -------
     None
     '''
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from . import dbq
     from . import namelist
-    from .tracker import models
+    from . import models
     from . import dbfunctions as dbfn
     from .json_param import Parameters
     from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
     import riglib.bmi
     if not isinstance(obj, riglib.bmi.bmi.Decoder):
@@ -215,20 +215,13 @@ def conv_mm_dec_to_cm(decoder_record):
     '''
     Convert a mm unit decoder to cm
     '''
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from . import dbq
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
     print(decoder_fname)
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
-    from ..riglib.bmi import train
+    from riglib.bmi import train
     dec_cm = train.rescale_KFDecoder_units(dec, 10)
 
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_cm.pkl'
@@ -241,14 +234,7 @@ def conv_mm_dec_to_cm(decoder_record):
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def zero_out_SSKF_bias(decoder_record):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 
     dec = open_decoder_from_record(decoder_record)
     dec.filt.C_xpose_Q_inv_C[:,-1] = 0
@@ -256,28 +242,14 @@ def zero_out_SSKF_bias(decoder_record):
     save_new_decoder_from_existing(dec, decoder_record, suffix='_zero_bias')
 
 def conv_kfdecoder_binlen(decoder_record, new_binlen):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     dec = open_decoder_from_record(decoder_record)
     dec.change_binlen(new_binlen)
     save_new_decoder_from_existing(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
 
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from . import dbq
 
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
@@ -285,7 +257,7 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
 
-    from ..riglib.bmi import train
+    from riglib.bmi import train
     dec_ppf = train.convert_KFDecoder_to_PPFDecoder(dec)
 
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
@@ -295,37 +267,24 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
     new_decoder_name = decoder_name + '_ppf'
     training_block_id = decoder_record.entry_id
     print(new_decoder_name)
-    from .tracker import dbq
+    from . import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def conv_kfdecoder_to_sskfdecoder(decoder_record):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 
     dec = open_decoder_from_record(decoder_record)
 
     F, K = dec.filt.get_sskf()
-    from ..riglib.bmi import sskfdecoder
+    from riglib.bmi import sskfdecoder
     filt = sskfdecoder.SteadyStateKalmanFilter(F=F, K=K)
     dec_sskf = sskfdecoder.SSKFDecoder(filt, dec.units, dec.ssm, binlen=decoder.binlen)
 
     save_new_decoder_from_existing(decoder_record, '_sskf')
 
 def make_kfdecoder_interpolate(decoder_record):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from . import dbq
 
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
@@ -333,7 +292,7 @@ def make_kfdecoder_interpolate(decoder_record):
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
 
-    from ..riglib.bmi import train
+    from riglib.bmi import train
     dec_ppf = train._interpolate_KFDecoder_state_between_updates(dec)
 
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
@@ -343,6 +302,6 @@ def make_kfdecoder_interpolate(decoder_record):
     new_decoder_name = decoder_name + '_60hz'
     training_block_id = decoder_record.entry_id
     print(new_decoder_name)
-    from .tracker import dbq
+    from . import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 

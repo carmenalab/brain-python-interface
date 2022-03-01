@@ -144,7 +144,7 @@ class IsmoreSleepFilter(RatFilter):
         self.baseline = self.FR < self.mid
         return State(self.alpha)
 
-from ..riglib.bmi.bmi import Decoder
+from riglib.bmi.bmi import Decoder
 class RatDecoder(Decoder):
 
     def __init__(self, *args, **kwargs):
@@ -481,7 +481,7 @@ def sim_bmi(baseline_data, t1, t2, midpoint, timeout, timeout_pause, p):
 
 def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None, session_length=0.):
     import ismore.invasive.bmi_ismoretasks as bmi_ismoretasks
-    from ..riglib import experiment
+    from riglib import experiment
     from ..features.hdf_features import SaveHDF
     from ismore.brainamp_features import SimBrainAmpData
     import datetime

@@ -25,7 +25,7 @@ class RefTrajectories(dict):
     pass
 
 
-from ..riglib.source import DataSourceSystem
+from riglib.source import DataSourceSystem
 class FeedbackData(DataSourceSystem):
     '''
     Generic class for parsing UDP feedback data from a plant. Meant to be used with
@@ -166,7 +166,7 @@ class Plant(object):
 
 class AsynchronousPlant(Plant):
     def init(self):
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.source)
         super(AsynchronousPlant, self).init()

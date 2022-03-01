@@ -11,7 +11,7 @@ Retrieving the metadata
 Suppose you have a task ``Task1`` with runtime-configurable parameters ``paramA`` and ``paramB``. The most barebones way to get back the specific values of ``paramA`` and ``paramB`` used during the task is the following::
 
     import os
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     from ..db.tracker import models
     te = models.TaskEntry.objects.get(id=ID_NUMBER)
     te.params['paramA']

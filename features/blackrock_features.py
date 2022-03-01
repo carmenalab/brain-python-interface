@@ -16,7 +16,7 @@ class RelayBlackrock(object):
         Prior to starting the task, this 'init' creates a sink for the NIDAQ card
         '''
 
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         self.nidaq = sink_manager.start(self.ni_out)
         super(RelayBlackrock, self).init()
@@ -32,7 +32,7 @@ class RelayBlackrock(object):
         Returns
         -------
         '''
-        from ..riglib.dio import nidaq
+        from riglib.dio import nidaq
         print('nidaq.SendAll', nidaq.SendAll)
         return nidaq.SendAll
 
@@ -175,7 +175,7 @@ class RelayBlackrockByte(RelayBlackrock):
         Returns
         -------
         '''
-        from ..riglib import nidaq
+        from riglib import nidaq
         return nidaq.SendRowByte
 
 
@@ -191,7 +191,7 @@ class BlackrockData(object):
         For LFP streaming, the data is stored as it is received.
         '''
 
-        from ..riglib import blackrock, source
+        from riglib import blackrock, source
 
         if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
             # for testing only!
@@ -203,7 +203,7 @@ class BlackrockData(object):
         else:
             raise Exception("Unknown extractor class, unable to create data source object!")
 
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.neurondata)
 
@@ -234,7 +234,7 @@ class BlackrockBMI(CorticalBMI):
         return blackrock    
 
 
-# from ..riglib.bmi.bmi import Decoder
+# from riglib.bmi.bmi import Decoder
 # class BlackrockBMI(BlackrockData, traits.HasTraits):
 #     '''
 #     Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder

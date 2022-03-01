@@ -23,10 +23,10 @@ class MotionData(traits.HasTraits):
         Prior to starting the task, this 'init' sets up the DataSource for interacting with the 
         motion tracker system and registers the source with the SinkRegister so that the data gets saved to file as it is collected.
         '''
-        from ..riglib import source
+        from riglib import source
         src, mkw = self.source_class
         self.motiondata = source.DataSource(src, **mkw)
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.motiondata)
         super(MotionData, self).init()
@@ -36,7 +36,7 @@ class MotionData(traits.HasTraits):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
-        from ..riglib import motiontracker
+        from riglib import motiontracker
         return motiontracker.make(self.marker_count), dict()
 
     def run(self):
@@ -95,7 +95,7 @@ class MotionSimulate(MotionData):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''        
-        from ..riglib import motiontracker
+        from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.Simulate)
         return cls, dict(radius=(100,100,50), offset=(-150,0,0))
 
@@ -117,6 +117,6 @@ class MotionAutoAlign(MotionData):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
-        from ..riglib import motiontracker
+        from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()

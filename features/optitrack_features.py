@@ -62,11 +62,11 @@ class Optitrack(traits.HasTraits):
         self.client = client
 
         # Create a source to buffer the motion tracking data
-        from ..riglib import source
+        from riglib import source
         self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, 1))
 
         # Save to the sink
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.motiondata)
         super().init()
@@ -153,11 +153,11 @@ class OptitrackSimulate(Optitrack):
         self.client = optitrack.SimulatedClient()
 
         # Create a source to buffer the motion tracking data
-        from ..riglib import source
+        from riglib import source
         self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, 1))
 
         # Save to the sink
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.motiondata)
         super(Optitrack, self).init()
@@ -180,11 +180,11 @@ class OptitrackPlayback(Optitrack):
         self.client = optitrack.PlaybackClient(self.filepath)
 
         # Create a source to buffer the motion tracking data
-        from ..riglib import source
+        from riglib import source
         self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, 1))
 
         # Save to the sink
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.motiondata)
         super(Optitrack, self).init()
@@ -202,7 +202,7 @@ class HidePlantOnPause():
 import logging
 class Logger(object):
 
-    def __init__(self, msg="", log_filename='../../log/optitrack.log'):
+    def __init__(self, msg="", log_filename='../log/optitrack.log'):
         self.log_filename = log_filename
         self.reset(msg)
 

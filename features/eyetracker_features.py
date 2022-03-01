@@ -21,8 +21,8 @@ class EyeData(traits.HasTraits):
         Prior to starting the task, this 'init' sets up the 'eyedata' DataSource and registers it with the 
         SinkRegister so that the data gets saved to file as it is collected.
         '''
-        from ..riglib import source
-        from ..riglib import sink
+        from riglib import source
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
 
         src, ekw = self.eye_source
@@ -44,7 +44,7 @@ class EyeData(traits.HasTraits):
         Returns
         -------
         '''
-        from ..riglib import eyetracker
+        from riglib import eyetracker
         return eyetracker.System, dict()
 
     def run(self):
@@ -139,7 +139,7 @@ class SimulatedEyeData(EyeData):
         Returns
         -------
         '''
-        from ..riglib import eyetracker
+        from riglib import eyetracker
         return eyetracker.Simulate, dict(fixations= self.fixations)
 
     def _cycle(self):

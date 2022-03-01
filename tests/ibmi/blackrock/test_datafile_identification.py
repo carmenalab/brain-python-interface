@@ -1,5 +1,5 @@
 from ismore.invasive import bmi_ismoretasks
-from ..riglib import experiment
+from riglib import experiment
 from ..features.hdf_features import SaveHDF
 from ..features.arduino_features import BlackrockSerialDIORowByte
 import numpy as np

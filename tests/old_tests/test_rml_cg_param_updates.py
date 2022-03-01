@@ -8,7 +8,7 @@ from tasks import generatorfunctions as genfns
 import numpy as np 
 
 from tasks import bmi_recon_tasks
-from ..riglib.bmi import clda
+from riglib.bmi import clda
 reload(bmi_recon_tasks)
 reload(tasks)
     

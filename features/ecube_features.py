@@ -11,7 +11,7 @@ from features.neural_sys_features import CorticalBMI, CorticalData
 import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
-log_path = os.path.join(os.path.dirname(__file__), '../../log')
+log_path = os.path.join(os.path.dirname(__file__), '../log')
 log_filename = os.path.join(log_path, "ecube_log")
 
 def make_ecube_session_name(saveid):
@@ -80,7 +80,7 @@ class RecordECube(traits.HasTraits):
         return super_result
 
     def _ecube_cleanup(self, saveid):
-        from ..riglib.ecube import pyeCubeStream
+        from riglib.ecube import pyeCubeStream
         ec = pyeCubeStream.eCubeStream()
         active = ec.listremotesessions()
         stopped = saveid is None
@@ -110,7 +110,7 @@ class RecordECube(traits.HasTraits):
         '''
         cls.ecube_status = "Not initialized"
         if saveid is not None:
-            from ..riglib.ecube import pyeCubeStream
+            from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
             log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
             try:
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     exp = TestClass()
     exp.start()
     exp.cleanup(None, 10)
-    # from ..riglib import experiment
+    # from riglib import experiment
     # proc = experiment.task_wrapper.TaskWrapper(
     #     subj=None, params=dict(), target_class=TestClass, saveid=10)
     # proc.start()

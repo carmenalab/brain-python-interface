@@ -18,7 +18,7 @@ class RelayPlexon(object):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         self.nidaq = sink_manager.start(self.ni_out)
         super(RelayPlexon, self).init()
@@ -38,7 +38,7 @@ class RelayPlexon(object):
         Specify the output interface; can be overridden in child classes as long as
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
-        from ..riglib.dio import nidaq
+        from riglib.dio import nidaq
         return nidaq.SendAll
 
     @property
@@ -179,7 +179,7 @@ class RelayPlexByte(RelayPlexon):
         '''
         see documentation for RelayPlexon.ni_out
         '''
-        from ..riglib.dio import nidaq
+        from riglib.dio import nidaq
         return nidaq.SendRowByte
 
 
@@ -187,6 +187,6 @@ from .neural_sys_features import CorticalBMI
 class PlexonBMI(CorticalBMI):
     @property
     def sys_module(self):
-        from ..riglib import plexon
+        from riglib import plexon
         return plexon
 

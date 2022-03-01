@@ -1,5 +1,5 @@
 import time
-from ..riglib import blackrock
+from riglib import blackrock
 
 channels = [5, 6, 7, 8]
 obj = blackrock.Spikes(channels)

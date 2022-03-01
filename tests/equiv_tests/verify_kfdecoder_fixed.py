@@ -2,7 +2,7 @@
 from ..db import dbfunctions
 from tasks import bmimultitasks
 import numpy as np
-from ..riglib.bmi import state_space_models, kfdecoder, train
+from riglib.bmi import state_space_models, kfdecoder, train
 reload(kfdecoder)
 
 te = dbfunctions.get_task_entry(1883) # Block with predict and update of kf running at 10Hz

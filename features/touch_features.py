@@ -21,10 +21,10 @@ class TouchDataFeature(traits.HasTraits):
         kinarm system and registers the source with the SinkRegister so that the data gets saved 
         to file as it is collected.
         '''
-        from ..riglib import source
+        from riglib import source
         System  = touch_data.TouchData
         self.touch_data = source.DataSource(System)
-        from ..riglib import sink
+        from riglib import sink
         sink_manager = sink.SinkManager.get_instance()
         sink_manager.register(self.touch_data)
         super(TouchDataFeature, self).init()
@@ -34,7 +34,7 @@ class TouchDataFeature(traits.HasTraits):
         '''
         Specify the source class as a function
         '''
-        from ..riglib import touch_data
+        from riglib import touch_data
         return touch_data.TouchData()
 
     def run(self):

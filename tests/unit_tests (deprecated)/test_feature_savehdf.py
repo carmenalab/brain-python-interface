@@ -7,8 +7,8 @@ from ..features.hdf_features import SaveHDF
 import time
 import tables
 
-from ..riglib import experiment
-from ..riglib import sink
+from riglib import experiment
+from riglib import sink
 import mocks
 import os
 

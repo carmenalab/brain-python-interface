@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from ..riglib.plexon import plexnet
+from riglib.plexon import plexnet
 import matplotlib.pyplot as plt
-from ..riglib.experiment import traits
+from riglib.experiment import traits
 
 conn = plexnet.Connection("10.0.0.13", 6000)
 conn.connect(256, waveforms=False, analog=False)
@@ -17,7 +17,7 @@ class SpikeData(traits.HasTraits):
     plexon_channels = None
 
     def init(self):
-        from ..riglib import plexon, source
+        from riglib import plexon, source
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         try:
             super(SpikeData, self).init()
