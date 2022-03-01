@@ -4,7 +4,7 @@
 # execute as if running in a Django server.
 import django
 from django.conf import settings
-from bmi3d.db import db_settings
+from db import db_settings
 
 def get_module_settings(module_name):
     module = globals().get(module_name, None)
