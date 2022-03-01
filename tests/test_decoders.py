@@ -189,7 +189,7 @@ class TestLinDec(unittest.TestCase):
     
     @unittest.skip('msg')
     def test_experiment_unfixed(self):
-        from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
+        from built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
         for cls in [SimBMICosEncLinDec]:
             N_TARGETS = 8
             N_TRIALS = 16
@@ -209,7 +209,7 @@ class TestLinDec(unittest.TestCase):
     
     @unittest.skip('msg')
     def test_experiment(self):
-        from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
+        from built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
         for cls in [SimBMICosEncLinDec, SimBMIVelocityLinDec]:
             N_TARGETS = 8
             N_TRIALS = 16

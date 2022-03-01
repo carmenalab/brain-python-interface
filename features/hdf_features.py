@@ -7,6 +7,8 @@ from riglib import sink
 from riglib.experiment.experiment import control_decorator
 import hdfwriter # from riglib.hdfwriter import hdfwriter # <-- now a package on PyPI
 
+log_path = os.path.join(os.path.dirname(__file__), '../log/hdf_sink.log')
+
 class SaveHDF():
     '''
     Saves data from registered sources into tables in an HDF file
@@ -22,7 +24,7 @@ class SaveHDF():
         self.h5file.close()
 
         sink_manager = sink.SinkManager.get_instance()
-        self.hdf = sink_manager.start(hdfwriter.HDFWriter, filename=self.h5file.name, log_filename=os.path.join(os.path.dirname(__file__), '../log/hdf_sink.log'))
+        self.hdf = sink_manager.start(hdfwriter.HDFWriter, filename=self.h5file.name, log_filename=log_path)
 
         self.h5file_name = self.h5file.name
 

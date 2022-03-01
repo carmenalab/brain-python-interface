@@ -7,7 +7,7 @@ This code depends on the 'robot' module (https://github.com/sgowda/robotics_tool
 '''
 import numpy as np
 try:
-    from bmi3d import robot
+    import robot
 except ImportError as e:
     import warnings
     warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")

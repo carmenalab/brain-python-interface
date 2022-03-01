@@ -200,9 +200,11 @@ class HidePlantOnPause():
 
 # Helper class for natnet logging
 import logging
+log_path = os.path.join(os.path.dirname(__file__), '../log/optitrack.log')
+
 class Logger(object):
 
-    def __init__(self, msg="", log_filename='../log/optitrack.log'):
+    def __init__(self, msg="", log_filename=log_path):
         self.log_filename = log_filename
         self.reset(msg)
 

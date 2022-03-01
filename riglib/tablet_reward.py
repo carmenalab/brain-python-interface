@@ -2,6 +2,9 @@ from .gpio import ArduinoGPIO
 from multiprocessing import Process
 from . import singleton
 import time
+import os
+
+log_path = os.path.join(os.path.dirname(__file__), '../log/reward.log')
 
 class Basic(singleton.Singleton):
 
@@ -48,4 +51,4 @@ def open():
         import traceback
         import os
         import builtins
-        traceback.print_exc(file=builtins.open('../log/reward.log', 'a'))
+        traceback.print_exc(file=builtins.open(log_path, 'a'))

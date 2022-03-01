@@ -37,7 +37,7 @@ class TestMouseControl(unittest.TestCase):
 class TestLaser(unittest.TestCase):
     
     def test_digital_wave(self):
-        from bmi3d.riglib.gpio import TestGPIO, DigitalWave
+        from riglib.gpio import TestGPIO, DigitalWave
         gpio = TestGPIO()
         laser1 = DigitalWave(gpio, mask=2)
         laser1.set_pulse(1, 0)

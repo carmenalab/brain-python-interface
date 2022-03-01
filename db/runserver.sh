@@ -15,8 +15,9 @@ fi
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
-BMI3D=$(dirname $FILE)
-cd $BMI3D/db/
+DB=$(dirname "$FILE")
+BMI3D=$(dirname "$DB")
+cd $DB
 
 # Start logging
 if [ -z "$1" ] # no arguments
@@ -98,7 +99,7 @@ trap "kill 0" EXIT
 cd $BMI3D
 python manage.py runserver 0.0.0.0:8000 --noreload &
 celery -A db.tracker worker -l INFO &
-celery flower -A db.tracker --address=0.0.0.0 --port=5555 &
+# celery flower -A db.tracker --address=0.0.0.0 --port=5555 & # for monitoring
 
 # Start servernode-control
 if [ "$HOST" = "pagaiisland2" ]; then

@@ -6,12 +6,12 @@ import json, time, sys, datetime
 import os
 os.environ['DISPLAY'] = ':0'
 
-from bmi3d.db.tracker import models
-from bmi3d.db.tracker import tasktrack
-from bmi3d.db.tracker import views
+from db.tracker import models
+from db.tracker import tasktrack
+from db.tracker import views
 # import psutil
 
-from bmi3d.riglib.experiment import LogExperiment
+from riglib.experiment import LogExperiment
 
 
 class TestDataFile(TestCase):
@@ -56,7 +56,7 @@ class TestModels(TestCase):
         c = Client()
 
         post_data = {"name": "test_add_new_task_to_table",
-            "import_path": "bmi3d.riglib.experiment.LogExperiment"}
+            "import_path": "riglib.experiment.LogExperiment"}
         resp = c.post("/setup/add/task", post_data)
 
         task = models.Task.objects.get(name="test_add_new_task_to_table")
@@ -66,12 +66,12 @@ class TestModels(TestCase):
     def test_add_new_feature_to_table(self):
         c = Client()
         post_data = {"name": "saveHDF",
-            "import_path": "bmi3d.features.hdf_features.SaveHDF"}
+            "import_path": "features.hdf_features.SaveHDF"}
         resp = c.post("/setup/add/feature", post_data)
 
         feat = models.Feature.objects.get(name="saveHDF")
         feat_cls = feat.get()
-        from bmi3d.features.hdf_features import SaveHDF
+        from features.hdf_features import SaveHDF
         self.assertEqual(feat_cls, SaveHDF)
 
         feat.delete()
@@ -94,7 +94,7 @@ class TestModels(TestCase):
         post_data = {"name": "saveHDF"}
         resp = c.post("/setup/update/toggle_features", post_data)
 
-        from bmi3d.features.hdf_features import SaveHDF
+        from features.hdf_features import SaveHDF
         feat = models.Feature.objects.get(name="saveHDF")
         self.assertEqual(feat.get(), SaveHDF)
 
@@ -102,12 +102,12 @@ class TestModels(TestCase):
         self.assertEqual(len(models.Feature.objects.all()), 0)
 
     def test_add_new_task_no_features(self):
-        task = models.Task(name="test_task", import_path="bmi3d.riglib.experiment.LogExperiment")
+        task = models.Task(name="test_task", import_path="riglib.experiment.LogExperiment")
         task.save()
         task = models.Task.objects.get(name="test_task")
 
         task_cls = task.get()
-        from bmi3d.riglib.experiment import LogExperiment
+        from riglib.experiment import LogExperiment
         self.assertEqual(task_cls, LogExperiment)
 
     def test_create_task_entry(self):
@@ -200,7 +200,7 @@ class TestExpLog(TestCase):
 
 class TestGenerators(TestCase):
     def test_generator_retreival(self):
-        task = models.Task(name="test_task1", import_path="bmi3d.riglib.experiment.mocks.MockSequenceWithGenerators")
+        task = models.Task(name="test_task1", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
         task.save()
 
         models.Generator.populate()
@@ -210,10 +210,10 @@ class TestGenerators(TestCase):
 class TestVisualFeedbackTask(TestCase):
     def test_start_experiment_python(self):
         import json
-        from bmi3d.built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
-        from bmi3d.riglib import experiment
-        from bmi3d.features import Autostart
-        from bmi3d.db.tracker import json_param
+        from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+        from riglib import experiment
+        from features import Autostart
+        from db.tracker import json_param
 
         try:
             import pygame
@@ -226,7 +226,7 @@ class TestVisualFeedbackTask(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="test_vfb", import_path="bmi3d.built_in_tasks.passivetasks.TargetCaptureVFB2DWindow")
+        task = models.Task(name="test_vfb", import_path="built_in_tasks.passivetasks.TargetCaptureVFB2DWindow")
         task.save()
 
         models.Generator.populate()
@@ -265,7 +265,7 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
         task.save()
 
         task_start_data = dict(subj=subj.id, base_class=task.get_base_class(), feats=[],
@@ -284,7 +284,7 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
         task.save()
 
         task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats=dict(), params=dict(), sequence=None)
@@ -320,10 +320,10 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
         task.save()
 
-        feat = models.Feature(name="saveHDF", import_path="bmi3d.features.hdf_features.SaveHDF")
+        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
         feat.save()
 
         task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats={"saveHDF":"saveHDF"}, params=dict(), sequence=None)
@@ -360,12 +360,12 @@ class TestTaskAnnotation(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.mocks.MockSequenceWithGenerators")
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
         task.save()
 
         models.Generator.populate()
 
-        feat = models.Feature(name="saveHDF", import_path="bmi3d.features.hdf_features.SaveHDF")
+        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
         feat.save()
 
         task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats={"saveHDF":"saveHDF"}, params=dict(),
@@ -398,8 +398,8 @@ class TestTaskAnnotation(TestCase):
 
 class TestParamCast(TestCase):
     def test_norm_trait(self):
-        from bmi3d.db.tracker import json_param
-        from bmi3d.riglib.experiment import traits
+        from db.tracker import json_param
+        from riglib.experiment import traits
 
         t = traits.Float(1, descr='test trait')
         t1 = json_param.norm_trait(t, 1.0)
