@@ -17,6 +17,7 @@ class E3Video(traits.HasTraits):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
         '''
+        super().init()
 
         # Start the natnet client and recording
         now = datetime.now()
