@@ -4,7 +4,7 @@ import json
 
 USERNAME = 'python'
 PASSWORD = 'python'
-WATCHTOWERURL = 'https://localhost:4343'
+WATCHTOWERURL = 'https://10.155.206.1:4343'
 # CAMERA_SID_LIST = ['e3v822d','e3v821f']#,'e3v821b']
 IFACE = ''
 CONFIG = '480p15'
@@ -78,6 +78,7 @@ class E3VisionInterface(object):
             api_call,
             data = data,
             verify = False,
+            timeout = 5,
         )
         r.raise_for_status()
         return r
@@ -105,7 +106,8 @@ class E3VisionInterface(object):
         r = re.get(
             api_call,
             params=params,
-            verify=False
+            verify=False,
+            timeout=5,
         )
         r.raise_for_status()
         return r

@@ -783,7 +783,7 @@ class Sequence(LogExperiment):
 
         # Create a record array for trials
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
-            from bmi3d.riglib import sink
+            from riglib import sink
             self.sinks = sink.SinkManager.get_instance()
         dtype = self.trial_dtype # if you want to change this, do it in init() before calling super().init()
         self.trial_record = np.zeros((1,), dtype=dtype)

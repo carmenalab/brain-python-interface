@@ -12,7 +12,7 @@ from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
 from .optitrack_features import Optitrack
 from .plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
 from .hdf_features import SaveHDF
-from .video_recording_features import SingleChannelVideo
+from .video_recording_features import SingleChannelVideo, E3Video
 from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
@@ -57,6 +57,7 @@ built_in_features = dict(
     ecube_playback_bmi = EcubeFileBMI,
     ecube_bmi = EcubeBMI,
     qwalor_laser = QwalorLaser,
+    e3video = E3Video,
 )
 
 # >>> features.built_in_features['autostart'].__module__

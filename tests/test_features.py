@@ -5,7 +5,10 @@ from riglib.stereo_opengl.window import WindowDispl2D
 from features.peripheral_device_features import KeyboardControl, MouseControl
 import features.sync_features as sync_features
 from features.laser_features import CrystaLaser
+from features.video_recording_features import E3Video
+from riglib.e3vision import E3VisionInterface
 import numpy as np
+import time
 
 import unittest
 
@@ -107,14 +110,13 @@ class TestLaser(unittest.TestCase):
             wave = DigitalWave(gpio, mask=1<<12)
             wave.set_edges(edges, True)
             wave.start()
-            print(edges)
             wave.join()
             time.sleep(0.1)
 
 class TestSync(unittest.TestCase):
 
     def test_dictionary(self):
-        default_dict = sync_features.NIDAQSync.sync_params['event_sync_dict']
+        default_dict = sync_features.rig1_sync_params['event_sync_dict']
         self.assertEqual(default_dict['TARGET_ON'] + 4, sync_features.encode_event(default_dict, 'TARGET_ON', 4))
         for k in default_dict.keys():
             event_data = 0
@@ -123,6 +125,14 @@ class TestSync(unittest.TestCase):
             self.assertEqual(decode[0], k)    
             self.assertEqual(decode[1], event_data)
 
+class TestE3Video(unittest.TestCase):
+
+    def test_interface(self):
+        e3v = E3VisionInterface()
+        e3v.update_camera_status()
+        e3v.start_rec()
+        time.sleep(1)
+        e3v.stop_rec()
 
 if __name__ == '__main__':
     unittest.main()
