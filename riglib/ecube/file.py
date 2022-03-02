@@ -4,6 +4,7 @@ import aopy
 from dataclasses import dataclass
 import scipy
 import os
+import tempfile
 
 @dataclass
 class Info():
@@ -20,13 +21,21 @@ def parse_file(filepath):
     return info
 
 def load_lfp(filepath, samplerate=1000):
-    broadband_data = aopy.data.load_ecube_data(filepath, 'Headstages')
+    tmp_filepath = '/home/pagaiisland/leo/temp_file.hdf'
+    files = {
+        'ecube': filepath,
+    }
+    aopy.preproc.proc_lfp('', files, '', tmp_filepath, overwrite=True)
+    import h5py
+    file = h5py.File(tmp_filepath, 'r')
+    lfp_data = file['lfp_data']
+    # broadband_data = aopy.data.load_ecube_data(filepath, 'Headstages')
     
     # TODO write downsampling code in aopy!!!! this is untested!!!!
-    metadata = aopy.data.load_ecube_metadata(filepath, 'Headstages')
-    bb_samples = metadata['n_samples']
-    lfp_samples = int(bb_samples/(metadata['samplerate']/samplerate))
-    lfp_data = scipy.signal.resample(broadband_data, lfp_samples, axis=0)
+    # metadata = aopy.data.load_ecube_metadata(filepath, 'Headstages')
+    # bb_samples = metadata['n_samples']
+    # lfp_samples = int(bb_samples/(metadata['samplerate']/samplerate))
+    # lfp_data = scipy.signal.resample(broadband_data, lfp_samples, axis=0)
     return lfp_data
 
 def load_bmi3d_cycle_times(files):
