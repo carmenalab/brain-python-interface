@@ -23,14 +23,15 @@ class E3Video(traits.HasTraits):
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         self.e3v_status = 'offline'
         try:
-            e3v = E3VisionInterface()
-            e3v.update_camera_status()
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
-                # TODO: set the filenames of the recordings
+                e3v = E3VisionInterface(take)
+                e3v.update_camera_status()
                 e3v.start_rec()
                 self.e3v_status = 'recording'
             else:
+                e3v = E3VisionInterface()
+                e3v.update_camera_status()
                 self.e3v_status = 'online'
             self.e3v = e3v
         except:
@@ -53,12 +54,13 @@ class E3Video(traits.HasTraits):
             try:
                 super().run()
             finally:
-                print("Stopping e3v recording")
-                self.e3v.stop_rec()
+                if self.e3v_status == 'recording':
+                    print("Stopping e3v recording")
+                    self.e3v.stop_rec()
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Save the e3v recorded filenames into the database
+        Save the e3v recorded filenames into the database. Only gets called when saveid is not None.
         '''
         super_result = super().cleanup(database, saveid, **kwargs)
         print("Saving WM e3vision files to database...")

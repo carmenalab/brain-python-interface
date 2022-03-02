@@ -28,12 +28,12 @@ class E3VisionInterface(object):
     e3vi.stop_rec()
 
     """
-    def __init__(self,session_dict={}): #TODO: fit this into BMI3D
+    def __init__(self,session_name=None):
         self.username = USERNAME
         self.password = PASSWORD
         self.watchtowerurl = WATCHTOWERURL
         # self.camera_sid_list = CAMERA_SID_LIST
-        self._create_session_subdir(session_dict)
+        self._create_session_subdir(session_name)
         self.iface = IFACE
         self.config = CONFIG
         self.codec = CODEC
@@ -45,15 +45,17 @@ class E3VisionInterface(object):
         self.apitoken = self.api_login()
         # self.configure_cameras()
 
-    def _create_session_subdir(self,session_dict): #TODO: Make this real
+    def _create_session_subdir(self,session_name):
         """_create_session_subdir
 
         Creates a subdirectory string for the current session. All video files from this object are saved to this subdirectory.
 
         Args:
-            session_dict (dict): BMI3D session dictionary.
+            session_name (str): BMI3D session name.
         """
-        self.subdir = 'asdf'
+        if session_name is None:
+            session_name = 'test'
+        self.subdir = session_name
 
     def api_post(self,api_call_str,**kwargs): #TODO: This is completely bare. Put some exception handling on this vis a vis HTTP code (401, 404, etc)
         """api_post

@@ -12,20 +12,23 @@ import time
 
 import unittest
 
-def init_exp(base_class, feats):
-    blocks = 1
-    targets = 3
-    seq = ManualControl.centerout_2D(blocks, targets)
+
+def init_exp(base_class, feats, seq=None, **kwargs):
+    blocks = 2
+    trials = 2
+    trial_length = 5
+    frequencies = np.array([.5])
     Exp = experiment.make(base_class, feats=feats)
-    exp = Exp(seq)
+    if seq is not None:
+        exp = Exp(seq, **kwargs)
+    else:
+        exp = Exp(**kwargs)
     exp.init()
     return exp
 
 class TestKeyboardControl(unittest.TestCase):
 
-    def setUp(self):
-        pass
-    
+    @unittest.skip("msg")
     def test_exp(self):
         exp = init_exp(ManualControl, [KeyboardControl, WindowDispl2D])
         exp.run()
@@ -104,7 +107,6 @@ class TestLaser(unittest.TestCase):
         time.sleep(1)
 
         seq = LaserConditions.single_laser_pulse(nreps=reps, duration=pulse_widths, uniformsampling=False, ascending=True)
-        print(seq)
         for idx, powers, edges in seq:
             edges = edges[0]
             wave = DigitalWave(gpio, mask=1<<12)
@@ -133,6 +135,12 @@ class TestE3Video(unittest.TestCase):
         e3v.start_rec()
         time.sleep(1)
         e3v.stop_rec()
+
+    def test_feature(self):
+        exp = init_exp(experiment.Experiment, [E3Video], saveid='test1')
+        exp.run()
+        time.sleep(1)
+        exp.state = None
 
 if __name__ == '__main__':
     unittest.main()

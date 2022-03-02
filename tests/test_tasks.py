@@ -13,8 +13,6 @@ from riglib.stereo_opengl.window import Window, Window2D
 import unittest
 import numpy as np
 
-
-
 def init_exp(base_class, feats, seq=None, **kwargs):
     blocks = 2
     trials = 2
