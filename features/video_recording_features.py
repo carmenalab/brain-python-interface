@@ -21,11 +21,13 @@ class E3Video(traits.HasTraits):
 
         # Start the natnet client and recording
         now = datetime.now()
-        take = now.strftime("Take %Y-%m-%d %H:%M:%S")
+        take = now.strftime("Take %Y-%m-%d %H_%M_%S")
         self.e3v_status = 'offline'
         try:
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
+
+                take = "test-folder (0)"
                 e3v = E3VisionInterface(take)
                 e3v.update_camera_status()
                 e3v.start_rec()

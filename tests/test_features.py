@@ -129,15 +129,15 @@ class TestSync(unittest.TestCase):
 
 class TestE3Video(unittest.TestCase):
 
-    def test_interface(self):
-        e3v = E3VisionInterface()
-        e3v.update_camera_status()
-        e3v.start_rec()
-        time.sleep(1)
-        e3v.stop_rec()
+    # def test_interface(self):
+    #     e3v = E3VisionInterface()
+    #     e3v.update_camera_status()
+    #     e3v.start_rec()
+    #     time.sleep(5)
+    #     e3v.stop_rec()
 
     def test_feature(self):
-        exp = init_exp(experiment.Experiment, [E3Video], saveid='test1')
+        exp = init_exp(experiment.Experiment, [E3Video], saveid=0)
         exp.run()
         time.sleep(1)
         exp.state = None
