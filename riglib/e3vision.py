@@ -164,6 +164,12 @@ class E3VisionInterface(object):
             Action='RECORDGROUP',
             AdditionalPath=self.subdir,
         )
+        # check to see cameras are recording
+        rec_check = True
+        while rec_check:
+            self.update_camera_status()
+            all_running = all([c['Runstate'] == 'SAVING' for c in self.camera_list])
+            rec_check = not all_running
 
     def stop_rec(self):
         """stop_rec
