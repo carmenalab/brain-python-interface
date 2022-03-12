@@ -1,6 +1,7 @@
 import requests as re
 import urllib3
 import json
+import time
 
 USERNAME = 'python'
 PASSWORD = 'python'
@@ -11,6 +12,7 @@ CONFIG = '480p15'
 CODEC = 'H264'
 ANNOTATION = 'None'
 SEGTIME = '30m'
+TIMEOUT = 5 # (s), timeout to check if 
 
 class E3VisionInterface(object):
     """E3VisionInterface
@@ -167,9 +169,12 @@ class E3VisionInterface(object):
         # check to see cameras are recording
         rec_check = True
         while rec_check:
+            t_ping = time.time()
             self.update_camera_status()
-            all_running = all([c['Runstate'] == 'Saving' for c in self.camera_list])
-            rec_check = not all_running
+            camera_running = [c['Runstate'] == 'Saving' for c in self.camera_list]
+            rec_check = (not all(camera_running)) and (time.time() - t_ping < TIMEOUT)
+
+        assert all(camera_running), 'Error starting video recordings.'
 
     def stop_rec(self):
         """stop_rec
