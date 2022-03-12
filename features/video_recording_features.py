@@ -26,8 +26,6 @@ class E3Video(traits.HasTraits):
         try:
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
-
-                take = "test-folder (0)"
                 e3v = E3VisionInterface(take)
                 e3v.update_camera_status()
                 e3v.start_rec()
