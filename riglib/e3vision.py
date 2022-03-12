@@ -168,7 +168,7 @@ class E3VisionInterface(object):
         rec_check = True
         while rec_check:
             self.update_camera_status()
-            all_running = all([c['Runstate'] == 'SAVING' for c in self.camera_list])
+            all_running = all([c['Runstate'] == 'Saving' for c in self.camera_list])
             rec_check = not all_running
 
     def stop_rec(self):
