@@ -12,7 +12,7 @@ CONFIG = '480p15'
 CODEC = 'H264'
 ANNOTATION = 'None'
 SEGTIME = '30m'
-TIMEOUT = 5 # (s), timeout to check if 
+TIMEOUT = 25 # (s), timeout to check if 
 
 class E3VisionInterface(object):
     """E3VisionInterface
@@ -171,9 +171,8 @@ class E3VisionInterface(object):
         while rec_check:
             t_ping = time.time()
             self.update_camera_status()
-            camera_running = [c['Runstate'] == 'Saving' for c in self.camera_list]
+            camera_running = [bool(c['Recordstate']) for c in self.camera_list]
             rec_check = (not all(camera_running)) and (time.time() - t_ping < TIMEOUT)
-
         assert all(camera_running), 'Error starting video recordings.'
 
     def stop_rec(self):
