@@ -83,7 +83,7 @@ def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder
     if 'decoder_path' in kwargs:
         decoder = pickle.load(open(kwargs['decoder_path']))
     else:
-        decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=False)
 
     assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
 
@@ -171,14 +171,13 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
     if get_dec_used is False:
         decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
         if len(decoder_entries) > 0:
-            print('Loading decoder TRAINED from task %d'%task_entry_id)
             if type(decoder_entries) is models.Decoder:
                 decoder = decoder_entries
                 ld = False
             else: # list of decoders. Search for the right one. 
                 try:
                     dec_ids = [de.pk for de in decoder_entries]
-                    _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
+                    _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0]
                     decoder = decoder_entries[_ix]
                     ld = False
                 except:
