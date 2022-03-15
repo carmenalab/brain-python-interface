@@ -4,6 +4,7 @@ Generic features for interfacing with cortical recording systems (Plexon Omniple
 from riglib import source, sink
 from riglib.experiment import traits
 from riglib.bmi.bmi import Decoder 
+import time
 
 class CorticalData(object):
     '''

@@ -67,8 +67,7 @@ class E3Video(traits.HasTraits):
         print("Saving WM e3vision files to database...")
         try:
             pass
-            # TODO: actually have a filename to save into the database
-            # database.save_data(self.filename, "e3v", saveid, False, False) # Make sure you actually have an "e3v" system added!
+            database.save_data(self.filename, "e3v", saveid, False, False) # Make sure you actually have an "e3v" system added!
         except Exception as e:
             print(e)
             return False

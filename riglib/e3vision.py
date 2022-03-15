@@ -143,7 +143,7 @@ class E3VisionInterface(object):
         )
         self.camera_list = json.loads(r_cameras.text)
         for cam in self.camera_list:
-            print(f"{cam['Id']}")
+            print(f"Camera available: {cam['Id']}")
 
     def configure_cameras(self):
         """configure_cameras
