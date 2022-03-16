@@ -148,6 +148,58 @@ def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder
     else:
         return decoder, suffx
 
+def zscore_features(task_entry_id, calc_zscore_from_te, decoder_entry_id=None, kin_source = 'cursor', **kwargs):
+    '''
+    Summary: Method to be able to 'convert' a trained decoder (that uses zscoring) to one that uses z-scored from another session
+         (e.g. you train a decoder from VFB, but you want to zscore unit according to a passive / still session earlier). You 
+         would use the task_entry_id that was used to train the decoder OR entry that used the decoder. Then 'calc_zscore_from_te'
+         is the task entry ID used to compute the z-scored features. Unlike zscore_units, this recomputes the features using the 
+         feature extractor and extractor_kwargs stored in the decoder.
+
+    Input param: task_entry_id:
+    Input param: decoder_entry_id:
+    Input param: calc_zscore_from_te:
+    Output param: 
+    '''
+    if 'decoder_path' in kwargs:
+        decoder = pickle.load(open(kwargs['decoder_path']))
+    else:
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+
+    assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
+
+    # Extract new features
+    te = models.TaskEntry.objects.get(id=calc_zscore_from_te)
+    te_json = te.to_json()
+    neuralinfo = te_json['bmi']['neuralinfo']
+    files = te.datafiles
+    binlen = decoder.binlen
+    extractor_cls = decoder.extractor_cls
+    tslice = [0, neuralinfo['length']]
+    strobe_rate = te.task_params['fps']
+
+    neural_features, units, extractor_kwargs = train.get_neural_features(files, binlen, extractor_cls.extract_from_file,
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
+    mFR = np.squeeze(np.mean(neural_features, axis=1))
+    sdFR = np.std(neural_features, axis=1)
+
+    # Update decoder w/ new zscoring:   
+    decoder.mFR = 0.
+    decoder.sdFR = 1.
+    decoder.init_zscore(mFR, sdFR)
+    decoder.mFR = mFR
+    decoder.sdFR = sdFR
+
+    # Save it as a new decoder
+    suffx = '_zscore_set_from_'+str(calc_zscore_from_te)
+
+    if task_entry_id is not None:
+        save_new_dec(task_entry_id, decoder, suffx)
+    else:
+        return decoder, suffx
+
+
+
 def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
     decoder = get_decoder_corr(task_entry_id, decoder_entry_id, return_used_te=True)
     W = np.diag(decoder.filt.W)
