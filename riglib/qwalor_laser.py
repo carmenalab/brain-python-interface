@@ -92,15 +92,17 @@ class QwalorLaserSerial:
         Hoping to change this in the future to use a raspberry pi or similar connected to the network to relay the
         config packets to the laser. That way we can have multiple computers talking to the laser at once.
         '''
-        self.ser = serial.Serial(laser_port, laser_baud_rate, timeout=3) 
+        self.laser_port = laser_port
+        self.laser_baud_rate = laser_baud_rate
         self.board = pyfirmata.Arduino(arduino_port)
         self.trigger_pin = arduino_pin
         self.channel = laser_channel
 
     def _set_config(self):
         config_packet = get_config_packet(self.channel, self.freq, self.gain, self.mode)
-        self.ser.write(config_packet)
-        time.sleep(0.1)
+        with serial.Serial(self.laser_port, self.laser_baud_rate, timeout=3) as ser:
+            ser.write(config_packet)
+            time.sleep(0.1)
 
     def set_mode(self, mode):
         self.mode = mode

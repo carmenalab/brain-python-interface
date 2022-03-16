@@ -10,12 +10,12 @@ from riglib import qwalor_laser
 import unittest
 
 # Arduino setting
-LED_pin = 13
 pin = 12
-port_arduino = "/dev/crystalaser"
+# port_arduino = "/dev/crystalaser"
+port_arduino = "/dev/ttyUSB1"
 
 # laser setting
-channel = 2
+channel = 4
 mode = 'off'
 freq = 0
 b_rate = 115200
