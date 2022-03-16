@@ -164,17 +164,19 @@ def zscore_features(task_entry_id, calc_zscore_from_te, decoder_entry_id=None, k
     if 'decoder_path' in kwargs:
         decoder = pickle.load(open(kwargs['decoder_path']))
     else:
-        decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=False)
 
     assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
 
     # Extract new features
     te = models.TaskEntry.objects.get(id=calc_zscore_from_te)
     te_json = te.to_json()
-    neuralinfo = te_json['bmi']['neuralinfo']
-    files = te.datafiles
+    neuralinfo = te_json['bmi']['_neuralinfo']
+    files = te.get_data_files_dict_absolute()
     binlen = decoder.binlen
+    units = decoder.units
     extractor_cls = decoder.extractor_cls
+    extractor_kwargs = decoder.extractor_kwargs
     tslice = [0, neuralinfo['length']]
     strobe_rate = te.task_params['fps']
 
@@ -229,7 +231,7 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
             else: # list of decoders. Search for the right one. 
                 try:
                     dec_ids = [de.pk for de in decoder_entries]
-                    _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0]
+                    _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0][0]
                     decoder = decoder_entries[_ix]
                     ld = False
                 except:
