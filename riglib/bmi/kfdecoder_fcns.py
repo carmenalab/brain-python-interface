@@ -8,6 +8,7 @@ from . import train
 import pickle
 import re
 import tables
+import os
 
 ########## MAIN DECODER MANIPULATION METHODS #################
 
@@ -171,19 +172,37 @@ def zscore_features(task_entry_id, calc_zscore_from_te, decoder_entry_id=None, k
     # Extract new features
     te = models.TaskEntry.objects.get(id=calc_zscore_from_te)
     te_json = te.to_json()
-    neuralinfo = te_json['bmi']['_neuralinfo']
     files = te.get_data_files_dict_absolute()
     binlen = decoder.binlen
     units = decoder.units
     extractor_cls = decoder.extractor_cls
     extractor_kwargs = decoder.extractor_kwargs
-    tslice = [0, neuralinfo['length']]
+
+    # Load the recording to get the length
+    recording_sys_make = models.KeyValueStore.get('recording_sys')
+    if recording_sys_make == 'plexon':
+        from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
+        plexon = models.System.objects.get(name='plexon')
+        df = models.DataFile.objects.get(entry=te.id, system=plexon)
+        plx = plexfile.openFile(df.get_path().encode('utf-8'), load=False)
+        length = plx.length
+    elif recording_sys_make == 'ecube':
+        sys = models.System.objects.get(name='ecube')
+        df = models.DataFile.objects.get(entry=te.id, system=sys)
+        filepath = df.get_path()
+        from riglib.ecube import parse_file
+        info = parse_file(str(df.get_path()))
+        length = info.length
+    else:
+        ValueError('Unrecognized recording_system!')
+
+    tslice = [0, length]
     strobe_rate = te.task_params['fps']
 
     neural_features, units, extractor_kwargs = train.get_neural_features(files, binlen, extractor_cls.extract_from_file,
         extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
-    mFR = np.squeeze(np.mean(neural_features, axis=1))
-    sdFR = np.std(neural_features, axis=1)
+    mFR = np.squeeze(np.mean(neural_features, axis=0))
+    sdFR = np.std(neural_features, axis=0)
 
     # Update decoder w/ new zscoring:   
     decoder.mFR = 0.
