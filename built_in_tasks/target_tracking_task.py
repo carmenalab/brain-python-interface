@@ -498,7 +498,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 idx += 1
     
     @staticmethod
-    def tracking_target_training(nblocks=1, ntrials=2, time_length = 5, frequencies = np.array([1,.75]),boundaries=(-10,10,-10,10)):
+    def tracking_target_training(nblocks=1, ntrials=2, time_length = 5, frequencies = [1,.75],boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories for training
 
@@ -521,7 +521,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         idx = 0
         buffer_space = int(60*1.5) #1.5 seconds of straight line before and after trial
         frames = int(np.round(time_length*60))
-        y_primes_freq = frequencies
+        y_primes_freq = np.array(frequencies)
 
         for i in range(nblocks):
             for j in range(ntrials):
