@@ -280,11 +280,11 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
 
         return np.array(target_state).reshape(-1,1)
 
-    def _end_timeout_penalty(self):
+    def _start_wait(self):
+        super()._start_wait()
         if self.reset:
             self.decoder.filt.state.mean = self.init_decoder_mean
             self.hdf.sendMsg("reset")
-
 
 class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
     fps = 20.
