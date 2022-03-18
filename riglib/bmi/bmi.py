@@ -1068,6 +1068,9 @@ class BMILoop(object):
         constructors have run and all the requried attributes have been declared
         for the task to operate.
         '''
+        # Make sure the plant is up to date
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
+
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
