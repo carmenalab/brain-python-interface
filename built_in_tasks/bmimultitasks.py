@@ -286,6 +286,12 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
             self.decoder.filt.state.mean = self.init_decoder_mean
             self.hdf.sendMsg("reset")
 
+    @classmethod
+    def get_desc(cls, params, log_summary):
+        duration = round(log_summary['runtime'] / 60, 1)
+        return "{}/{} succesful trials in {} min".format(
+            log_summary['n_success_trials'], log_summary['n_trials'], duration)
+
 class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
     fps = 20.
     def __init__(self,*args, **kwargs):

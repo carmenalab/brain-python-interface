@@ -44,6 +44,12 @@ class Conditions(Sequence):
     def _end_trial(self):
         self.sync_event('TRIAL_END')
 
+    @classmethod
+    def get_desc(cls, params, log_summary):
+        duration = round(log_summary['runtime'] / 60, 1)
+        return "{} trials in {} min".format(
+            log_summary['n_trials'], duration)
+
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):
         ''' Generate random sequence of all combinations of the given arguments'''
