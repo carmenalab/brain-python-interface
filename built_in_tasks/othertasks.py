@@ -85,8 +85,16 @@ class LaserConditions(Conditions):
             ('edges', 'f8', MAX_RECORD_EDGES),
             ])
         super(Conditions, self).init()
+    
+    def run(self):
         if not (hasattr(self, 'lasers') and len(self.lasers) > 0):
-            raise AttributeError("No laser feature enabled, cannot init LaserConditions")
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write("No laser feature enabled, cannot init LaserConditions")
+            self.termination_err.seek(0)
+            self.state = None
+        super().run() 
 
     def _parse_next_trial(self):
         self.trial_index, self.laser_powers, self.laser_edges = self.next_trial
