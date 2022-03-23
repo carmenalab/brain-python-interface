@@ -66,8 +66,8 @@ class E3Video(traits.HasTraits):
         super_result = super().cleanup(database, saveid, **kwargs)
         print("Saving WM e3vision files to database...")
         try:
-            pass
-            database.save_data(self.filename, "e3v", saveid, False, False) # Make sure you actually have an "e3v" system added!
+            suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
+            database.save_data(self.filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
         except Exception as e:
             print(e)
             return False
