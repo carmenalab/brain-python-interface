@@ -160,9 +160,10 @@ class E3VisionInterface(object):
         Begin recording a video file to the session subdirectory. Records from all connected cameras simulataneously to separate files.
         File names have the following form: <global_dir>/<session_subdir>/[cameraname]-[starttime]-[endtime].[avi | mp4]
         """
+        rec_camera_list = [cam['Id'] for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
         self.api_post(
             '/api/cameras/action',
-            IdGroup=[cam['Id'] for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0],
+            IdGroup=rec_camera_list,
             Action='RECORDGROUP',
             AdditionalPath=self.subdir,
         )
@@ -171,7 +172,7 @@ class E3VisionInterface(object):
         while rec_check:
             t_ping = time.time()
             self.update_camera_status()
-            camera_running = [bool(c['Recordstate']) for c in self.camera_list]
+            camera_running = [bool(c['Recordstate']) for c in rec_camera_list]
             rec_check = (not all(camera_running)) and (time.time() - t_ping < TIMEOUT)
         assert all(camera_running), 'Error starting video recordings.'
 
