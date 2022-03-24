@@ -162,7 +162,7 @@ class E3VisionInterface(object):
         """
         self.api_post(
             '/api/cameras/action',
-            IdGroup=[cam['Id'] for cam in self.camera_list],
+            IdGroup=[cam['Id'] for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0],
             Action='RECORDGROUP',
             AdditionalPath=self.subdir,
         )
