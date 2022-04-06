@@ -12,7 +12,7 @@ from riglib.bmi.assist import Assister, FeedbackControllerAssist
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 from riglib.stereo_opengl.window import WindowDispl2D
-from .target_capture_task import ScreenTargetCapture
+from .target_capture_task import ScreenReachAngle, ScreenTargetCapture
 from features.bmi_task_features import LinearlyDecreasingAssist
 from .target_graphics import target_colors
 
@@ -190,7 +190,7 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
 #################
 ##### Tasks #####
 #################
-class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
+class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     '''
     Target capture task with cursor position controlled by BMI output.
     Cursor movement can be assisted toward target by setting assist_level > 0.
@@ -210,7 +210,7 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
     is_bmi_seed = False
 
     def __init__(self, *args, **kwargs):
-        super(BMIControlMulti, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
     def create_assister(self):
         # Create the appropriate type of assister object
@@ -292,7 +292,7 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
         return "{}/{} succesful trials in {} min".format(
             log_summary['n_success_trials'], log_summary['n_trials'], duration)
 
-class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
+class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.
     def __init__(self,*args, **kwargs):
         super(BMIControlMulti2DWindow, self).__init__(*args, **kwargs)
@@ -312,3 +312,15 @@ class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
+
+class BMIControlMulti(BMIControlMultiMixin, ScreenTargetCapture):
+    '''
+    Slightly refactored original bmi control task
+    '''
+    pass
+
+class BMIControlMultiDirectionConstraint(BMIControlMultiMixin, ScreenReachAngle):
+    '''
+    Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass

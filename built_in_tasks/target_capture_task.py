@@ -657,7 +657,7 @@ class ScreenReachAngle(ScreenTargetCapture):
     max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between the starting position of the cursor and the target")
     reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
     reach_fraction = traits.Float(0.5, desc="Fraction of the distance between the reach start and the target before a reward")
-    start_radius = 1. # buffer around reach start allowed in bounds    
+    start_radius = traits.Float(1., desc="Buffer around reach start allowed in bounds (cm)")
 
     exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time']
 
