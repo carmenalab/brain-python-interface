@@ -1,15 +1,14 @@
 
 from db.tracker import models
 from db import dbfunctions as dbfn
-from db.tracker.models import Decoder
-from db import trainbmi
+from db.tracker import trainbmi
 import numpy as np
-import scipy
 from .kfdecoder import KalmanFilter, KFDecoder
 from . import train
 import pickle
 import re
 import tables
+import os
 
 ########## MAIN DECODER MANIPULATION METHODS #################
 
@@ -85,7 +84,7 @@ def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder
     if 'decoder_path' in kwargs:
         decoder = pickle.load(open(kwargs['decoder_path']))
     else:
-        decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=False)
 
     assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
 
@@ -150,6 +149,78 @@ def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder
     else:
         return decoder, suffx
 
+def zscore_features(task_entry_id, calc_zscore_from_te, decoder_entry_id=None, kin_source = 'cursor', **kwargs):
+    '''
+    Summary: Method to be able to 'convert' a trained decoder (that uses zscoring) to one that uses z-scored from another session
+         (e.g. you train a decoder from VFB, but you want to zscore unit according to a passive / still session earlier). You 
+         would use the task_entry_id that was used to train the decoder OR entry that used the decoder. Then 'calc_zscore_from_te'
+         is the task entry ID used to compute the z-scored features. Unlike zscore_units, this recomputes the features using the 
+         feature extractor and extractor_kwargs stored in the decoder.
+
+    Input param: task_entry_id:
+    Input param: decoder_entry_id:
+    Input param: calc_zscore_from_te:
+    Output param: 
+    '''
+    if 'decoder_path' in kwargs:
+        decoder = pickle.load(open(kwargs['decoder_path']))
+    else:
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=False)
+
+    assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
+
+    # Extract new features
+    te = models.TaskEntry.objects.get(id=calc_zscore_from_te)
+    te_json = te.to_json()
+    files = te.get_data_files_dict_absolute()
+    binlen = decoder.binlen
+    units = decoder.units
+    extractor_cls = decoder.extractor_cls
+    extractor_kwargs = decoder.extractor_kwargs
+
+    # Load the recording to get the length
+    recording_sys_make = models.KeyValueStore.get('recording_sys')
+    if recording_sys_make == 'plexon':
+        from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
+        plexon = models.System.objects.get(name='plexon')
+        df = models.DataFile.objects.get(entry=te.id, system=plexon)
+        plx = plexfile.openFile(df.get_path().encode('utf-8'), load=False)
+        length = plx.length
+    elif recording_sys_make == 'ecube':
+        sys = models.System.objects.get(name='ecube')
+        df = models.DataFile.objects.get(entry=te.id, system=sys)
+        filepath = df.get_path()
+        from riglib.ecube import parse_file
+        info = parse_file(str(df.get_path()))
+        length = info.length
+    else:
+        ValueError('Unrecognized recording_system!')
+
+    tslice = [0, length]
+    strobe_rate = te.task_params['fps']
+
+    neural_features, units, extractor_kwargs = train.get_neural_features(files, binlen, extractor_cls.extract_from_file,
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
+    mFR = np.squeeze(np.mean(neural_features, axis=0))
+    sdFR = np.std(neural_features, axis=0)
+
+    # Update decoder w/ new zscoring:   
+    decoder.mFR = 0.
+    decoder.sdFR = 1.
+    decoder.init_zscore(mFR, sdFR)
+    decoder.mFR = mFR
+    decoder.sdFR = sdFR
+
+    # Save it as a new decoder
+    suffx = '_zscore_set_from_'+str(calc_zscore_from_te)
+
+    if task_entry_id is not None:
+        save_new_dec(task_entry_id, decoder, suffx)
+    else:
+        return decoder, suffx
+
+
+
 def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
     decoder = get_decoder_corr(task_entry_id, decoder_entry_id, return_used_te=True)
     W = np.diag(decoder.filt.W)
@@ -173,14 +244,13 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
     if get_dec_used is False:
         decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
         if len(decoder_entries) > 0:
-            print('Loading decoder TRAINED from task %d'%task_entry_id)
             if type(decoder_entries) is models.Decoder:
                 decoder = decoder_entries
                 ld = False
             else: # list of decoders. Search for the right one. 
                 try:
                     dec_ids = [de.pk for de in decoder_entries]
-                    _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
+                    _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0][0]
                     decoder = decoder_entries[_ix]
                     ld = False
                 except:

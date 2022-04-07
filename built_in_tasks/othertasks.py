@@ -5,8 +5,9 @@ from features.laser_features import DigitalWave
 from riglib.experiment import traits
 import itertools
 import numpy as np
+from scipy.stats import poisson
 
-MAX_EDGES = 1000
+MAX_RECORD_EDGES = 32
 
 class Conditions(Sequence):
 
@@ -43,6 +44,12 @@ class Conditions(Sequence):
     def _end_trial(self):
         self.sync_event('TRIAL_END')
 
+    @classmethod
+    def get_desc(cls, params, log_summary):
+        duration = round(log_summary['runtime'] / 60, 1)
+        return "{} trials in {} min".format(
+            log_summary['n_trials'], duration)
+
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):
         ''' Generate random sequence of all combinations of the given arguments'''
@@ -55,7 +62,7 @@ class Conditions(Sequence):
     def gen_conditions(nreps, *args, ascend=True):
         ''' Generate a sequential sequence of all combinations of the given arguments'''
         unique = list(itertools.product(*args))
-        conds = np.tile(range(len(unique)), nreps)
+        conds = np.tile(range(len(unique)), (nreps, 1)).T.flatten()
         if not ascend: # descending
             conds = np.flipud(conds)
         seq = [[i % len(unique)] + list(unique[i % len(unique)]) for i in conds] # list of [index, arg1, arg2, ..., argn]
@@ -69,6 +76,7 @@ class LaserConditions(Conditions):
 
     sequence_generators = ['single_laser_pulse', 'single_laser_square_wave']
     exclude_parent_traits = ['trial_time']
+    stimulation_site = traits.String("", desc="Where was the laser stimulation?")
 
     def __init__(self, *args, **kwargs):
         self.laser_threads = []
@@ -80,11 +88,19 @@ class LaserConditions(Conditions):
             ('index', 'u4'),
             ('laser', 'S32'),
             ('power', 'f8'),
-            ('edges', 'V', MAX_EDGES)
+            ('edges', 'f8', MAX_RECORD_EDGES),
             ])
         super(Conditions, self).init()
+    
+    def run(self):
         if not (hasattr(self, 'lasers') and len(self.lasers) > 0):
-            raise AttributeError("No laser feature enabled, cannot init LaserConditions")
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write("No laser feature enabled, cannot init LaserConditions")
+            self.termination_err.seek(0)
+            self.state = None
+        super().run() 
 
     def _parse_next_trial(self):
         self.trial_index, self.laser_powers, self.laser_edges = self.next_trial
@@ -97,7 +113,8 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             self.trial_record['laser'] = self.lasers[idx].name
             self.trial_record['power'] = self.laser_powers[idx]
-            self.trial_record['edges'] = np.array(self.laser_edges[idx]).tobytes()
+            record_laser_edges = self.laser_edges[idx][:MAX_RECORD_EDGES]
+            self.trial_record['edges'] = np.pad(record_laser_edges, (0, MAX_RECORD_EDGES - len(record_laser_edges)), constant_values=np.nan)
             self.sinks.send("trials", self.trial_record)
 
     def _start_trial(self):
@@ -105,8 +122,9 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             laser = self.lasers[idx]
             edges = self.laser_edges[idx]
-            # TODO set laser power
+            # set laser power
             power = self.laser_powers[idx]
+            laser.set_power(power)
             # Trigger digital wave
             wave = DigitalWave(laser, mask=1<<laser.port)
             wave.set_edges(edges, True)

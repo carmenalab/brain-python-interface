@@ -3,12 +3,6 @@ High-level classes for BMI used to tie all th BMI subcomponent systems together
 '''
 import numpy as np
 import traceback
-import re
-import multiprocessing as mp
-import queue
-
-import time
-import re
 import os
 import tables
 import datetime
@@ -495,7 +489,10 @@ class Decoder(object):
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
-        self.channels = np.unique(self.units[:,0])
+        if self.units.size > 0:
+            self.channels = np.unique(self.units[:,0])
+        else:
+            self.channels = []
         self.binlen = binlen
         self.bounding_box = ssm.bounding_box
         self.states = ssm.state_names
@@ -1071,6 +1068,9 @@ class BMILoop(object):
         constructors have run and all the requried attributes have been declared
         for the task to operate.
         '''
+        # Make sure the plant is up to date
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
+
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()

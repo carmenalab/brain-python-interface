@@ -1,15 +1,8 @@
 """Finite state machine implementation """
 import time
-import random
 import threading
 import traceback
-import collections
-import re
-import os
-import tables
-import traceback
 import io
-import numpy as np
 
 from collections import OrderedDict
 

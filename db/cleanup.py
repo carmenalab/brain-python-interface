@@ -21,11 +21,11 @@ def hide_empty_task_entries(hide=False):
 
 def calc_distribution_of_n_trials():
 	n_trials = dict()
-	visible_tes = len(models.TaskEntry.objects.filter(visible=True))
+	visible_tes = models.TaskEntry.objects.filter(visible=True)
 	for te in visible_tes:
 		print(te.id)
 		try:
-			n_trials[id] = te.offline_report()['Total trials']
+			n_trials[te.id] = te.offline_report()['Total trials']
 		except:
 			pass
 	return n_trials

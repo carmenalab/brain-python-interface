@@ -264,6 +264,7 @@ class Task(models.Model):
                     exp_generators.append([g.id, seqgen_name])
                 except:
                     print("missing generator %s" % seqgen_name)
+                    traceback.print_exc()
         return exp_generators
 
     def controls(self, feats=()):
@@ -415,6 +416,17 @@ class Subject(models.Model):
         subjects = Subject.objects.all().order_by("name")
         return [s.name for s in subjects]
 
+class Experimenter(models.Model):
+    name = models.CharField(max_length=128)
+    def __str__(self):
+        return "Experimenter[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
+
+    @staticmethod
+    def get_all_experimenters():
+        experimenters = Experimenter.objects.all().order_by("name")
+        return [s.name for s in experimenters]
 
 class Generator(models.Model):
     name = models.CharField(max_length=128)
@@ -610,10 +622,13 @@ class Sequence(models.Model):
 
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
+    experimenter = models.ForeignKey(Experimenter, null=True, on_delete=models.PROTECT)
     date = models.DateTimeField(auto_now_add=True)
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
     feats = models.ManyToManyField(Feature)
     sequence = models.ForeignKey(Sequence, blank=True, null=True, on_delete=models.PROTECT)
+    project = models.TextField()
+    session = models.TextField()
 
     params = models.TextField()
     report = models.TextField()
@@ -684,6 +699,48 @@ class TaskEntry(models.Model):
         from .json_param import Parameters
         data = Parameters(self.metadata).params
         return data
+
+    @staticmethod
+    def get_default_metadata():
+        subject = {
+            'type': 'Enum',
+            'default': '',
+            'desc': 'Who',
+            'hidden': 'visible',
+            'options':  Subject.get_all_subjects(),
+            'required': True
+        }
+        experimenter = {
+            'type': 'Enum',
+            'default': '',
+            'desc': 'Who is running the experiment',
+            'hidden': 'visible',
+            'options':  Experimenter.get_all_experimenters(),
+            'required': True
+        }
+        project = {
+            'type': 'String',
+            'default': '',
+            'desc': 'Which project are you working on',
+            'hidden': 'visible',
+            'value': '',
+            'required': True
+        }
+        session = {
+            'type': 'String',
+            'default': '',
+            'desc': 'Specific instance of the project',
+            'hidden': 'visible',
+            'value': '',
+            'required': True
+        }
+        metadata = {
+            'subject': subject,
+            'experimenter': experimenter,
+            'project': project,
+            'session': session,
+        }
+        return metadata
 
     def plexfile(self, path='/storage/plexon/', search=False):
         rplex = Feature.objects.get(name='relay_plexon')
@@ -764,15 +821,12 @@ class TaskEntry(models.Model):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
 
         # Add metadata
-        js['metadata'] = {}
-        subjects = {
-            'type': 'Enum',
-            'default': self.subject.name,
-            'desc': 'Who',
-            'hidden': 'visible',
-            'options':  Subject.get_all_subjects()
-        }
-        js['metadata']['subject'] = subjects
+        js['metadata'] = self.get_default_metadata()
+        js['metadata']['subject']['default'] = self.subject.name
+        if self.experimenter: 
+            js['metadata']['experimenter']['default'] = self.experimenter.name
+        js['metadata']['project']['value'] = self.project
+        js['metadata']['session']['value'] = self.session
         js['metadata'].update(dict([
             (
                 name, 
@@ -781,7 +835,8 @@ class TaskEntry(models.Model):
                     'default': '',
                     'desc': '',
                     'hidden': 'visible',
-                    'value': value
+                    'value': value,
+                    'required': False
                 }
             ) for name, value in self.task_metadata.items()
         ]))
@@ -875,15 +930,15 @@ class TaskEntry(models.Model):
                 df = DataFile.objects.using(self._state.db).get(entry=self.id, system=sys)
                 filepath = df.get_path()
 
-                from riglib.ecube import ecubefile
+                from riglib.ecube import parse_file
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    ecube = ecubefile.parse_file()
+                    info = parse_file(str(df.get_path()))
                     path, name = os.path.split(df.get_path())
                     name, ext = os.path.splitext(name)
 
-                    _neuralinfo['length'] = ecube.length
-                    _neuralinfo['units'] = ecube.units
+                    _neuralinfo['length'] = info.length
+                    _neuralinfo['units'] = info.units
                     _neuralinfo['name'] = name
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)
@@ -1029,7 +1084,21 @@ class TaskEntry(models.Model):
             return "Error generating description"
 
     def get_data_files(self):
-        return DataFile.objects.filter(entry_id=self.id)
+        return list(DataFile.objects.filter(entry_id=self.id))
+
+    def get_data_files_dict(self, data_dir=""):
+        file_list = self.get_data_files()
+        files = {}
+        for df in file_list:
+            files[df.system.name] = os.path.join(data_dir, df.system.name, os.path.basename(df.path))
+        return files
+
+    def get_data_files_dict_absolute(self):
+        file_list = self.get_data_files()
+        files = {}
+        for df in file_list:
+            files[df.system.name] = os.path.join(df.system.path, os.path.basename(df.path))
+        return files
 
     def make_hdf_self_contained(self):
         '''
@@ -1132,19 +1201,20 @@ class Decoder(models.Model):
         return self.__str__()
 
     def get_data_path(self, db_name=None):
-        data_path = KeyValueStore.get('data_path', '', dbname=db_name)
-        if len(data_path) == 0:
-            print("Database path not set up correctly!")
-        return data_path
+        # data_path = KeyValueStore.get('data_path', '', dbname=db_name)
+        # if len(data_path) == 0:
+        #     print("Database path not set up correctly!")
+        # return data_path
+        return System.objects.using(db_name).get(name='bmi').path
 
     @property
     def filename(self):
         data_path = self.get_data_path()
-        return os.path.join(data_path, 'decoders', self.path)
+        return os.path.join(data_path, self.path)
 
     def load(self, db_name=None, **kwargs):
         data_path = self.get_data_path()
-        decoder_fname = os.path.join(data_path, 'decoders', self.path)
+        decoder_fname = os.path.join(data_path, self.path)
 
         if os.path.exists(decoder_fname):
             try:
@@ -1173,7 +1243,7 @@ class Decoder(models.Model):
         dec = self.get()
         decoder_data = dict(name=self.name, path=self.path)
         if not (dec is None):
-            decoder_data['cls'] = dec.__class__.__name__,
+            decoder_data['cls'] = dec.__class__.__name__
             if hasattr(dec, 'units'):
                 decoder_data['units'] = dec.units
             else:
@@ -1662,8 +1732,11 @@ class KeyValueStore(models.Model):
             return default
 
     @classmethod
-    def set(cls, key, value):
-        matching_recs = cls.objects.filter(key=key)
+    def set(cls, key, value, dbname=None):
+        if dbname is not None:
+            matching_recs = cls.objects.using(dbname).filter(key=key)
+        else:
+            matching_recs = cls.objects.filter(key=key)
         if len(matching_recs) == 0:
             obj = cls(key=key, value=value)
             obj.save()

@@ -6,8 +6,6 @@ import numpy as np
 from scipy.io import loadmat
 
 from . import bmi
-import pickle
-import re
 
 class KalmanFilter(bmi.GaussianStateHMM):
     """

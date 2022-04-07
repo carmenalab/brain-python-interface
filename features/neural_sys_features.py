@@ -3,20 +3,8 @@ Generic features for interfacing with cortical recording systems (Plexon Omniple
 '''
 from riglib import source, sink
 from riglib.experiment import traits
-import time
-import tempfile
-import random
-import traceback
-import numpy as np
-import fnmatch
-import os
-import subprocess
-from riglib import bmi
-from riglib.bmi import extractor
-from riglib.experiment import traits
-from .hdf_features import SaveHDF
 from riglib.bmi.bmi import Decoder 
-
+import time
 
 class CorticalData(object):
     '''
@@ -30,6 +18,8 @@ class CorticalData(object):
         sys_module = self.sys_module # e.g., riglib.plexon, riglib.blackrock
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
+        if hasattr(self, "neural_src_kwargs"):
+            kwargs.update(self.neural_src_kwargs)
 
         if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
             # for testing only!
@@ -53,6 +43,7 @@ class CorticalData(object):
 
     def run(self):
         self.neurondata.start()
+        time.sleep(1) # give the datasource time to start
         try:
             super(CorticalData, self).run()
         finally:
@@ -72,5 +63,5 @@ class CorticalBMI(CorticalData, traits.HasTraits):
         Prior to starting the task, this 'init' sets the channels to be the channels of the decoder
         so that the PlexonData source only grabs the channels actually used by the decoder. 
         '''
-        self.cortical_channels = self.decoder.units[:,0]
+        self.cortical_channels = [int(ch) for ch in self.decoder.units[:,0]]
         super(CorticalBMI, self).init()

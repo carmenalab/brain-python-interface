@@ -2,15 +2,9 @@
 Features for the eyetracker system
 '''
 
-import time
 import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
-import os
 from riglib import calibrations
-import subprocess
 from riglib.experiment import traits
 
 ###### CONSTANTS

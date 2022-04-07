@@ -1,13 +1,7 @@
 '''
 Reward delivery features
 '''
-
 import time
-import tempfile
-import random
-import traceback
-import numpy as np
-import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
@@ -61,6 +55,45 @@ class RewardSystem(traits.HasTraits):
         reward_sys.async_drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
+
+class PelletReward(traits.HasTraits):
+
+    trials_per_reward = traits.Float(1, desc='Number of successful trials reward is delievered')
+    
+    def __init__(self, *args, **kwargs):
+        from riglib import reward
+        super().__init__(*args, **kwargs)
+        self.reward = reward.pellet_open()
+        self.reportstats['Reward #'] = 0
+
+    def run(self):
+        if self.reward is None:
+            raise Exception('Reward system could not be activated')
+        super().run()
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reportstats['Reward #'] += 1
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            self.reward.async_dispense()
+
+    def _end_reward(self):
+        if hasattr(super(), '_end_reward'):
+            super()._end_reward()
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
+
+    @control_decorator
+    def manual_reward( static=True):
+        from riglib import reward
+        reward_sys = reward.pellet_open()
+        reward_sys.async_dispense()
+
 
 class RewardAudio(traits.HasTraits):
     '''
@@ -149,6 +182,9 @@ class PenaltyAudioMulti(traits.HasTraits):
         self.reach_penalty_player.play()
 
 class HoldCompleteRewards(traits.HasTraits):
+    '''
+    Trigger an extra reward (duration set by hold_reward_time) after successful holds
+    '''
 
     hold_reward_time = traits.Float(0.05)
 
@@ -158,6 +194,21 @@ class HoldCompleteRewards(traits.HasTraits):
 
             # We just finished a hold/delay and there are more targets
             self.reward.async_drain(self.hold_reward_time)
+
+class JackpotRewards(traits.HasTraits):
+    '''
+    Every trials_for_jackpot trials, double reward is administered
+    '''
+
+    trials_for_jackpot = traits.Int(5, desc="How many successful trials before a jackpot is delivered")
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_for_jackpot == 0:
+            return ts > 2*self.reward_time
+        elif self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

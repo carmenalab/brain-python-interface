@@ -10,10 +10,10 @@ the authors is made.
 """
 
 from numpy import *
-from utility import *
-from transform import *
+from .utility import *
+from .transform import *
 import copy
-from Link import *
+from .Link import *
 
 class Robot(object):
     """Robot object.
@@ -101,7 +101,6 @@ class Robot(object):
 
     def __mul__(self, r2):
         r = Robot(self);        # clone the robot
-        print r
         r.links += r2.links;
         return r;
 
@@ -145,24 +144,6 @@ class Robot(object):
             newlinks.append( oldlink.nofriction(all) );
         r.links = newlinks;
         return r;
-        
-    def showlinks(self):
-        """
-        Shows details of all link parameters for this robot object, including
-        inertial parameters.
-        """
-
-        count = 1;
-        if self.name:
-            print 'name: %s'%(self.name)
-        if self.manuf:
-            print 'manufacturer: %s'%(self.manuf)
-        if self.comment:
-            print 'commment: %s'%(self.comment)
-        for l in self.links:
-            print 'Link %d------------------------' % count;
-            l.display()
-            count += 1;
 
     def __setattr__(self, name, value):
         """
@@ -178,12 +159,12 @@ class Robot(object):
         
         if name in ["manuf", "name", "comment"]:
             if not isinstance(value, str):
-                raise ValueError, 'must be a string'
+                raise ValueError('must be a string')
             self.__dict__[name] = value;
             
         elif name == "links":
             if not isinstance(value[0], Link):
-                raise ValueError, 'not a Link object';
+                raise ValueError('not a Link object')
             self.__dict__[name] = value;
             self.__dict__['n'] = len(value);
             # set the robot object mdh status flag
@@ -194,18 +175,18 @@ class Robot(object):
             
         elif name == "tool":
             if not ishomog(value):
-                raise ValueError, 'tool must be a homogeneous transform';
+                raise ValueError('tool must be a homogeneous transform')
             self.__dict__[name] = value;
 
         elif name == "gravity":
             v = arg2array(value);
             if len(v) != 3:
-                raise ValueError, 'gravity must be a 3-vector';
+                raise ValueError('gravity must be a 3-vector')
             self.__dict__[name] = mat(v).T
             
         elif name == "base":
             if not ishomog(value):
-                raise ValueError, 'base must be a homogeneous transform';
+                raise ValueError('base must be a homogeneous transform')
             self.__dict__[name] = value;
             
         else:

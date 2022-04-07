@@ -2,11 +2,7 @@
 A generic target capture task
 '''
 import numpy as np
-import time
-import os
-import math
-import traceback
-from collections import OrderedDict
+
 
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
@@ -284,7 +280,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
+    cursor_color = traits.OptionsList("dark_purple", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
@@ -478,6 +474,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
         self.sync_event('REWARD')
+        
     
     def _end_reward(self):
         super()._end_reward()
@@ -534,7 +531,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             rng.shuffle(order)
             for t in range(ntargets):
                 idx = order[t]
-                theta = 2*np.pi*idx/ntargets
+                theta = 2*np.pi*(3-idx)/ntargets # put idx 1 at 12 o'clock
                 pos = np.array([
                     distance*np.cos(theta),
                     0,
@@ -660,7 +657,7 @@ class ScreenReachAngle(ScreenTargetCapture):
     max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between the starting position of the cursor and the target")
     reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
     reach_fraction = traits.Float(0.5, desc="Fraction of the distance between the reach start and the target before a reward")
-    start_radius = 1. # buffer around reach start allowed in bounds    
+    start_radius = traits.Float(1., desc="Buffer around reach start allowed in bounds (cm)")
 
     exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time']
 

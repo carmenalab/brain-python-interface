@@ -11,7 +11,6 @@ from riglib.experiment import Experiment, traits
 from features.simulation_features import SimHDF
 from riglib import plants
 
-
 def sim_target_seq_generator_multi(n_targs, n_trials):
     '''
     Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks

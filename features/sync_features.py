@@ -1,8 +1,15 @@
+'''
+Features for sending digital sync data
+'''
 from riglib.experiment import traits
 from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
 import tables
 import time
+import copy
+import pygame
+from built_in_tasks.target_graphics import VirtualRectangularTarget
+from riglib.stereo_opengl.window import TRANSPARENT
 
 rig1_sync_events = dict(
     EXP_START               = 0x1,
@@ -26,12 +33,12 @@ rig1_sync_events = dict(
 
 rig1_sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 7,
+        sync_protocol_version = 9,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
         event_sync_dict = rig1_sync_events,
-        event_sync_max_data = 0xf,
+        event_sync_max_data = 0xe,
         screen_sync_nidaq_pin = 8,
         screen_sync_dch = 24,
         screen_measure_dch = [5],
@@ -156,11 +163,6 @@ class NIDAQSync(traits.HasTraits):
             for param in self.sync_params.keys():
                 h5file.root.sync_events.attrs[param] = self.sync_params[param]
             h5file.close()
-    
-import copy
-import pygame
-from built_in_tasks.target_graphics import VirtualRectangularTarget
-from riglib.stereo_opengl.window import TRANSPARENT
 
 class ScreenSync(NIDAQSync):
     '''Adds a square in one corner that switches color with every flip.'''
@@ -207,7 +209,7 @@ class ScreenSync(NIDAQSync):
             self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
         else:
             from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(self.screen_cm, self.sync_size))
-            pos = np.array([from_center[0]/2, self.screen_dist, from_center[1]/2])
+            pos = np.array([from_center[0]/2, 1-self.screen_dist, from_center[1]/2])
             self.sync_square = VirtualRectangularTarget(target_width=self.sync_size, target_height=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             # self.sync_square = VirtualCircularTarget(target_radius=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
             for model in self.sync_square.graphics_models:
@@ -233,9 +235,14 @@ class ScreenSync(NIDAQSync):
     def _start_sync(self):
         self._tmp_fps = copy.deepcopy(self.fps)
         self.fps = self.sync_state_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
 
     def _end_sync(self):
         self.fps = self._tmp_fps
+        # if hasattr(self, 'decoder'):
+        #     self.decoder.set_call_rate(1./self.fps)
+        #     print("restore update rate")
 
     def _test_start_experiment(self, ts):
         return ts > self.sync_state_duration

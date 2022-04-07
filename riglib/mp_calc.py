@@ -1,7 +1,5 @@
 import multiprocessing as mp
 import time
-import os
-import subprocess
 import numpy as np
 import queue
 

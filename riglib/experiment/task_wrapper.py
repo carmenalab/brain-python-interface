@@ -6,7 +6,7 @@ import time
 import xmlrpc.client
 
 from . import Experiment, Sequence
-from riglib.mp_proxy import FuncProxy, ObjProxy, RPCProcess
+from ..mp_proxy import FuncProxy, ObjProxy, RPCProcess
 
 
 class TaskWrapper(RPCProcess):

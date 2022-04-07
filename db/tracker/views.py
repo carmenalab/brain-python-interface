@@ -13,7 +13,6 @@ from django.http import HttpResponse
 
 from . import exp_tracker
 
-
 def main(request):
     return render(request, "main.html", dict())
 
@@ -131,8 +130,9 @@ def setup_subjects(request):
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
     subjects = models.Subject.objects.all()
+    experimenters = models.Experimenter.objects.all()
 
-    return render(request, "setup_subjects.html", dict(subjects=subjects))
+    return render(request, "setup_subjects.html", dict(subjects=subjects, experimenters=experimenters))
 
 def setup_tasks(request):
     """view for experimenter to add new tasks"""
@@ -167,8 +167,8 @@ def setup_parameters(request):
     systems = models.System.objects.all()
 
     # list of available databases
-    from db import settings
-    databases = list(settings.DATABASES.keys())
+    from .. import db_settings
+    databases = list(db_settings.DATABASES.keys())
 
     database_objs = []
     for db in databases:

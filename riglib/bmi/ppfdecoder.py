@@ -6,12 +6,7 @@ import numpy as np
 
 from . import bmi
 from .bmi import GaussianState
-from scipy.io import loadmat
-import time
 import cmath
-from . import feedback_controllers
-import pickle
-from . import train
 
 class PointProcessFilter(bmi.GaussianStateHMM):
     """

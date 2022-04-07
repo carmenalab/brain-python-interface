@@ -97,13 +97,13 @@ BMI.swap = function(name, src, dst, dstname) {
             return $('#'+dstname).append(obj);
 
         //Rudimentary lexical sort
-        names.sort(function(b, a) {
-            var an = parsecell.exec(a);
-            var bn = parsecell.exec(b);
-            var chan = parseInt(bn[1], 10) - parseInt(an[1], 10);
-            var chr = (bn[2].charCodeAt(0) - an[2].charCodeAt(0));
-            return chan + chr / 10;
-        });
+        // names.sort(function(b, a) {
+        //     var an = parsecell.exec(a);
+        //     var bn = parsecell.exec(b);
+        //     var chan = parseInt(bn[1], 10) - parseInt(an[1], 10);
+        //     var chr = (bn[2].charCodeAt(0) - an[2].charCodeAt(0));
+        //     return chan + chr / 10;
+        // });
         var idx = names.indexOf(name);
         if (idx == 0)
             dst[names[idx+1]].before(obj);

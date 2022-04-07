@@ -3,16 +3,13 @@ Virtual target capture tasks where cursors are controlled by physical
 motion interfaces such as joysticks
 '''
 import numpy as np
-from collections import OrderedDict
-import time
-import os
-import math
-import traceback
+from scipy.spatial.transform import Rotation as R
 
 from riglib.experiment import traits
 
 from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture, ScreenReachAngle
+from .target_tracking_task import ScreenTargetTracking
 from riglib.stereo_opengl.window import WindowDispl2D
 
 
@@ -48,6 +45,7 @@ class ManualControlMixin(traits.HasTraits):
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
+    pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     scale = traits.Float(1.0, desc="Control scale factor")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
@@ -55,7 +53,7 @@ class ManualControlMixin(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
-        self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
+        self.last_pt=self.starting_pos #keep track of last pt to calc. velocity
         self._quality_window_size = 500 # how many cycles to accumulate quality statistics
         self.reportstats['Input quality'] = "100 %"
         if self.random_rewards:
@@ -104,7 +102,8 @@ class ManualControlMixin(traits.HasTraits):
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
         new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
-        return new[0:3]
+        pertubation_rot = R.from_euler('y', self.pertubation_rotation, degrees=True)
+        return np.matmul(pertubation_rot.as_matrix(), new[0:3])
 
     def _get_manual_position(self):
         '''
@@ -123,14 +122,18 @@ class ManualControlMixin(traits.HasTraits):
 
         return [pt]
 
-    def move_effector(self):
+    def move_effector(self, new_position = None):
         ''' 
         Sets the 3D coordinates of the cursor. For manual control, uses
         motiontracker / joystick / mouse data. If no data available, returns None
         '''
 
         # Get raw input and save it as task data
-        raw_coords = self._get_manual_position() # array of [3x1] arrays
+        if new_position is None: 
+            raw_coords = self._get_manual_position() # array of [3x1] arrays
+        else:
+            raw_coords = new_position
+
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
             self.update_report_stats()
@@ -142,9 +145,17 @@ class ManualControlMixin(traits.HasTraits):
 
         # Transform coordinates
         coords = self._transform_coords(raw_coords)
-        if self.limit2d:
-            coords[1] = 0
-
+        
+        try:
+            if self.limit2d:
+                coords[1] = 0
+            if self.limit1d:
+                coords[1] = 0
+                coords[0] = 0
+        except:
+            if self.limit2d:
+                coords[1] = 0
+                
         # Set cursor position
         if not self.velocity_control:
             self.current_pt = coords
@@ -183,5 +194,11 @@ class ManualControl(ManualControlMixin, ScreenTargetCapture):
 class ManualControlDirectionConstraint(ManualControlMixin, ScreenReachAngle):
     '''
     Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass
+
+class TrackingTask(ManualControlMixin, ScreenTargetTracking):
+    '''
+    Track moving target task
     '''
     pass

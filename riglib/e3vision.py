@@ -5,7 +5,7 @@ import time
 
 USERNAME = 'python'
 PASSWORD = 'python'
-WATCHTOWERURL = 'https://localhost:4343'
+WATCHTOWERURL = 'https://10.155.206.1:4343'
 # CAMERA_SID_LIST = ['e3v822d','e3v821f']#,'e3v821b']
 IFACE = ''
 CONFIG = '480p15'
@@ -30,12 +30,12 @@ class E3VisionInterface(object):
     e3vi.stop_rec()
 
     """
-    def __init__(self,session_dict={}): #TODO: fit this into BMI3D
+    def __init__(self,session_name=None):
         self.username = USERNAME
         self.password = PASSWORD
         self.watchtowerurl = WATCHTOWERURL
         # self.camera_sid_list = CAMERA_SID_LIST
-        self._create_session_subdir(session_dict)
+        self._create_session_subdir(session_name)
         self.iface = IFACE
         self.config = CONFIG
         self.codec = CODEC
@@ -47,15 +47,17 @@ class E3VisionInterface(object):
         self.apitoken = self.api_login()
         # self.configure_cameras()
 
-    def _create_session_subdir(self,session_dict): #TODO: Make this real
+    def _create_session_subdir(self,session_name):
         """_create_session_subdir
 
         Creates a subdirectory string for the current session. All video files from this object are saved to this subdirectory.
 
         Args:
-            session_dict (dict): BMI3D session dictionary.
+            session_name (str): BMI3D session name.
         """
-        self.subdir = 'asdf'
+        if session_name is None:
+            session_name = 'test'
+        self.subdir = session_name
 
     def api_post(self,api_call_str,**kwargs): #TODO: This is completely bare. Put some exception handling on this vis a vis HTTP code (401, 404, etc)
         """api_post
@@ -80,6 +82,7 @@ class E3VisionInterface(object):
             api_call,
             data = data,
             verify = False,
+            timeout = 5,
         )
         r.raise_for_status()
         return r
@@ -107,7 +110,8 @@ class E3VisionInterface(object):
         r = re.get(
             api_call,
             params=params,
-            verify=False
+            verify=False,
+            timeout=5,
         )
         r.raise_for_status()
         return r
@@ -141,7 +145,7 @@ class E3VisionInterface(object):
         )
         self.camera_list = json.loads(r_cameras.text)
         for cam in self.camera_list:
-            print(f"{cam['Id']}")
+            print(f"Camera available: {cam['Id']}")
 
     def configure_cameras(self):
         """configure_cameras

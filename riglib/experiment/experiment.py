@@ -3,22 +3,18 @@ Experimental task base classes, contains mostly code to run the generic
 finite state machine representing different phases of the task
 '''
 
-import time
-import random
 import traceback
 import collections
 import re
 import os
 import tables
 import traceback
-import io
 import numpy as np
-import copy
 from collections import OrderedDict
 
 from . import traits
-from riglib import fsm
-from riglib.fsm import FSMTable, StateTransitions, ThreadedFSM
+from .. import fsm
+from ..fsm import FSMTable, StateTransitions, ThreadedFSM
 
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -585,7 +581,7 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
             
             # Create an empty task database if there isn't one already (may be empty if there was no task data)
             if not hasattr(h5file.root, "task"):
-                h5file.create_table("/", "task", 0., 'Nothing to see here')
+                h5file.create_table("/", "task", [('time', 'u8')])
 
             # Append to task data metadata
             for trait in traits:
@@ -728,7 +724,9 @@ class LogExperiment(Experiment):
             Rate of specified event, per trial
         '''
         trialtimes = [state[1] for state in self.state_log if state[0] in self.status.trial_end_states]
-        if len(trialtimes) < window:
+        if len(trialtimes) == 0:
+            return 0
+        elif len(trialtimes) < window:
             times = np.array([state[1] for state in self.state_log if state[0]==event_name and state[1] > trialtimes[0]])
             return len(times) / max(1, len(trialtimes) - 1)
         else:

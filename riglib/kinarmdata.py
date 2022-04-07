@@ -4,8 +4,8 @@ Code for getting data from kinarm
 
 import time
 import numpy as np
-from riglib.source import DataSourceSystem
-from riglib import kinarmsocket
+from .source import DataSourceSystem
+from . import kinarmsocket
 
 class Kinarmdata(DataSourceSystem):
     '''

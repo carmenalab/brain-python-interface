@@ -2,7 +2,7 @@
 Classes for BMI decoding using linear scaling. 
 '''
 import numpy as np
-from riglib.bmi.bmi import Filter
+from ..bmi.bmi import Filter
 
 class State(object):
     '''For compatibility with other BMI decoding implementations'''

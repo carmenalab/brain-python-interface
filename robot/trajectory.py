@@ -7,8 +7,8 @@ Trajectory primitives.
 """
 
 from numpy import *
-from utility import *
-import transform as T
+from .utility import *
+from . import transform as T
 
 def jtraj(q0, q1, tv, qd0=None, qd1=None):
     """
@@ -60,9 +60,6 @@ def jtraj(q0, q1, tv, qd0=None, qd1=None):
         qd1 = zeros((shape(q1)))
     else:
         qd1 = arg2array(qd1)
-
-    print qd0
-    print qd1
     
     # compute the polynomial coefficients
     A = 6*(q1 - q0) - 3*(qd1 + qd0)*tscal

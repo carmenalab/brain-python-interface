@@ -3,9 +3,7 @@ Classes for extracting "decodable features" from various types of neural signal 
 Examples include spike rate estimation, LFP power, and EMG amplitude.
 '''
 import numpy as np
-import time
 from scipy.signal import butter, lfilter
-import math
 import os
 import nitime.algorithms as tsa
 
@@ -239,7 +237,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         '''
         if 'plexon' in files:
             from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))
+            plx = plexfile.openFile(files['plexon'].encode('utf-8'))
             # interpolate between the rows to 180 Hz
             if binlen < 1./strobe_rate:
                 interp_rows = []
@@ -357,6 +355,9 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         elif 'tdt' in files:
             raise NotImplementedError     
 
+        elif 'ecube' in files:
+            raise NotImplementedError
+
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 start = 0
@@ -417,7 +418,7 @@ class LFPMTMPowerExtractor(object):
 
         self.n_pts = int(self.win_len * self.fs)
         self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
-        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
+        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:int(self.nfft/2) + 1]
         self.fft_inds = dict()
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
@@ -528,63 +529,71 @@ class LFPMTMPowerExtractor(object):
             Parameters used to instantiate the feature extractor, to be stored 
             along with the trained decoder so that the exact same feature extractor can be re-created at runtime.
         '''
+    
+        # interpolate between the rows to 180 Hz
+        if binlen < 1./strobe_rate:
+            interp_rows = []
+            neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+            for r1, r2 in zip(neurows[:-1], neurows[1:]):
+                interp_rows += list(np.linspace(r1, r2, 4)[1:])
+            interp_rows = np.array(interp_rows)
+        else:
+            step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+            interp_rows = neurows[::step]
+        
+        # create extractor object
+        f_extractor = LFPMTMPowerExtractor(None, **extractor_kwargs)
+        extractor_kwargs = f_extractor.extractor_kwargs
+
+        win_len  = f_extractor.win_len
+        bands    = f_extractor.bands
+        channels = f_extractor.channels
+        fs       = f_extractor.fs
+        print(('bands:', bands))
+        print(('win_len:', win_len))
+
+        n_itrs = len(interp_rows)
+        n_chan = len(channels)
+        lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+
+        # get the samples
         if 'plexon' in files:
             from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))
-
-            # interpolate between the rows to 180 Hz
-            if binlen < 1./strobe_rate:
-                interp_rows = []
-                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-                for r1, r2 in zip(neurows[:-1], neurows[1:]):
-                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
-                interp_rows = np.array(interp_rows)
-            else:
-                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-                interp_rows = neurows[::step]
-
-
-            # create extractor object
-            f_extractor = LFPMTMPowerExtractor(None, **extractor_kwargs)
-            extractor_kwargs = f_extractor.extractor_kwargs
-
-            win_len  = f_extractor.win_len
-            bands    = f_extractor.bands
-            channels = f_extractor.channels
-            fs       = f_extractor.fs
-            print(('bands:', bands))
-
-            n_itrs = len(interp_rows)
-            n_chan = len(channels)
-            lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
-            
-            # for i, t in enumerate(interp_rows):
-            #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-            #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            plx = plexfile.openFile(files['plexon'].encode('utf-8'))
             lfp = plx.lfp[:].data[:, channels-1]
-            n_pts = int(win_len * fs)
-            for i, t in enumerate(interp_rows):
-                try:
-                    sample_num = int(t * fs)
-                    cont_samples = lfp[sample_num-n_pts:sample_num, :]
-                    lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-                except:
-                    print("Error with LFP decoder training")
-                    print((i, t))
-                    pass
-
-
-            # TODO -- discard any channel(s) for which the log power in any frequency 
-            #   bands was ever equal to -inf (i.e., power was equal to 0)
-            # or, perhaps just add a small epsilon inside the log to avoid this
-            # then, remember to do this:  extractor_kwargs['channels'] = channels
-            #   and reset the units variable
-
-            return lfp_power, units, extractor_kwargs
 
         elif 'blackrock' in files:
             raise NotImplementedError
 
+        elif 'ecube' in files:
+            from riglib.ecube.file import load_lfp
+            data = load_lfp(str(files['ecube']))
+            lfp = data[:, [c-1 for c in channels]]
+        
+        # for i, t in enumerate(interp_rows):
+        #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+        #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+        n_pts = int(win_len * fs)
+        for i, t in enumerate(interp_rows):
+            # try:
+            sample_num = int(t * fs)
+            cont_samples = lfp[max(0,sample_num-n_pts):min(lfp.shape[0], sample_num), :]
+            if cont_samples.shape[0] < n_pts:
+                # maybe don't count these ones?
+                continue
+            lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            # except:
+            #     print("Error with LFP decoder training")
+            #     print((i, t))
+
+
+        # TODO -- discard any channel(s) for which the log power in any frequency 
+        #   bands was ever equal to -inf (i.e., power was equal to 0)
+        # or, perhaps just add a small epsilon inside the log to avoid this
+        # then, remember to do this:  extractor_kwargs['channels'] = channels
+        #   and reset the units variable
+
+        return lfp_power, units, extractor_kwargs
 
 #########################################################
 ##### Reconstruction extractors, used in test cases #####
@@ -1116,6 +1125,9 @@ class AIMTMPowerExtractor(LFPMTMPowerExtractor):
         elif 'blackrock' in files:
             raise NotImplementedError
 
+        elif 'ecube' in files:
+            raise NotImplementedError
+
 
 class AIAmplitudeExtractor(object):
     '''
@@ -1287,10 +1299,11 @@ class WaveformClusterCountExtractor(FeatureExtractor):
             extractor_kwargs['units'] = units
 
             return spike_counts, units, extractor_kwargs
-        else:
+        elif 'blackrock' in files:
             raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
 
-
+        elif 'ecube' in files:
+            raise NotImplementedError
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''

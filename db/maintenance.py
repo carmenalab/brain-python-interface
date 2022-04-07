@@ -1,11 +1,8 @@
-import os
-import sys
-import shutil
+from .boot_django import boot_django
+boot_django()
+
+from .tracker import models
 import datetime
-
-os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-
-from db.tracker import models
 
 plexon = models.System.objects.get(name='plexon')
 

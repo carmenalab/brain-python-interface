@@ -10,7 +10,6 @@ from .utility import *
 from .transform import *
 import copy
 from .Link import *
-from robot import *
 from .plot import *
 
 import numpy as np

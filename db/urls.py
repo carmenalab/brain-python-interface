@@ -9,7 +9,7 @@ from django.urls import path
 from django.contrib import admin
 admin.autodiscover()
 
-from db.tracker import ajax, views, dbq
+from .tracker import ajax, views, dbq
 
 urlpatterns = [
     path('', views.main),
@@ -20,6 +20,7 @@ urlpatterns = [
     path('setup/features', views.setup_features),
     path('setup/parameters', views.setup_parameters),
     path('setup/add/subject', ajax.add_new_subject),
+    path('setup/add/experimenter', ajax.add_new_experimenter),
     path('setup/add/task', ajax.add_new_task),
     path('setup/add/feature', ajax.add_new_feature),
     path('setup/add/system', ajax.add_new_system),
@@ -31,6 +32,7 @@ urlpatterns = [
     path('setup/remove/system', ajax.remove_system),
     path('setup/remove/task', ajax.remove_task),
     path('setup/remove/subject', ajax.remove_subject),
+    path('setup/remove/experimenter', ajax.remove_experimenter),
     
     path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
     path(r'exp_log/all/', views.list_exp_history),

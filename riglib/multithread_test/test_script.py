@@ -1,7 +1,7 @@
-from test_server import TestServer
-from test_server import TestServerMouse
-from test_client import TestClient
-from test_BMI3D_interface import MotionData
+from .test_server import TestServer
+from .test_server import TestServerMouse
+from .test_client import TestClient
+from .test_BMI3D_interface import MotionData
 import time
 
 #fire up the server

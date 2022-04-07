@@ -5,20 +5,14 @@ calling functions to start/stop the task, enabling/disabling decoder adaptation,
 '''
 import os
 import sys
-import time
-import xmlrpc.client
-import multiprocessing as mp
-import collections
-
-from riglib import experiment, singleton
-
-from . import websocket
-
-from .json_param import Parameters
-
 import io
 import traceback
 from datetime import datetime
+import multiprocessing as mp
+
+from . import websocket
+from riglib import experiment, singleton
+from .json_param import Parameters
 
 log_path = os.path.join(os.path.dirname(__file__), '../../log')
 log_filename = os.path.join(log_path, "tasktrack_log")
