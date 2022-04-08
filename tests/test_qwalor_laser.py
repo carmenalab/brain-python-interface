@@ -10,15 +10,15 @@ from riglib import qwalor_laser
 import unittest
 
 # laser setting
-channel = 2
+channel = 4
 mode = 'off'
 freq = 0
 b_rate = 115200
 port_laser = '/dev/qwalorlaser'
 
 # pulse_width_list = [0.00001, 0.00002, 0.00003, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.001, 0.002, 0.003, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 1]
-pulse_width_list = [10]
-power_list = [1]
+pulse_width_list = [5]
+power_list = [0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
 class LaserTests(unittest.TestCase):
 
