@@ -33,7 +33,7 @@ rig1_sync_events = dict(
 
 rig1_sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 9,
+        sync_protocol_version = 10,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
@@ -46,6 +46,8 @@ rig1_sync_params = dict(
         reward_measure_ach = [0],
         right_eye_ach = [8, 9],
         left_eye_ach = [10, 11],
+        recording_stop_nidaq_pin = 9,
+        recording_stop_dch = 25,
     )
 
 def encode_event(dictionary, event_name, event_data):
@@ -111,9 +113,7 @@ class NIDAQSync(traits.HasTraits):
         self.sync_event_record['code'] = code
         if immediate:
             self.sinks.send("sync_events", self.sync_event_record)
-            pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=self.sync_event_record['code'])
-            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
-            pulse.start()
+            self.sync_code(self.sync_event_record['code'])
             self.has_sync_event = False
         else:
             self.has_sync_event = True
@@ -121,13 +121,21 @@ class NIDAQSync(traits.HasTraits):
     def run(self):
 
         # Mark the beginning and end of the experiment
-        self.sync_event('EXP_START')
+        self.sync_event('EXP_START', event_data=0, immediate=True)
+        time.sleep(1./self.fps)
         try:
             super().run()            
         finally:
             time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
             self.sync_event('EXP_END', event_data=0, immediate=True) # Signal the end of the experiment, even if it crashed
 
+    def sync_code(self, code):
+        '''
+        Send a sync code through NIDAQ
+        '''
+        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
+        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+        pulse.start()
 
     def _cycle(self):
         '''
@@ -143,9 +151,7 @@ class NIDAQSync(traits.HasTraits):
             code |= int(self.sync_event_record['code'])
             self.has_sync_event = False
         if code > 0:
-            pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
-            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
-            pulse.start()
+            self.sync_code(code)
         if self.sync_every_cycle:
             self.sync_clock_record['time'] = self.cycle_count
             self.sync_clock_record['timestamp'] = time.perf_counter() - self.t0

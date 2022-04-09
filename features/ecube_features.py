@@ -80,26 +80,33 @@ class RecordECube(traits.HasTraits):
         return super_result
 
     def _ecube_cleanup(self, saveid):
-        from riglib.ecube import pyeCubeStream
+        '''
+        Cleanup function that gets run at the end of the experiment regardless of success.
+        '''
+        from riglib.ecube import utils, pyeCubeStream
         ec = pyeCubeStream.eCubeStream()
         active = ec.listremotesessions()
         stopped = saveid is None
         for session in active:
             if str(saveid) in session:
                 ecube_session = session
-                ec.remotestopsave(session)
-                print('Stopped eCube recording session ' + session)
-                log_str("Stopped recording " + session)
-                stopped = True
+                if hasattr(self, 'sync_code'):
+                    self.sync_code(1 << self.sync_params['recording_stop_nidaq_pin'])
+                    stopped = utils.gracefully_stop_session(ec, session, dch=self.sync_params['recording_stop_dch'])
+                else:
+                    print('No sync feature enabled. Recording maybe truncated.')
+                    time.sleep(2)
+                    ec.remotestopsave(session)
+                    stopped = True
 
         # Remove headstage sources so they can be added again later
-        sources = ec.listadded()
-        if len(sources[0]) > 0:
-            for hs in np.unique(sources[0][0]):
-                ec.remove(('Headstages', int(hs)))
+        utils.remove_headstage_sources(ec)
 
         # Check that everything worked out
-        if not stopped:
+        if stopped:
+            print('Stopped eCube recording session ' + session)
+            log_str("Stopped recording " + session)
+        else:
             raise Exception('Could not find active session for ' + ecube_session)
 
     
