@@ -57,7 +57,6 @@ class RecordECube(traits.HasTraits):
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
-        time.sleep(3) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
             self._ecube_cleanup(saveid)
         except Exception as e:
@@ -84,21 +83,24 @@ class RecordECube(traits.HasTraits):
         Cleanup function that gets run at the end of the experiment regardless of success.
         '''
         from riglib.ecube import utils, pyeCubeStream
+
+        # Mark the end of the recording
+        if hasattr(self, 'sync_code'):
+            print('Sending stop recording pulse')
+            self.sync_code(1 << self.sync_params['recording_nidaq_pin'])
+        else:
+            print('No sync feature enabled. Cannot send stop pulse.')
+
+        # Stop the recording
         ec = pyeCubeStream.eCubeStream()
         active = ec.listremotesessions()
         stopped = saveid is None
         for session in active:
             if str(saveid) in session:
                 ecube_session = session
-                if hasattr(self, 'sync_code'):
-                    print('sending stop recording pulse')
-                    self.sync_code(1 << self.sync_params['recording_stop_nidaq_pin'])
-                    stopped = utils.gracefully_stop_session(ec, session, dch=self.sync_params['recording_stop_dch'])
-                else:
-                    print('No sync feature enabled. Recording maybe truncated.')
-                    time.sleep(2)
-                    ec.remotestopsave(session)
-                    stopped = True
+                time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
+                ec.remotestopsave(session)
+                stopped = True
 
         # Remove headstage sources so they can be added again later
         utils.remove_headstage_sources(ec)
@@ -175,6 +177,14 @@ class RecordECube(traits.HasTraits):
             self.termination_err.seek(0)
             self.state = None
         try:
+            # Send a pulse to mark the beginning of the recording
+            time.sleep(0.1) # Wait a bit to be sure the recording started
+            if hasattr(self, 'sync_code'):
+                print('Sending start recording pulse')
+                self.sync_code(1 << self.sync_params['recording_nidaq_pin'])
+            else:
+                print('No sync feature enabled. Cannot send start pulse.')
+            time.sleep(0.1)
             super().run()
         except Exception as e:
             try:

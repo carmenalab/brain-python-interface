@@ -46,8 +46,8 @@ rig1_sync_params = dict(
         reward_measure_ach = [0],
         right_eye_ach = [8, 9],
         left_eye_ach = [10, 11],
-        recording_stop_nidaq_pin = 9,
-        recording_stop_dch = 25,
+        recording_nidaq_pin = 9,
+        recording_dch = 25,
     )
 
 def encode_event(dictionary, event_name, event_data):
@@ -129,12 +129,12 @@ class NIDAQSync(traits.HasTraits):
             time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
             self.sync_event('EXP_END', event_data=0, immediate=True) # Signal the end of the experiment, even if it crashed
 
-    def sync_code(self, code):
+    def sync_code(self, code, delay=0.):
         '''
         Send a sync code through NIDAQ
         '''
         pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
-        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+        pulse.set_edges([0, delay, self.sync_params['sync_pulse_width']], False)
         pulse.start()
 
     def _cycle(self):
