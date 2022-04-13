@@ -91,6 +91,7 @@ class RecordECube(traits.HasTraits):
             if str(saveid) in session:
                 ecube_session = session
                 if hasattr(self, 'sync_code'):
+                    print('sending stop recording pulse')
                     self.sync_code(1 << self.sync_params['recording_stop_nidaq_pin'])
                     stopped = utils.gracefully_stop_session(ec, session, dch=self.sync_params['recording_stop_dch'])
                 else:

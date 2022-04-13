@@ -28,7 +28,7 @@ def gracefully_stop_session(ec, session, dch=25, timeout=10):
     # Stop streaming
     ec.stop()
     ec.remotestopsave(session)
-    ec.remove(('DigitalPanel',))
+    ec.remove(('DigitalPanelAsChans',))
 
     return received_stop_signal
 
