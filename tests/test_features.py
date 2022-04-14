@@ -56,6 +56,17 @@ class TestLaser(unittest.TestCase):
         print(gpio.value[1,:])
         self.assertEqual(sum(gpio.value[1,:]), 6) # 1 Hz over 5 seconds has 6 positive edges including the last one at 5 s
 
+        # Test duty cycle
+        laser2 = DigitalWave(gpio, mask=2)
+        laser2.set_square_wave(1, 5, duty_cycle=0.2)
+        expected = [0. , 0.2, 1. , 1.2, 2. , 2.2, 3. , 3.2, 4. , 4.2, 5. ]
+        self.assertCountEqual(laser2.edges, expected)
+
+        # Test phase delay
+        laser2 = DigitalWave(gpio, mask=2)
+        laser2.set_square_wave(1, 5, phase_delay=0.2)
+        self.assertCountEqual(laser2.edges, np.linspace(0.2, 5.2, 11))
+
     def test_convert_masked_data_to_pins(self):
         from riglib.gpio import convert_masked_data_to_pins
         pins, values = convert_masked_data_to_pins(1<<12, 1<<12)
