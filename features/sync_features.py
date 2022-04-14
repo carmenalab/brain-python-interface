@@ -118,17 +118,6 @@ class NIDAQSync(traits.HasTraits):
         else:
             self.has_sync_event = True
 
-    def run(self):
-
-        # Mark the beginning and end of the experiment
-        self.sync_event('EXP_START', event_data=0, immediate=True)
-        time.sleep(1./self.fps)
-        try:
-            super().run()            
-        finally:
-            time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
-            self.sync_event('EXP_END', event_data=0, immediate=True) # Signal the end of the experiment, even if it crashed
-
     def sync_code(self, code, delay=0.):
         '''
         Send a sync code through NIDAQ
