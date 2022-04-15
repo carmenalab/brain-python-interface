@@ -144,8 +144,8 @@ class E3VisionInterface(object):
             '/api/cameras'
         )
         self.camera_list = json.loads(r_cameras.text)
-        for cam in self.camera_list:
-            print(f"Camera available: {cam['Id']}")
+        # for cam in self.camera_list:
+        #     print(f"Camera available: {cam['Id']}")
 
     def configure_cameras(self):
         """configure_cameras
@@ -176,9 +176,10 @@ class E3VisionInterface(object):
         while rec_check:
             t_ping = time.time()
             self.update_camera_status()
-            camera_running = [bool(c['Recordstate']) for c in rec_camera_list]
+            camera_running = [cam['Recordstate'] for cam in self.camera_list if cam['Id'] in rec_camera_list]
             rec_check = (not all(camera_running)) and (time.time() - t_ping < TIMEOUT)
         assert all(camera_running), 'Error starting video recordings.'
+        print(f"Started e3v recordings on cameras {rec_camera_list}")
 
     def stop_rec(self):
         """stop_rec
@@ -187,9 +188,11 @@ class E3VisionInterface(object):
         """
         self.api_post(
             '/api/cameras/action',
-            IdGroup=[cam['Id'] for cam in self.camera_list],
+            IdGroup=[cam['Id'] for cam in self.camera_list if cam['Recordstate']],
             Action='STOPRECORDGROUP',
         )
+        print(f"Stopped e3v recordings")
+
 
     def _bind_camera(self,cid):
         """_bind_camera

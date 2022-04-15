@@ -53,6 +53,10 @@ class E3Video(traits.HasTraits):
             self.termination_err.seek(0)
             self.state = None
             super().run()
+            try:
+                self.e3v.stop_rec()
+            except:
+                pass
         else:
             try:
                 super().run()
