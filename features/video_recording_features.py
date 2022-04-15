@@ -3,6 +3,7 @@ For capturing frames from a camera
 '''
 import time
 import os
+import traceback
 from riglib.experiment import traits
 from riglib.mp_calc import MultiprocShellCommand
 from datetime import datetime
@@ -35,8 +36,8 @@ class E3Video(traits.HasTraits):
                 e3v.update_camera_status()
                 self.e3v_status = 'online'
             self.e3v = e3v
-        except:
-            self.e3v_status = 'Unable to connect to e3v cameras.. make sure watchtower is open!'
+        except Exception as e:
+            self.e3v_status = traceback.format_exc()
 
     def run(self):
         '''
@@ -51,6 +52,10 @@ class E3Video(traits.HasTraits):
             self.termination_err.seek(0)
             self.state = None
             super().run()
+            try:
+                self.e3v.stop_rec()
+            except:
+                pass
         else:
             try:
                 super().run()
