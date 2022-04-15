@@ -1,3 +1,4 @@
+import warnings
 import requests as re
 import urllib3
 import json
@@ -158,13 +159,22 @@ class E3VisionInterface(object):
             self._update_sync(id)
             self._connect_camera(id)
 
-    def start_rec(self):
+    def start_rec(self, force=False):
         """start_rec
 
         Begin recording a video file to the session subdirectory. Records from all connected cameras simulataneously to separate files.
         File names have the following form: <global_dir>/<session_subdir>/[cameraname]-[starttime]-[endtime].[avi | mp4]
         """
-        rec_camera_list = [cam['Id'] for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
+        connected_camera_list = [cam for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
+        rec_camera_list = [cam['Id'] for cam in connected_camera_list]
+        rec_state = [cam['RecordState'] for cam in connected_camera_list]
+        if any(rec_state):
+            if force:
+                rec_warning_msg = 'Cameras already recording video. Stopping current recording before starting new recording.'
+                warnings.warn(rec_warning_msg, RuntimeWarning)
+            else:
+                rec_error_msg = 'Cameras already recording video. Aborting recording session initiation. Enable overwrite behavior with force=True.'
+                raise RuntimeError(rec_error_msg)
         self.api_post(
             '/api/cameras/action',
             IdGroup=rec_camera_list,
