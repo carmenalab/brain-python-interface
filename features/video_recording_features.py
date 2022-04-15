@@ -3,6 +3,7 @@ For capturing frames from a camera
 '''
 import time
 import os
+import traceback
 from riglib.experiment import traits
 from riglib.mp_calc import MultiprocShellCommand
 from datetime import datetime
@@ -26,6 +27,7 @@ class E3Video(traits.HasTraits):
         try:
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
+                self.e3v_filename = take
                 e3v = E3VisionInterface(take)
                 e3v.update_camera_status()
                 e3v.start_rec()
@@ -35,8 +37,8 @@ class E3Video(traits.HasTraits):
                 e3v.update_camera_status()
                 self.e3v_status = 'online'
             self.e3v = e3v
-        except:
-            self.e3v_status = 'Unable to connect to e3v cameras.. make sure watchtower is open!'
+        except Exception as e:
+            self.e3v_status = traceback.format_exc()
 
     def run(self):
         '''
@@ -67,7 +69,7 @@ class E3Video(traits.HasTraits):
         print("Saving WM e3vision files to database...")
         try:
             suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
-            database.save_data(self.filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
+            database.save_data(self.e3v_filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
         except Exception as e:
             print(e)
             return False
