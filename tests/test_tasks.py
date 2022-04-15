@@ -4,7 +4,6 @@ from built_in_tasks.target_capture_task import ScreenTargetCapture
 from built_in_tasks.passivetasks import YouTube
 from features.hdf_features import SaveHDF
 from riglib.stereo_opengl.window import WindowDispl2D
-from built_in_tasks.othertasks import LaserConditions
 from riglib import experiment
 from features.peripheral_device_features import MouseControl
 import cProfile
@@ -57,6 +56,10 @@ class TestSeqGenerators(unittest.TestCase):
         # Target 3 should be 3 o'clock
         self.assertAlmostEqual(loc[idx == 3, 0][0], 10)
         self.assertAlmostEqual(loc[idx == 3, 2][0], 0)
+
+    def test_dual_laser_wave(self):
+        seq = LaserConditions.dual_laser_square_wave(duty_cycle_1=0.025, duty_cycle_2=0.025, phase_delay_2=0.1)
+        print(seq[0])
 
 class TestYouTube(unittest.TestCase):
 
