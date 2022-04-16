@@ -167,7 +167,7 @@ class E3VisionInterface(object):
         """
         connected_camera_list = [cam for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
         rec_camera_list = [cam['Id'] for cam in connected_camera_list]
-        rec_state = [cam['RecordState'] for cam in connected_camera_list]
+        rec_state = [cam['Recordstate'] for cam in connected_camera_list]
         if any(rec_state):
             if force:
                 rec_warning_msg = 'Cameras already recording video. Stopping current recording before starting new recording.'
