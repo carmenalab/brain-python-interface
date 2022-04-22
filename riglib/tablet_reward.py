@@ -5,7 +5,7 @@ import time
 
 class Basic(singleton.Singleton):
 
-    #__instance = None
+    __instance = None
 
     def __init__(self):
         super().__init__()
