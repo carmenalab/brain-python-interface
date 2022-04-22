@@ -5,12 +5,12 @@ import time
 
 class Basic(singleton.Singleton):
 
-    __instance = None
+    #__instance = None
 
     def __init__(self):
         super().__init__()
-        com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
-        self.board = ArduinoGPIO(port=COM3)
+        com_port = '/dev/ttys3'  # specify the port, based on windows/Unix, can find it on IDE or terminal
+        self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
         self.on()
 
