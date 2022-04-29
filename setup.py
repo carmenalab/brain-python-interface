@@ -24,7 +24,6 @@ setuptools.setup(
         "PyOpenGL",
         "Django",
         "pylibftdi",
-        "nitime",
         "sphinx",
         "numpydoc",
         "tornado",

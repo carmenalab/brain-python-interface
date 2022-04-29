@@ -1,18 +1,20 @@
 from riglib.gpio import ArduinoGPIO
 from multiprocessing import Process
 from riglib import singleton
+#from pyfirmata import Arduino, util
 import time
 
 class Basic(singleton.Singleton):
 
-    #__instance = None
+    __instance = None
 
     def __init__(self):
         super().__init__()
-        com_port = '/dev/ttys3'  # specify the port, based on windows/Unix, can find it on IDE or terminal
+        com_port = 'COM4'  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
-        self.on()
+        self.board.write(12,1)
+        #self.on()
 
     # def calibrate(self):
     #     """
@@ -24,13 +26,13 @@ class Basic(singleton.Singleton):
     #     self.drain(72)  # it takes around 72 seconds to drain 200 ml of fluid - Flow rate: 2.8 mL/s
     #     print('Check the breaker for calibration. You should notice 200 ml of fluid')
 
-    def dispense(self, dispense_time=200):  # call this function to drain the reward system
+    def dispense(self):  # call this function to drain the reward system
         """
         this function is called from the webserver in ajax.reward_drain
         """
-        self.off()
-        time.sleep(dispense_time)
-        self.on()
+        self.board.write(12, 0)          #low
+        time.sleep(0.02)
+        self.board.write(12, 1)            #high
 
     def async_dispense(self, dispense_time=40):
         """
@@ -48,4 +50,4 @@ def open():
         import traceback
         import os
         import builtins
-        traceback.print_exc(file=builtins.open('../log/reward.log', 'a'))
+        traceback.print_exc()

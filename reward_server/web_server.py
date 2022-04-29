@@ -8,7 +8,7 @@ serverPort = 8080
 class MyServer(BaseHTTPRequestHandler):
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tablet_reward = tablet_reward.open()
+        
 
     def do_GET(self):
         self.send_response(200)
@@ -22,7 +22,8 @@ class MyServer(BaseHTTPRequestHandler):
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
     def do_POST(self):
-        #self.tablet_reward.async_dispense(self, 40)
+        tab = tablet_reward.open()
+        tab.dispense()
         print('I got rest')
 
 if __name__ == "__main__":        
