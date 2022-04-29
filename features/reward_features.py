@@ -62,43 +62,33 @@ class RewardSystem(traits.HasTraits):
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
-class PelletReward(traits.HasTraits):
-
-    trials_per_reward = traits.Float(1, desc='Number of successful trials reward is delievered')
+class PelletReward(RewardSystem):
+    '''
+    
+    '''
     
     def __init__(self, *args, **kwargs):
-        from riglib import reward
-        super().__init__(*args, **kwargs)
-        self.reward = reward.pellet_open()
+        from riglib.tablet_reward import RemoteReward
+        super(RewardSystem, self).__init__(*args, **kwargs)
+        self.reward = RemoteReward()
         self.reportstats['Reward #'] = 0
 
-    def run(self):
-        if self.reward is None:
-            raise Exception('Reward system could not be activated')
-        super().run()
-
     def _start_reward(self):
-        if hasattr(super(), '_start_reward'):
-            super()._start_reward()
+        if hasattr(super(RewardSystem, self), '_start_reward'):
+            super(RewardSystem, self)._start_reward()
         self.reportstats['Reward #'] += 1
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-            self.reward.async_dispense()
+            self.reward.trigger()
 
     def _end_reward(self):
-        if hasattr(super(), '_end_reward'):
-            super()._end_reward()
-
-    def _test_reward_end(self, ts):
-        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-            return ts > self.reward_time
-        else:
-            return True
+        if hasattr(super(RewardSystem, self), '_end_reward'):
+            super(RewardSystem, self)._end_reward()
 
     @control_decorator
     def manual_reward( static=True):
-        from riglib import reward
-        reward_sys = reward.pellet_open()
-        reward_sys.async_dispense()
+        from riglib.tablet_reward import RemoteReward
+        reward_sys = RemoteReward()
+        reward_sys.reward.trigger()
 
 
 class RewardAudio(traits.HasTraits):

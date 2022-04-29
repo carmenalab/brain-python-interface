@@ -8,7 +8,7 @@ serverPort = 8080
 class MyServer(BaseHTTPRequestHandler):
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+        tablet_reward.open()
 
     def do_GET(self):
         self.send_response(200)
