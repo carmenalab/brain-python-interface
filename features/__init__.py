@@ -2,6 +2,7 @@
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
 '''
+from features.debug_features import Profiler
 from features.laser_features import QwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
@@ -58,6 +59,7 @@ built_in_features = dict(
     ecube_bmi = EcubeBMI,
     qwalor_laser = QwalorLaser,
     e3video = E3Video,
+    debug = Profiler,
 )
 
 # >>> features.built_in_features['autostart'].__module__
