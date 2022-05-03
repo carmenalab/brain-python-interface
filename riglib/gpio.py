@@ -68,25 +68,54 @@ class ArduinoGPIO(GPIO):
                     port = p.device
             if port is None:
                 raise Exception('No serial device found')
-        self.arduino = pyfirmata.Arduino(port, baudrate=baudrate, timeout=timeout)
+        self.board = pyfirmata.Arduino(port, baudrate=baudrate, timeout=timeout)
         self.lock = Lock()
 
     def write(self, pin, value):
         with self.lock:
-            self.arduino.digital[pin].write(int(value))
+            self.board.digital[pin].write(int(value))
     
     def read(self, pin):
         with self.lock:
-            return bool(self.arduino.digital[pin].read())
+            return bool(self.board.digital[pin].read())
 
     def write_many(self, mask, data):
         pins, values = convert_masked_data_to_pins(mask, data)
         for idx in range(len(pins)):
-            self.write(pins[idx], values[idx])
+            self.board.digital[pins[idx]].value = values[idx]
+        [p.write() for p in self.board.digital_ports]
 
     def close(self):
         ''' Call this method before destroying the object'''
-        self.arduino.exit()
+        self.board.exit()
+
+class TeensyGPIO(ArduinoGPIO):
+
+    def __init__(self, port=None, baudrate=57600, timeout=10):
+        if port is None:
+            import serial.tools.list_ports
+            ports = serial.tools.list_ports.comports()
+            for p in ports:
+                if 'USB Serial' in p.description:
+                    port = p.device
+            if port is None:
+                raise Exception('No serial device found')
+        teensy = {
+            'digital': tuple(x for x in range(63)),
+            'pwm': tuple(x for x in range(63)),
+            'analog': tuple(x for x in range(43, 69)),
+            'disabled': (0,1),
+        }
+        self.board = pyfirmata.Board(port, baudrate=baudrate, timeout=timeout, layout=teensy)
+        self.lock = Lock()
+
+    def analog_write(self, pin, value):
+        '''
+        Write to any pin as a PWM (for digital pins) or analog output (if it supports DAC)
+        '''
+        with self.lock:
+            msg = [0xF0, 0x6F, pin, value % 128, value >> 7, 0xF7] # [START_SYSEX, extended analog, pin, lsb, msb, END_SYSEX]
+            self.board.sp.write(msg)
 
 class NIGPIO(GPIO):
 
