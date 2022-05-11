@@ -3,11 +3,12 @@ Classes for general purpose input output (GPIO)
 '''
 
 import numpy as np
-from multiprocessing import Process, Lock
+#from multiprocessing import Process, Lock
+from threading import Thread as Process, Lock
 import time
 import pyfirmata
 
-def convert_masked_data_to_pins(mask, data, bits=13):
+def convert_masked_data_to_pins(mask, data, bits=64):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''
     pins = []
     values = []
@@ -82,8 +83,9 @@ class ArduinoGPIO(GPIO):
     def write_many(self, mask, data):
         pins, values = convert_masked_data_to_pins(mask, data)
         for idx in range(len(pins)):
-            self.board.digital[pins[idx]].value = values[idx]
-        [p.write() for p in self.board.digital_ports]
+            self.board.digital[pins[idx]].write(values[idx])
+        # for p in self.board.digital_ports:
+        #     p.write()
 
     def close(self):
         ''' Call this method before destroying the object'''
@@ -91,7 +93,7 @@ class ArduinoGPIO(GPIO):
 
 class TeensyGPIO(ArduinoGPIO):
 
-    def __init__(self, port=None, baudrate=57600, timeout=10):
+    def __init__(self, port=None, baudrate=112500, timeout=10):
         if port is None:
             import serial.tools.list_ports
             ports = serial.tools.list_ports.comports()
