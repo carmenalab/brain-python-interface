@@ -19,6 +19,7 @@ from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
 from .ecube_features import EcubeFileBMI, EcubeBMI
+from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -60,6 +61,9 @@ built_in_features = dict(
     qwalor_laser = QwalorLaser,
     e3video = E3Video,
     debug = Profiler,
+    arduino_sync=ArduinoSync,
+    screen_sync=ScreenSync,
+    cursor_sync=CursorAnalogOut,
 )
 
 # >>> features.built_in_features['autostart'].__module__

@@ -64,8 +64,12 @@ rig1_sync_params_arduino.update(dict(
     sync_protocol_version = 11,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
+    event_sync_dch = range(31,39),
     screen_sync_pin = 10,
+    screen_sync_dch = 39,
     recording_pin = 11,
+    recording_dch = 40,
+
 ))
 
 
@@ -156,7 +160,7 @@ class HDFSync(traits.HasTraits):
             code = 1 << self.sync_params['screen_sync_pin']
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
-            code |= int(self.sync_event_record['code'] << self.sync_params['event_sync_data_shift'])
+            code |= int(self.sync_event_record['code']) << self.sync_params['event_sync_data_shift']
             self.has_sync_event = False
         if code > 0:
             self.sync_code(code)
@@ -210,11 +214,14 @@ class ArduinoSync(NIDAQSync):
     '''
     Use an arduino microcontroller to sync instead of a NI DIO card.
     '''
+
+    sync_gpio_port = traits.String("/dev/teensydio", desc="Port used for digital sync")
+    hidden_traits = ["sync_gpio_port"]
     
     def __init__(self, *args, **kwargs):
         super(HDFSync, self).__init__(*args, **kwargs)
         self.sync_params = rig1_sync_params_arduino
-        self.sync_gpio = TeensyGPIO()
+        self.sync_gpio = TeensyGPIO(self.sync_gpio_port)
         self.sync_every_cycle = True
 
 
@@ -317,28 +324,35 @@ class ScreenSync(traits.HasTraits):
 
 class CursorAnalogOut(traits.HasTraits):
     '''
-    Output cursor x and z as analog voltages
+    Output cursor x and z as analog voltages. Scales cursor position by 'cursor_out_gain', then
+    centers on 1.15 volts. Outputs voltages using 12 bits of resolution on two channels of a 
+    teensy microcontroller.
     '''
 
+    cursor_gpio_port = traits.String("/dev/teensyao", desc="Port used for cursor analog out")
     cursor_x_pin = traits.Int(66, desc="Pin used to output cursor x position")
     cursor_z_pin = traits.Int(67, desc="Pin used to output cursor z position")
-    cursor_x_ach = traits.Int(4, desc="Analog channel used to record cursor x position")
-    cursor_z_ach = traits.Int(5, desc="Analog channel used to record cursor z position")
+    cursor_x_ach = traits.Int(3, desc="Analog channel used to record cursor x position")
+    cursor_z_ach = traits.Int(4, desc="Analog channel used to record cursor z position")
     cursor_out_gain = traits.Float(0.1, desc="Gain to control the output voltage of cursor position")
-
-    hidden_traits = ["cursor_x_pin", "cursor_z_pin", "cursor_x_ach", "cursor_z_ach", "cursor_out_gain"]
+    hidden_traits = ["cursor_gpio_port", "cursor_x_pin", "cursor_z_pin", "cursor_x_ach", "cursor_z_ach", "cursor_out_gain"]
 
     def __init__(self, *args, **kwargs):
 
-        self.cursor_output_gpio = TeensyGPIO()
+        self.cursor_output_gpio = TeensyGPIO(self.cursor_gpio_port)
         super().__init__(*args, **kwargs)
 
     def _cycle(self):
         pos = self.plant.get_endpoint_pos()
         voltage = pos*self.cursor_out_gain # pos (cm) * gain = voltage
+        
         max_voltage = 3.3
+        resolution = 12
+        max_int = 2**resolution - 1
         float_values = (voltage + max_voltage/2)/max_voltage # (-1.15, +1.15) becomes (0, 1)
-        int_values = int(255*float_values)
+        float_values[float_values > 1] = 1.
+        float_values[float_values < 0] = 0.
+        int_values = (max_int*float_values).astype(int)
         self.cursor_output_gpio.analog_write(self.cursor_x_pin, int_values[0])
         # self.cursor_output_gpio.analog_write(self.cursor_y_pin, int_values[1])
         self.cursor_output_gpio.analog_write(self.cursor_z_pin, int_values[2])
