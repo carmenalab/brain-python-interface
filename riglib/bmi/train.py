@@ -367,8 +367,6 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     -------
     '''
 
-    hdf = tables.open_file(files['hdf'])
-
     if 'plexon' in files:
         fn = _get_neural_features_plx
     elif 'blackrock' in files:
