@@ -21,7 +21,11 @@ def parse_file(filepath):
     return info
 
 def load_lfp(filepath, samplerate=1000):
-    tmp_filepath = '/home/pagaiisland/leo/temp_file.hdf'
+    h5file = tempfile.NamedTemporaryFile(suffix=".hdf", delete=False)
+    h5file.flush()
+    h5file.close()
+    tmp_filepath = h5file.name
+    # tmp_filepath = '/home/pagaiisland/leo/temp_file.hdf'
     files = {
         'ecube': filepath,
     }

@@ -340,8 +340,6 @@ def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, ts
     '''
     Mostly just copied from _get_neural_features_plx()... see their docs
     '''
-    hdf = tables.open_file(files['hdf'])
-
     from riglib.ecube import parse_file
     info = parse_file(files['ecube'])
     # Use all of the units if none are specified
@@ -368,8 +366,6 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     Returns
     -------
     '''
-
-    hdf = tables.open_file(files['hdf'])
 
     if 'plexon' in files:
         fn = _get_neural_features_plx
