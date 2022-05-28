@@ -536,6 +536,35 @@ class Decoder(object):
         else:
             self.set_call_rate(60.0)
 
+
+    def init_zscore(self, mFR_curr, sdFR_curr):
+        '''
+        Initialize parameters for zcoring observations, if that feature is enabled in the decoder object
+        
+        Parameters
+        ----------
+        mFR_curr : np.array of shape (N,)
+            Current mean estimates (as opposed to potentially old estimates already stored in the decoder)
+        sdFR_curr : np.array of shape (N,)
+            Current standard deviation estimates (as opposed to potentially old estimates already stored in the decoder)
+        
+        Returns
+        -------
+        None
+        '''
+
+        # if interfacing with Kinarm system, may mean and sd will be shape (n, 1)
+        self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
+        sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
+        mFR_curr[self.zeromeanunits] = np.nan
+        #self.sdFR_ratio = self.sdFR/sdFR_curr
+        #self.mFR_diff = mFR_curr-self.mFR
+        #self.mFR_curr = mFR_curr
+        self.mFR = mFR_curr
+        self.sdFR = sdFR_curr
+        self.zscore = True
+
+        
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         '''
         Plot 2D "preferred directions" of features in the Decoder
