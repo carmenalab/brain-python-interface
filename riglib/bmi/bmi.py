@@ -7,7 +7,7 @@ import os
 import tables
 import datetime
 import copy
-
+import pickle
 
 class GaussianState(object):
     '''
@@ -916,7 +916,7 @@ class Decoder(object):
             f.close()
             return filename
         else:
-            import tempfile, pickle
+            import tempfile
             tf2 = tempfile.NamedTemporaryFile(delete=False)
             pickle.dump(self, tf2)
             tf2.flush()
