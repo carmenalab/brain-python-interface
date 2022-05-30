@@ -205,5 +205,6 @@ def create_lindecoder(ssm, units, unit_to_state, decoder_to_plant=None, smoothin
     
     decoder = Decoder(filt, units, ssm, binlen=update_rate, subbins=1)
     decoder.n_features = len(units)
+    decoder.binlen = update_rate
 
     return decoder

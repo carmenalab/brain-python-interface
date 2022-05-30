@@ -911,7 +911,7 @@ class Decoder(object):
             filename of pickled Decoder object
         '''
         if filename != '':
-            f = open(filename, 'w')
+            f = open(filename, 'wb')
             pickle.dump(self, f)
             f.close()
             return filename
