@@ -1,16 +1,6 @@
 '''
 Features for the kinarm which is sending packets blindly to the BMI machine
 '''
-
-import time
-import random
-import traceback
-import numpy as np
-
-import os
-import subprocess
-
-import time
 from riglib.experiment import traits
 
 ########################################################################################################

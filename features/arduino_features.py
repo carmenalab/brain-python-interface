@@ -3,24 +3,12 @@ Features to include when using the Arduino board to remotely start neural
 recording for Plexon/Blackrock/TDT systems and also synchronize data between the task and the neural recordings
 '''
 import time
-import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
 import os
-import subprocess
-from riglib import bmi
-from riglib.bmi import extractor
-from riglib.experiment import traits
-from .hdf_features import SaveHDF
-import sys
+from riglib import serial_dio
 import glob
 import datetime
 import serial
-
-import time
-from riglib import serial_dio
 
 sec_per_min = 60
 baudrate = 115200 #9600

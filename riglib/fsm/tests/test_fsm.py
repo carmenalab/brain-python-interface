@@ -2,7 +2,7 @@
 import unittest
 import time
 
-from fsm import FSM, ThreadedFSM, FSMTable, StateTransitions
+from ..fsm import FSM, ThreadedFSM, FSMTable, StateTransitions
 
 
 event1to2 = [False, True,  False, False, False, False, False, False]

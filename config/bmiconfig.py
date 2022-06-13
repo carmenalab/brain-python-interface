@@ -22,18 +22,18 @@ bmi_training_pos_vars = [
 ## State-space models for BMIs
 joint_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links=2, w=0.01)
 tentacle_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links=4, w=0.01)
+endpt_2D_state_space = bmi.state_space_models.StateSpaceEndptVel2D()
 
-
-## Velocity SSMs
-from riglib.bmi.state_space_models import offset_state, State
-endpt_2D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
-                   State('hand_py', stochastic=False, drives_obs=False, order=0),
-                   State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-                   State('hand_vx', stochastic=True,  drives_obs=True, order=1),
-                   State('hand_vy', stochastic=False, drives_obs=False, order=1),
-                   State('hand_vz', stochastic=True,  drives_obs=True, order=1),
-                   offset_state]
-endpt_2D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
+# ## Velocity SSMs
+# from riglib.bmi.state_space_models import offset_state, State
+# endpt_2D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+#                    State('hand_py', stochastic=False, drives_obs=False, order=0),
+#                    State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+#                    State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+#                    State('hand_vy', stochastic=False, drives_obs=False, order=1),
+#                    State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+#                    offset_state]
+# endpt_2D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
 
 bmi_state_space_models=dict(
     Endpt2D=endpt_2D_state_space,

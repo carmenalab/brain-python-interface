@@ -3,17 +3,11 @@ High-level classes for BMI used to tie all th BMI subcomponent systems together
 '''
 import numpy as np
 import traceback
-import re
-import multiprocessing as mp
-import queue
-
-import time
-import re
 import os
 import tables
 import datetime
 import copy
-
+import pickle
 
 class GaussianState(object):
     '''
@@ -495,7 +489,10 @@ class Decoder(object):
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
-        self.channels = np.unique(self.units[:,0])
+        if self.units.size > 0:
+            self.channels = np.unique(self.units[:,0])
+        else:
+            self.channels = []
         self.binlen = binlen
         self.bounding_box = ssm.bounding_box
         self.states = ssm.state_names
@@ -539,6 +536,35 @@ class Decoder(object):
         else:
             self.set_call_rate(60.0)
 
+
+    def init_zscore(self, mFR_curr, sdFR_curr):
+        '''
+        Initialize parameters for zcoring observations, if that feature is enabled in the decoder object
+        
+        Parameters
+        ----------
+        mFR_curr : np.array of shape (N,)
+            Current mean estimates (as opposed to potentially old estimates already stored in the decoder)
+        sdFR_curr : np.array of shape (N,)
+            Current standard deviation estimates (as opposed to potentially old estimates already stored in the decoder)
+        
+        Returns
+        -------
+        None
+        '''
+
+        # if interfacing with Kinarm system, may mean and sd will be shape (n, 1)
+        self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
+        sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
+        mFR_curr[self.zeromeanunits] = np.nan
+        #self.sdFR_ratio = self.sdFR/sdFR_curr
+        #self.mFR_diff = mFR_curr-self.mFR
+        #self.mFR_curr = mFR_curr
+        self.mFR = mFR_curr
+        self.sdFR = sdFR_curr
+        self.zscore = True
+
+        
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         '''
         Plot 2D "preferred directions" of features in the Decoder
@@ -885,12 +911,12 @@ class Decoder(object):
             filename of pickled Decoder object
         '''
         if filename != '':
-            f = open(filename, 'w')
+            f = open(filename, 'wb')
             pickle.dump(self, f)
             f.close()
             return filename
         else:
-            import tempfile, pickle
+            import tempfile
             tf2 = tempfile.NamedTemporaryFile(delete=False)
             pickle.dump(self, tf2)
             tf2.flush()
@@ -1071,6 +1097,9 @@ class BMILoop(object):
         constructors have run and all the requried attributes have been declared
         for the task to operate.
         '''
+        # Make sure the plant is up to date
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
+
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()

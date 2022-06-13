@@ -7,21 +7,16 @@ import os
 import numpy as np
 from OpenGL.GL import *
 
-from riglib.experiment import LogExperiment
-from riglib.experiment import traits
+from ..experiment import LogExperiment
+from ..experiment import traits
 
 from .render import stereo, render
 from .models import Group
 from .xfm import Quaternion
-from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
-from riglib.stereo_opengl.environment import Box
-import time
+from .primitives import Sphere, Cube, Chain
+from .environment import Box
 from .primitives import Cylinder, Sphere, Cone
 import socket
-
-import copy
-
-from built_in_tasks.target_graphics import VirtualRectangularTarget, VirtualCircularTarget
 
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -31,7 +26,7 @@ except ImportError:
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
 # for WindowDispl2D only
-from riglib.stereo_opengl.primitives import Shape2D
+from .primitives import Shape2D
 
 monitor_res = dict(
     test_monitor = (1680, 1050),

@@ -1,11 +1,6 @@
 '''
 Generic data sink. Sinks run in separate processes and interact with the main process through code here
 '''
-import os
-import inspect
-import traceback
-import multiprocessing as mp
-
 from .mp_proxy import FuncProxy, RPCProcess
 from . import singleton
 

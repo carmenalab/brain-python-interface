@@ -3,12 +3,7 @@ Classes for BMI decoding using the Steady-state Kalman filter. Based
 heavily on the kfdecoder module. 
 '''
 import numpy as np
-from scipy.io import loadmat
-
 from . import bmi
-from . import train
-import pickle
-
 from . import kfdecoder
 
 class SteadyStateKalmanFilter(bmi.GaussianStateHMM):

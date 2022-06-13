@@ -1,9 +1,7 @@
 
-from riglib import bmi, plexon, source
-from riglib.bmi import extractor
 import numpy as np
-from riglib.bmi import clda
-from riglib.bmi import train
+from ..bmi import clda
+from ..bmi import train
 
 kinarm_bands = []
 for i in np.arange(0,100,10):

@@ -2,19 +2,12 @@
 Base tasks for generic point-to-point reaching
 '''
 import numpy as np
-from collections import OrderedDict
-import time
-import os
-import math
-import traceback
-
 from riglib.stereo_opengl.primitives import Cable, Sphere, Cube
 from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cube
 from riglib.stereo_opengl.models import FlatMesh, Group
 from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
-
 
 ####### CONSTANTS
 sec_per_min = 60.0
@@ -38,6 +31,7 @@ target_colors = {
     "hotpink":(1,0.0,0.606,.75),
     "gold": (0.941,0.637,0.25,0.75),
     "elephant":(0.5,0.5,0.5,0.5),
+    "white": (1, 1, 1, 0.75),
 }
 
 class CircularTarget(object): 

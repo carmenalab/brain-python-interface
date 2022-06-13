@@ -6,17 +6,12 @@ import re
 import tempfile
 import xmlrpc.client
 import pickle
-import json
-import logging
 import numpy as np
 
 from celery import chain
 from .celery import app
-from django.http import HttpResponse
 
-from riglib.bmi import extractor, train
-from riglib import experiment
-
+from riglib.bmi import extractor
 
 @app.task
 def cache_plx(plxfile):
@@ -66,6 +61,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
     print("make bmi")
+
     extractor_cls = namelist.extractors[extractorname]
     print('Training with extractor class:', extractor_cls)
 
@@ -102,7 +98,12 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     else:
         raise Exception('Unknown extractor class!')
 
-    task_update_rate = 60 # NOTE may not be true for all tasks?!
+    # task_update_rate = 60 # NOTE may not be true for all tasks?!
+    entry_data = models.TaskEntry.objects.get(id=entry).to_json()
+    if hasattr(entry_data, 'params') and hasattr(entry_data['params'], 'fps'):
+        task_update_rate = entry_data['params']['fps']
+    else:
+        task_update_rate = 60.
 
     extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
@@ -118,8 +119,6 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         pass
     else:
         raise Exception("Unknown extractor_cls: %s" % extractor_cls)
-
-    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
@@ -140,12 +139,13 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
     decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key,
-        zscore=zscore)
+        zscore=zscore, update_rate_hz=task_update_rate)
     decoder.te_id = entry
 
     tf = tempfile.NamedTemporaryFile('wb')
     pickle.dump(decoder, tf, 2)
     tf.flush()
+    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(*args, **kwargs):
@@ -191,14 +191,7 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     None
     '''
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
+    from . import dbq
     import riglib.bmi
     if not isinstance(obj, riglib.bmi.bmi.Decoder):
         raise ValueError("This function is only intended for saving Decoder objects!")
@@ -216,14 +209,7 @@ def conv_mm_dec_to_cm(decoder_record):
     Convert a mm unit decoder to cm
     '''
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
+    from . import dbq
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
     print(decoder_fname)
     decoder_name = decoder_record.name
@@ -242,13 +228,6 @@ def conv_mm_dec_to_cm(decoder_record):
 
 def zero_out_SSKF_bias(decoder_record):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
     dec = open_decoder_from_record(decoder_record)
     dec.filt.C_xpose_Q_inv_C[:,-1] = 0
@@ -257,27 +236,13 @@ def zero_out_SSKF_bias(decoder_record):
 
 def conv_kfdecoder_binlen(decoder_record, new_binlen):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
     dec = open_decoder_from_record(decoder_record)
     dec.change_binlen(new_binlen)
     save_new_decoder_from_existing(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
 
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    from . import dbq
 
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
@@ -295,18 +260,11 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
     new_decoder_name = decoder_name + '_ppf'
     training_block_id = decoder_record.entry_id
     print(new_decoder_name)
-    from .tracker import dbq
+    from . import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def conv_kfdecoder_to_sskfdecoder(decoder_record):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
     dec = open_decoder_from_record(decoder_record)
 
@@ -319,13 +277,7 @@ def conv_kfdecoder_to_sskfdecoder(decoder_record):
 
 def make_kfdecoder_interpolate(decoder_record):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    from . import dbq
 
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
@@ -343,6 +295,6 @@ def make_kfdecoder_interpolate(decoder_record):
     new_decoder_name = decoder_name + '_60hz'
     training_block_id = decoder_record.entry_id
     print(new_decoder_name)
-    from .tracker import dbq
+    from . import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 

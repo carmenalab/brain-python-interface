@@ -6,9 +6,9 @@ Robot dynamics operations.
 """
 
 from numpy import *
-from utility import *
-from transform import *
-import jacobian as Jac
+from .utility import *
+from .transform import *
+from . import jacobian as Jac
 from numpy.linalg import inv
 
 def accel(robot, *args):
@@ -302,11 +302,6 @@ def _rne_dh(robot, Q, Qd, Qdd, grav, fext, debug=0):
                 D = q[j,0]
             alpha = link.alpha
             pstarm.append(mat([[link.a],[D*sin(alpha)],[D*cos(alpha)]]))
-            if debug > 1:
-                print 'Rm:'
-                print Rm[j]
-                print 'pstarm:'
-                print pstarm[j].T
         
         #
         # the forward recursion
@@ -340,14 +335,6 @@ def _rne_dh(robot, Q, Qd, Qdd, grav, fext, debug=0):
             Fm.append(F)
             Nm.append(N)
 
-            if debug:
-                print
-                print "w:\t%f\t%f\t%f"%(w[0,0], w[1,0], w[2,0])
-                print "wd:\t%f\t%f\t%f"%(wd[0,0], wd[1,0], wd[2,0])
-                print "vd:\t%f\t%f\t%f"%(vd[0,0], vd[1,0], vd[2,0])
-                print "vdbar:\t%f\t%f\t%f"%(vhat[0,0], vhat[1,0], vhat[2,0])
-                print
-
         #
         # the backward recursion
         #
@@ -373,11 +360,6 @@ def _rne_dh(robot, Q, Qd, Qdd, grav, fext, debug=0):
 
             nn = R*(nn + crossp(R.T*pstar,f)) + crossp(pstar+r,Fm[j]) + Nm[j]
             f = R*f + Fm[j]
-            if debug:
-                print
-                print "f:\t%f\t%f\t%f"%(f[0,0],f[1,0],f[2,0])
-                print "nn:\t%f\t%f\t%f"%(nn[0,0],nn[1,0],nn[2,0])
-                print
 
             R = Rm[j]
             if link.sigma == 0:
@@ -423,11 +405,6 @@ def _rne_mdh(robot, Q, Qd, Qdd, grav, fext, debug=0):
                 D = q[j,0]
             alpha = link.alpha
             Pm.append(mat([[link.a],[-D*sin(alpha)],[D*cos(alpha)]])) # (i-1) P i
-            if debug > 1:
-                print 'Rm:'
-                print Rm[j]
-                print 'Pm:'
-                print Pm[j].T
 
         #
         # the forward recursion
@@ -467,13 +444,6 @@ def _rne_mdh(robot, Q, Qd, Qdd, grav, fext, debug=0):
             Fm.append(F)
             Nm.append(N)
 
-            if debug:
-                print
-                print "w:\t%f\t%f\t%f"%(w[0,0], w[1,0], w[2,0])
-                print "wd:\t%f\t%f\t%f"%(wd[0,0], wd[1,0], wd[2,0])
-                print "vd:\t%f\t%f\t%f"%(vd[0,0], vd[1,0], vd[2,0])
-                print "vdbar:\t%f\t%f\t%f"%(vdC[0,0], vdC[1,0], vdC[2,0])
-                print
 
         #
         # The backward recursion
@@ -502,11 +472,6 @@ def _rne_mdh(robot, Q, Qd, Qdd, grav, fext, debug=0):
             nn_ = Nm[j] + R*nn + crossp(Pc,Fm[j]) + crossp(P,R*f)
             f = f_
             nn = nn_
-            if debug:
-                print
-                print "f:\t%f\t%f\t%f"%(f[0,0],f[1,0],f[2,0])
-                print "nn:\t%f\t%f\t%f"%(nn[0,0],nn[1,0],nn[2,0])
-                print
             
             if link.sigma == 0:
                 # revolute

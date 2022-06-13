@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="bmi3d",
-    version="0.2.0",
+    version="0.3.0",
     author="Lots of people",
     description="electrophysiology experimental rig library",
     packages=setuptools.find_packages(),
@@ -11,12 +11,10 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        "numpy",
+        "django",
+        "celery",
+        "jinja2",
         "scipy",
-        "matplotlib",
-        "numexpr",
-        "cython",
-        "django-celery",
         "traits",
         "pandas",
         "patsy",
@@ -28,8 +26,7 @@ setuptools.setup(
         "numpydoc",
         "tornado",
         "tables",
-        "pyserial",
         "h5py",
-        "ipdb",
+        "pymysql",
     ]
 )

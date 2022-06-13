@@ -2,16 +2,9 @@
 Features which have task-like functionality w.r.t. task...
 '''
 
-import time
-import tempfile
 import random
-import traceback
 import numpy as np
-import fnmatch
-import os
-import subprocess
 from riglib.experiment import traits
-
 
 class Autostart(traits.HasTraits):
     '''
@@ -145,3 +138,14 @@ class TransparentDelayTarget(traits.HasTraits):
             target = self.targets[self.target_index % 2]
             target.sphere.color = self._old_target_color
 
+class PoissonWait(traits.HasTraits):
+    '''
+    Draw each trial's wait time from a poisson random distribution    
+    '''
+    
+    poisson_mu = traits.Float(0.5, desc="Mean duration between trials (s)")
+    exclude_parent_traits = ['wait_time']
+
+    def _parse_next_trial(self):
+        self.wait_time = np.random.poisson(lam=self.poisson_mu)
+        super()._parse_next_trial()

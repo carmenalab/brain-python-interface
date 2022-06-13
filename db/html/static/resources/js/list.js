@@ -444,7 +444,7 @@ TaskEntry.prototype.update = function(info) {
     this.files.show();
     this.files.update_filelist(info.datafiles, this.idx);
 
-    if (this.files.neural_data_found){
+    if (info.bmi && info.bmi._neuralinfo) {
         // Create the JS object to represent the BMI menu
         this.bmi = new BMI(this.idx, info.bmi, info.notes);
     }

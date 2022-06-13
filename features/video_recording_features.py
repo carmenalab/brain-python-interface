@@ -1,16 +1,84 @@
 '''
-
+For capturing frames from a camera
 '''
-
 import time
-import tempfile
-import random
-import traceback
-import numpy as np
-import fnmatch
 import os
+import traceback
 from riglib.experiment import traits
 from riglib.mp_calc import MultiprocShellCommand
+from datetime import datetime
+from riglib.e3vision import E3VisionInterface
+
+class E3Video(traits.HasTraits):
+    '''
+    Enables recording of e3vision cameras from White-Matter.
+    '''
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        '''
+        super().init()
+
+        # Start the natnet client and recording
+        now = datetime.now()
+        take = now.strftime("Take %Y-%m-%d %H_%M_%S")
+        self.e3v_status = 'offline'
+        try:
+            if self.saveid is not None:
+                take += " (%d)" % self.saveid
+                e3v = E3VisionInterface(take)
+                e3v.update_camera_status()
+                e3v.start_rec()
+                self.e3v_status = 'recording'
+            else:
+                e3v = E3VisionInterface()
+                e3v.update_camera_status()
+                self.e3v_status = 'online'
+            self.e3v = e3v
+        except Exception as e:
+            self.e3v_status = traceback.format_exc()
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run().
+        '''
+        if not self.e3v_status in ['recording', 'online']:
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write(self.e3v_status)
+            self.termination_err.seek(0)
+            self.state = None
+            super().run()
+            try:
+                self.e3v.stop_rec()
+            except:
+                pass
+        else:
+            try:
+                super().run()
+            finally:
+                if self.e3v_status == 'recording':
+                    print("Stopping e3v recording")
+                    self.e3v.stop_rec()
+
+    def cleanup(self, database, saveid, **kwargs):
+        '''
+        Save the e3v recorded filenames into the database. Only gets called when saveid is not None.
+        '''
+        super_result = super().cleanup(database, saveid, **kwargs)
+        print("Saving WM e3vision files to database...")
+        try:
+            suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
+            database.save_data(self.filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
+        except Exception as e:
+            print(e)
+            return False
+        print("...done.")
+        return super_result
+    
 
 class SingleChannelVideo(traits.HasTraits):
     def __init__(self, *args, **kwargs):

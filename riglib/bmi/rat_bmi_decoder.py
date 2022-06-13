@@ -1,10 +1,8 @@
 
-from riglib import bmi, plexon, source
-from riglib.bmi import extractor
+from ..bmi import extractor
 import numpy as np
-from riglib.bmi import clda
-from riglib.bmi import train
-from riglib.bmi import state_space_models
+
+from ..bmi import state_space_models
 import datetime
 import matplotlib.pyplot as plt
 

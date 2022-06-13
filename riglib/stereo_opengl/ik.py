@@ -8,10 +8,7 @@ import numpy as np
 from .xfm import Quaternion
 from .models import Group
 from .primitives import Cylinder, Sphere, Cone
-from .textures import TexModel
-from .utils import cloudy_tex
-from collections import OrderedDict
-from riglib.bmi import robot_arms
+from ..bmi import robot_arms
 
 pi = np.pi
 

@@ -2,15 +2,11 @@
 Generic data source module. Sources run in separate processes and continuously collect/save
 data and interact with the main process through the methods here.
 '''
-
-import os
-import sys
 import time
 import inspect
 import traceback
 import multiprocessing as mp
 from multiprocessing import sharedctypes as shm
-import ctypes
 
 import numpy as np
 from .mp_proxy import FuncProxy, RPCProcess
@@ -246,7 +242,7 @@ class MultiChanDataSource(mp.Process):
         dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
         self.idxs = shm.RawArray('l', self.n_chan)
-        self.last_read_idxs = np.zeros(self.n_chan)
+        self.last_read_idxs = np.zeros(self.n_chan, dtype='int')
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
 
 

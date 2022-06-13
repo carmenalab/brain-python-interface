@@ -5,24 +5,29 @@ from riglib.stereo_opengl.window import WindowDispl2D
 from features.peripheral_device_features import KeyboardControl, MouseControl
 import features.sync_features as sync_features
 from features.laser_features import CrystaLaser
+from features.video_recording_features import E3Video
+from riglib.e3vision import E3VisionInterface
 import numpy as np
+import time
 
 import unittest
 
-def init_exp(base_class, feats):
-    blocks = 1
-    targets = 3
-    seq = ManualControl.centerout_2D_discrete(blocks, targets)
+
+def init_exp(base_class, feats, seq=None, **kwargs):
+    blocks = 2
+    trials = 2
+    trial_length = 5
+    frequencies = np.array([.5])
     Exp = experiment.make(base_class, feats=feats)
-    exp = Exp(seq)
+    if seq is not None:
+        exp = Exp(seq, **kwargs)
+    else:
+        exp = Exp(**kwargs)
     exp.init()
     return exp
 
 class TestKeyboardControl(unittest.TestCase):
 
-    def setUp(self):
-        pass
-    
     @unittest.skip("msg")
     def test_exp(self):
         exp = init_exp(ManualControl, [KeyboardControl, WindowDispl2D])
@@ -102,20 +107,18 @@ class TestLaser(unittest.TestCase):
         time.sleep(1)
 
         seq = LaserConditions.single_laser_pulse(nreps=reps, duration=pulse_widths, uniformsampling=False, ascending=True)
-        print(seq)
         for idx, powers, edges in seq:
             edges = edges[0]
             wave = DigitalWave(gpio, mask=1<<12)
             wave.set_edges(edges, True)
             wave.start()
-            print(edges)
             wave.join()
             time.sleep(0.1)
 
 class TestSync(unittest.TestCase):
 
     def test_dictionary(self):
-        default_dict = sync_features.NIDAQSync.sync_params['event_sync_dict']
+        default_dict = sync_features.rig1_sync_params['event_sync_dict']
         self.assertEqual(default_dict['TARGET_ON'] + 4, sync_features.encode_event(default_dict, 'TARGET_ON', 4))
         for k in default_dict.keys():
             event_data = 0
@@ -124,6 +127,20 @@ class TestSync(unittest.TestCase):
             self.assertEqual(decode[0], k)    
             self.assertEqual(decode[1], event_data)
 
+class TestE3Video(unittest.TestCase):
+
+    # def test_interface(self):
+    #     e3v = E3VisionInterface()
+    #     e3v.update_camera_status()
+    #     e3v.start_rec()
+    #     time.sleep(5)
+    #     e3v.stop_rec()
+
+    def test_feature(self):
+        exp = init_exp(experiment.Experiment, [E3Video], saveid=0)
+        exp.run()
+        time.sleep(1)
+        exp.state = None
 
 if __name__ == '__main__':
     unittest.main()

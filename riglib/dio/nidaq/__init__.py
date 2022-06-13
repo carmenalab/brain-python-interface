@@ -2,7 +2,6 @@
 NIDAQ Digital I/O interface code. Higher-level Python wrapper for pcidio 
 '''
 
-from riglib.dio import parse
 try:
     import pcidio
 except:
