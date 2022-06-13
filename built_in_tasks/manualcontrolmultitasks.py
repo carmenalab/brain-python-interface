@@ -122,15 +122,17 @@ class ManualControlMixin(traits.HasTraits):
 
         return [pt]
 
-    def move_effector(self):
+    def move_effector(self, new_position = None):
         ''' 
         Sets the 3D coordinates of the cursor. For manual control, uses
         motiontracker / joystick / mouse data. If no data available, returns None
         '''
 
         # Get raw input and save it as task data
- 
-        raw_coords = np.multiply(self._get_manual_position(),[2,1.6,0]) # array of [3x1] arrays
+        if new_position is None: 
+            raw_coords = self._get_manual_position() # array of [3x1] arrays
+        else:
+            raw_coords = new_position
 
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
