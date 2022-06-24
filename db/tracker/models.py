@@ -816,6 +816,7 @@ class TaskEntry(models.Model):
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
+        js['controls'] = self.task.controls(feats=self.feats.all())
 
         if len(js['params'])!=len(self.task_params):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
