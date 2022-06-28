@@ -36,7 +36,7 @@ hdf_sync_params = dict(
     sync_protocol_version = 0,
     sync_pulse_width = 0.,
     event_sync_dict = rig1_sync_events,
-    event_sync_max_data = 0xe,
+    event_sync_max_data = 0xd,
     event_sync_data_shift = 0,
 )
 
