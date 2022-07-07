@@ -47,5 +47,32 @@ class LaserTests(unittest.TestCase):
                 laser.off()
                 time.sleep(0.5)
 
+    def test_speed(self):
+
+        laser = qwalor_laser.QwalorLaserSerial(channel)
+        laser.set_mode(mode)
+        laser.set_freq(freq)
+
+        n_trials = 1000
+        iti = 0.001
+        width = 0.001
+
+        t_begin = time.perf_counter()
+
+        for n in range(n_trials):
+            laser.set_power(1)
+            t0 = time.perf_counter()
+            laser.on()
+            while (time.perf_counter() - t0 < width):
+                pass
+            laser.off()
+            t1 = time.perf_counter()
+            while (time.perf_counter() - t1 < iti):
+                pass
+
+        t_end = time.perf_counter()
+        print(f"laser took {t_end-t_begin:.2f} s to run {n_trials} trials of {width} width and {iti} iti")
+
+
 if __name__ == '__main__':
     unittest.main()
