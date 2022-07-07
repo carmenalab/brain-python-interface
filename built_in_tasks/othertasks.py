@@ -5,7 +5,6 @@ from features.laser_features import DigitalWave
 from riglib.experiment import traits
 import itertools
 import numpy as np
-from scipy.stats import poisson
 
 MAX_RECORD_EDGES = 32
 
