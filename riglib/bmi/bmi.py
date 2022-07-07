@@ -1115,7 +1115,6 @@ class BMILoop(object):
         self.add_dtype('internal_decoder_state', 'f8', self.decoder.state_shape_rt)
         self.add_dtype('target_state', 'f8', self.decoder.state_shape_rt)
         self.add_dtype('update_bmi', 'f8', (1,))
-        self.add_dtype('neural_features', 'f8', (self.decoder.n_features, 1))
 
         # Construct the sub-pieces of the BMI system
         self.create_assister()
@@ -1305,7 +1304,6 @@ class BMILoop(object):
 
             tmp = self.call_decoder(neural_features, target_state, **kwargs)
             self.task_data['internal_decoder_state'] = tmp
-            self.task_data['neural_features'] = neural_features
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
         # If not possible, plant.drive should also take care of setting the decoder's
