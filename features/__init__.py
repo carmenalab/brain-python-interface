@@ -2,6 +2,8 @@
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
 '''
+
+from features.debug_features import Profiler
 from features.laser_features import QwalorLaser, MultiQwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
@@ -18,6 +20,7 @@ from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
 from .ecube_features import EcubeFileBMI, EcubeBMI
+from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -59,6 +62,10 @@ built_in_features = dict(
     qwalor_laser = QwalorLaser,
     multi_qwalor_laser = MultiQwalorLaser,
     e3video = E3Video,
+    debug = Profiler,
+    arduino_sync=ArduinoSync,
+    screen_sync=ScreenSync,
+    cursor_sync=CursorAnalogOut,
 )
 
 # >>> features.built_in_features['autostart'].__module__

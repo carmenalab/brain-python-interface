@@ -1,3 +1,4 @@
+import warnings
 import requests as re
 import urllib3
 import json
@@ -144,8 +145,8 @@ class E3VisionInterface(object):
             '/api/cameras'
         )
         self.camera_list = json.loads(r_cameras.text)
-        for cam in self.camera_list:
-            print(f"Camera available: {cam['Id']}")
+        # for cam in self.camera_list:
+        #     print(f"Camera available: {cam['Id']}")
 
     def configure_cameras(self):
         """configure_cameras
@@ -158,13 +159,22 @@ class E3VisionInterface(object):
             self._update_sync(id)
             self._connect_camera(id)
 
-    def start_rec(self):
+    def start_rec(self, force=False):
         """start_rec
 
         Begin recording a video file to the session subdirectory. Records from all connected cameras simulataneously to separate files.
         File names have the following form: <global_dir>/<session_subdir>/[cameraname]-[starttime]-[endtime].[avi | mp4]
         """
-        rec_camera_list = [cam['Id'] for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
+        connected_camera_list = [cam for cam in self.camera_list if cam['Syncstate'] == 1 and cam['Alivestate'] > 0]
+        rec_camera_list = [cam['Id'] for cam in connected_camera_list]
+        rec_state = [cam['Recordstate'] for cam in connected_camera_list]
+        if any(rec_state):
+            if force:
+                rec_warning_msg = 'Cameras already recording video. Stopping current recording before starting new recording.'
+                warnings.warn(rec_warning_msg, RuntimeWarning)
+            else:
+                rec_error_msg = 'Cameras already recording video. Aborting recording session initiation. Enable overwrite behavior with force=True.'
+                raise RuntimeError(rec_error_msg)
         self.api_post(
             '/api/cameras/action',
             IdGroup=rec_camera_list,
@@ -176,9 +186,10 @@ class E3VisionInterface(object):
         while rec_check:
             t_ping = time.time()
             self.update_camera_status()
-            camera_running = [bool(c['Recordstate']) for c in rec_camera_list]
+            camera_running = [cam['Recordstate'] for cam in self.camera_list if cam['Id'] in rec_camera_list]
             rec_check = (not all(camera_running)) and (time.time() - t_ping < TIMEOUT)
         assert all(camera_running), 'Error starting video recordings.'
+        print(f"Started e3v recordings on cameras {rec_camera_list}")
 
     def stop_rec(self):
         """stop_rec
@@ -187,9 +198,11 @@ class E3VisionInterface(object):
         """
         self.api_post(
             '/api/cameras/action',
-            IdGroup=[cam['Id'] for cam in self.camera_list],
+            IdGroup=[cam['Id'] for cam in self.camera_list if cam['Recordstate']],
             Action='STOPRECORDGROUP',
         )
+        print(f"Stopped e3v recordings")
+
 
     def _bind_camera(self,cid):
         """_bind_camera

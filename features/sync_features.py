@@ -2,7 +2,7 @@
 Features for sending digital sync data
 '''
 from riglib.experiment import traits
-from riglib.gpio import NIGPIO, DigitalWave
+from riglib.gpio import NIGPIO, ArduinoGPIO, DigitalWave, TeensyGPIO
 import numpy as np
 import tables
 import time
@@ -31,24 +31,47 @@ rig1_sync_events = dict(
     EXP_END                 = 0xff,    # For ease of implementation, the last event must be the highest possible value
 )
 
-rig1_sync_params = dict(
-        sync_protocol = 'rig1',
-        sync_protocol_version = 10,
-        sync_pulse_width = 0.003,
-        event_sync_nidaq_mask = 0xff,
-        event_sync_dch = range(16,24),
-        event_sync_dict = rig1_sync_events,
-        event_sync_max_data = 0xe,
-        screen_sync_nidaq_pin = 8,
-        screen_sync_dch = 24,
-        screen_measure_dch = [5],
-        screen_measure_ach = [5],
-        reward_measure_ach = [0],
-        right_eye_ach = [8, 9],
-        left_eye_ach = [10, 11],
-        recording_nidaq_pin = 9,
-        recording_dch = 25,
-    )
+hdf_sync_params = dict(
+    sync_protocol = 'hdf',
+    sync_protocol_version = 0,
+    sync_pulse_width = 0.,
+    event_sync_dict = rig1_sync_events,
+    event_sync_max_data = 0xd,
+    event_sync_data_shift = 0,
+)
+
+rig1_sync_params = copy.copy(hdf_sync_params)
+rig1_sync_params.update(dict(
+    sync_protocol = 'rig1',
+    sync_protocol_version = 10,
+    sync_pulse_width = 0.003,
+    event_sync_mask = 0xffffff,
+    event_sync_dch = range(16,24),
+    screen_sync_pin = 8,
+    screen_sync_dch = 24,
+    screen_measure_dch = [5],
+    screen_measure_ach = [5],
+    reward_measure_ach = [0],
+    right_eye_ach = [8, 9],
+    left_eye_ach = [10, 11],
+    recording_pin = 9,
+    recording_dch = 25,
+))
+
+rig1_sync_params_arduino = copy.copy(rig1_sync_params)
+rig1_sync_params_arduino.update(dict(
+    sync_protocol = 'rig1_arduino',
+    sync_protocol_version = 11,
+    event_sync_mask = 0xfffffc,
+    event_sync_data_shift = 2,
+    event_sync_dch = range(31,39),
+    screen_sync_pin = 10,
+    screen_sync_dch = 39,
+    recording_pin = 11,
+    recording_dch = 40,
+
+))
+
 
 def encode_event(dictionary, event_name, event_data):
     value = int(dictionary[event_name] + event_data)
@@ -68,13 +91,15 @@ def decode_event(dictionary, value):
         return ordered_list[-1][0], 0
     return None
 
-class NIDAQSync(traits.HasTraits):
+class HDFSync(traits.HasTraits):
+    '''
+    Sync events to the HDF file in a separate 'sync_events' dataset
+    '''
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sync_params = rig1_sync_params
-        self.sync_gpio = NIGPIO()
-        self.sync_every_cycle = True
+        self.sync_params = hdf_sync_params
+        self.sync_every_cycle = False
 
     def init(self, *args, **kwargs):
 
@@ -99,7 +124,7 @@ class NIDAQSync(traits.HasTraits):
 
     def sync_event(self, event_name, event_data=0, immediate=False):
         '''
-        Send a sync event through NIDAQ on the next cycle, unless 'immediate' flag is set
+        Send a sync event on the next cycle, unless 'immediate' flag is set
         '''
         if self.has_sync_event:
             print("Warning: Cannot sync more than 1 event per cycle")
@@ -120,24 +145,22 @@ class NIDAQSync(traits.HasTraits):
 
     def sync_code(self, code, delay=0.):
         '''
-        Send a sync code through NIDAQ
+        Send a sync code through an digital io board
         '''
-        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
-        pulse.set_edges([0, delay, self.sync_params['sync_pulse_width']], False)
-        pulse.start()
+        pass
 
     def _cycle(self):
         '''
-        Send a clock pulse on every cycle to the 'screen_sync_nidaq_pin'. If there are any
-        sync events, also send them in the same clock cycle on the first 8 nidaq pins.
+        Send a clock pulse on every cycle to the 'screen_sync_pin'. If there are any
+        sync events, also send them in the same clock cycle.
         '''
         super()._cycle()
         code = 0
-        if self.sync_every_cycle:
-            code = 1 << self.sync_params['screen_sync_nidaq_pin']
+        if self.sync_every_cycle and 'screen_sync_pin' in self.sync_params:
+            code = 1 << self.sync_params['screen_sync_pin']
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
-            code |= int(self.sync_event_record['code'])
+            code |= int(self.sync_event_record['code']) << self.sync_params['event_sync_data_shift']
             self.has_sync_event = False
         if code > 0:
             self.sync_code(code)
@@ -146,10 +169,6 @@ class NIDAQSync(traits.HasTraits):
             self.sync_clock_record['timestamp'] = time.perf_counter() - self.t0
             self.sync_clock_record['prev_tick'] = self.clock.get_time()
             self.sinks.send("sync_clock", self.sync_clock_record)
-
-    def terminate(self):
-        # Reset the sync pin after experiment ends so the next experiment isn't messed up
-        self.sync_gpio.write_many(0xffffff, 0)
             
     def cleanup_hdf(self):
         super().cleanup_hdf()
@@ -159,7 +178,54 @@ class NIDAQSync(traits.HasTraits):
                 h5file.root.sync_events.attrs[param] = self.sync_params[param]
             h5file.close()
 
-class ScreenSync(NIDAQSync):
+class NIDAQSync(HDFSync):
+    '''
+    Adds digital output to HDF sync to syncronize with an external recording device
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super(HDFSync, self).__init__(*args, **kwargs)
+        self.sync_params = rig1_sync_params
+        self.sync_gpio = NIGPIO()
+        self.sync_every_cycle = True
+        print("NIDAQ sync active")
+
+    def sync_code(self, code, delay=0.):
+        '''
+        Send a sync code through GPIO
+        '''
+        pulse = DigitalWave(self.sync_gpio, mask=self.sync_params['event_sync_mask'], data=code)
+        pulse.set_edges([0, delay, self.sync_params['sync_pulse_width']], False)
+        pulse.start()
+        self.pulse = pulse
+
+    def terminate(self):
+        # Reset the sync pin after experiment ends so the next experiment isn't messed up
+        self.sync_gpio.write_many(self.sync_params['event_sync_mask'], 0)
+
+    def _cycle(self):
+        # Wait for the previous sync to finish before starting this cycle! 
+        # Important for preserving all the clock pulses, although it leads to slowdowns in framerate
+        if hasattr(self, 'pulse'):
+            self.pulse.join()
+        super()._cycle()
+            
+class ArduinoSync(NIDAQSync):
+    '''
+    Use an arduino microcontroller to sync instead of a NI DIO card.
+    '''
+
+    sync_gpio_port = traits.String("/dev/teensydio", desc="Port used for digital sync")
+    hidden_traits = ["sync_gpio_port"]
+    
+    def __init__(self, *args, **kwargs):
+        super(HDFSync, self).__init__(*args, **kwargs)
+        self.sync_params = rig1_sync_params_arduino
+        self.sync_gpio = TeensyGPIO(self.sync_gpio_port)
+        self.sync_every_cycle = True
+
+
+class ScreenSync(traits.HasTraits):
     '''Adds a square in one corner that switches color with every flip.'''
     
     sync_position = {
@@ -245,7 +311,7 @@ class ScreenSync(NIDAQSync):
     def _cycle(self):
 
         # Update the sync state
-        if self.sync_every_cycle:
+        if hasattr(self, 'sync_every_cycle') and self.sync_every_cycle:
             self.sync_state = not self.sync_state
         self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
         
@@ -254,4 +320,40 @@ class ScreenSync(NIDAQSync):
             color = self.sync_color_on if self.sync_state else self.sync_color_off
             self.sync_square.cube.color = color
 
+        super()._cycle()
+
+class CursorAnalogOut(traits.HasTraits):
+    '''
+    Output cursor x and z as analog voltages. Scales cursor position by 'cursor_out_gain', then
+    centers on 1.15 volts. Outputs voltages using 12 bits of resolution on two channels of a 
+    teensy microcontroller.
+    '''
+
+    cursor_gpio_port = traits.String("/dev/teensyao", desc="Port used for cursor analog out")
+    cursor_x_pin = traits.Int(66, desc="Pin used to output cursor x position")
+    cursor_z_pin = traits.Int(67, desc="Pin used to output cursor z position")
+    cursor_x_ach = traits.Int(3, desc="Analog channel used to record cursor x position")
+    cursor_z_ach = traits.Int(4, desc="Analog channel used to record cursor z position")
+    cursor_out_gain = traits.Float(0.1, desc="Gain to control the output voltage of cursor position")
+    hidden_traits = ["cursor_gpio_port", "cursor_x_pin", "cursor_z_pin", "cursor_x_ach", "cursor_z_ach", "cursor_out_gain"]
+
+    def __init__(self, *args, **kwargs):
+
+        self.cursor_output_gpio = TeensyGPIO(self.cursor_gpio_port)
+        super().__init__(*args, **kwargs)
+
+    def _cycle(self):
+        pos = self.plant.get_endpoint_pos()
+        voltage = pos*self.cursor_out_gain # pos (cm) * gain = voltage
+        
+        max_voltage = 3.3
+        resolution = 12
+        max_int = 2**resolution - 1
+        float_values = (voltage + max_voltage/2)/max_voltage # (-1.15, +1.15) becomes (0, 1)
+        float_values[float_values > 1] = 1.
+        float_values[float_values < 0] = 0.
+        int_values = (max_int*float_values).astype(int)
+        self.cursor_output_gpio.analog_write(self.cursor_x_pin, int_values[0])
+        # self.cursor_output_gpio.analog_write(self.cursor_y_pin, int_values[1])
+        self.cursor_output_gpio.analog_write(self.cursor_z_pin, int_values[2])
         super()._cycle()

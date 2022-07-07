@@ -167,7 +167,7 @@ def zscore_features(task_entry_id, calc_zscore_from_te, decoder_entry_id=None, k
     else:
         decoder = get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=False)
 
-    assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
+    # assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
 
     # Extract new features
     te = models.TaskEntry.objects.get(id=calc_zscore_from_te)
@@ -243,21 +243,20 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
     ld = True
     if get_dec_used is False:
         decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
-        if len(decoder_entries) > 0:
-            if type(decoder_entries) is models.Decoder:
-                decoder = decoder_entries
+        if type(decoder_entries) is models.Decoder:
+            decoder = decoder_entries
+            ld = False
+        else: # list of decoders. Search for the right one. 
+            try:
+                dec_ids = [de.pk for de in decoder_entries]
+                _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0][0]
+                decoder = decoder_entries[_ix]
                 ld = False
-            else: # list of decoders. Search for the right one. 
-                try:
-                    dec_ids = [de.pk for de in decoder_entries]
-                    _ix = np.where(np.isin(dec_ids, decoder_entry_id))[0][0]
-                    decoder = decoder_entries[_ix]
-                    ld = False
-                except:
-                    if decoder_entry_id is None:
-                        print('Too many decoder entries trained from this TE, specify decoder_entry_id')
-                    else:
-                        print('Too many decoder entries trained from this TE, no match to decoder_entry_id %d'%decoder_entry_id)
+            except:
+                if decoder_entry_id is None:
+                    print('Too many decoder entries trained from this TE, specify decoder_entry_id')
+                else:
+                    print('Too many decoder entries trained from this TE, no match to decoder_entry_id %d'%decoder_entry_id)
     if ld is False:
         kfdec = decoder.load()            
     else:

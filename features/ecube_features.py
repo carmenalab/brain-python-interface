@@ -87,7 +87,7 @@ class RecordECube(traits.HasTraits):
         # Mark the end of the recording
         if hasattr(self, 'sync_code'):
             print('Sending stop recording pulse')
-            self.sync_code(1 << self.sync_params['recording_nidaq_pin'])
+            self.sync_code(1 << self.sync_params['recording_pin'])
         else:
             print('No sync feature enabled. Cannot send stop pulse.')
 
@@ -181,7 +181,7 @@ class RecordECube(traits.HasTraits):
             time.sleep(0.1) # Wait a bit to be sure the recording started
             if hasattr(self, 'sync_code'):
                 print('Sending start recording pulse')
-                self.sync_code(1 << self.sync_params['recording_nidaq_pin'])
+                self.sync_code(1 << self.sync_params['recording_pin'])
             else:
                 print('No sync feature enabled. Cannot send start pulse.')
             time.sleep(0.1)

@@ -15,7 +15,7 @@ class LinearScaleFilter(Filter):
     model_attrs = ['attr']
     attrs_to_pickle = ['attr', 'obs', 'unit_to_state']
 
-    def __init__(self, n_counts, n_states, n_units, unit_to_state=None, smoothing_window=1, decoder_to_plant=20):
+    def __init__(self, n_counts, n_states, n_units, unit_to_state=None, smoothing_window=1, decoder_to_plant=20, reject_threshold=5):
         '''
         Constructor for LinearScaleFilter
 
@@ -34,7 +34,10 @@ class LinearScaleFilter(Filter):
         smoothing_window : How many observations to average to smooth output (default = 1)
         decoder_to_plant : how big is the screen, basically (default = 20)
             Maps from normalized output (0,1) to plant coordinates
-
+        reject_threshold : How many standard deviations to reject
+            If the standard deviation of the latest observation is greater than this,
+            the filter will reject the observation
+            
         Returns
         -------
         LinearScaleFilter instance
@@ -57,6 +60,7 @@ class LinearScaleFilter(Filter):
             scale = np.ones(n_units),
         )
         self.fixed = False
+        self.reject_threshold = reject_threshold
         self._init_state()
 
     def get_mean(self):
@@ -75,10 +79,15 @@ class LinearScaleFilter(Filter):
 
         Returns
         ----------
-        '''
+        '''     
 
         # Z-score neural data
         norm_obs = (np.squeeze(obs) - self.attr['neural_mean']) / self.attr['neural_std']
+
+        # Reject if the standard deviation of the latest observation is too high
+        norm_obs[abs(norm_obs) > self.reject_threshold] = np.nan
+
+        # Add observation
         self._add_obs(norm_obs, **kwargs)
         if not self.fixed:
             self._update_scale_attr()
@@ -129,9 +138,9 @@ class LinearScaleFilter(Filter):
         if self.count == 0:
             mean = np.zeros(np.size(self.obs, axis=1))
         elif self.count < self.smoothing_window:
-            mean = np.squeeze(np.mean(self.obs[-self.count:, :], axis=0))
+            mean = np.squeeze(np. nanmean(self.obs[-self.count:, :], axis=0))
         else:
-            mean = np.squeeze(np.mean(self.obs[-self.smoothing_window:, :], axis=0))
+            mean = np.squeeze(np.nanmean(self.obs[-self.smoothing_window:, :], axis=0))
         return mean
         
     def _scale(self):
@@ -148,9 +157,9 @@ class LinearScaleFilter(Filter):
         ''' Update the normalization parameters'''
 
         # Normalize latest observation(s)
-        mean = np.median(self.obs[-self.count:, :], axis=0)
+        mean = np.nanmedian(self.obs[-self.count:, :], axis=0)
         # range = max(1, np.amax(self.obs[-self.count:, :]) - np.amin(self.obs[-self.count:, :]))
-        std = np.std(self.obs[-self.count:, :], axis=0)
+        std = np.nanstd(self.obs[-self.count:, :], axis=0)
         std[std < 1e-6] = 1e-6 # Avoid divide by zero
         self.update_norm_attr(offset=mean, scale=std)
 
@@ -195,14 +204,16 @@ class PosVelScaleFilter(LinearScaleFilter):
         out = self._scale()
         self.state.update(out)  
 
-def create_lindecoder(ssm, units, neural_data, unit_to_state, decoder_to_plant=None, smoothing_window=1, vel_control=False, update_rate=0.1):
+def create_lindecoder(ssm, units, unit_to_state, decoder_to_plant=None, smoothing_window=1, vel_control=False, update_rate=0.1):
     from riglib.bmi import Decoder
     filt_counts = smoothing_window # only used for smoothing since we're fixing the gains
-    filt = PosVelScaleFilter(vel_control, filt_counts, ssm.n_states, len(units), unit_to_state, smoothing_window, decoder_to_plant, call_rate=1/update_rate)
+    filt = PosVelScaleFilter(vel_control, filt_counts, ssm.n_states, len(units), unit_to_state=unit_to_state, smoothing_window=smoothing_window, decoder_to_plant=decoder_to_plant, call_rate=1/update_rate)
     
     # calculate gains from training data
-    filt.update_norm_attr(neural_mean=0, neural_std=1, offset=np.mean(neural_data), scale=np.std(neural_data))
+    # filt.update_norm_attr(neural_mean=0, neural_std=1, offset=mFR, scale=sdFR)
     
     decoder = Decoder(filt, units, ssm, binlen=update_rate, subbins=1)
     decoder.n_features = len(units)
+    decoder.binlen = update_rate
+
     return decoder
