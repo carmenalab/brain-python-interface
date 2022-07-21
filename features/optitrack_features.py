@@ -9,7 +9,7 @@ import numpy as np
 import os
 
 DEFAULT_OFFSET = [0, -60, -30] # optitrack cm [forward, up, right]
-DEFAULT_SCALE = [1, 1, 1] # optitrack cm --> screen cm
+DEFAULT_SCALE = 1 # optitrack cm --> screen cm
 
 ########################################################################################################
 # Optitrack datasources
@@ -24,7 +24,7 @@ class Optitrack(traits.HasTraits):
 
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     smooth_features = traits.Int(1, desc="How many features to average")
-    scale = traits.Array(value=DEFAULT_SCALE, desc="Control scale factor")
+    scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
     offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
 
     hidden_traits = ['optitrack_feature', 'smooth_features']

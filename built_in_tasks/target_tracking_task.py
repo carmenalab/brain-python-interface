@@ -371,13 +371,16 @@ class ScreenTargetTracking(TargetTracking, Window):
         t = np.asarray(t).copy(); t.shape = (t.size,1)
 
         f = frequencies
-        f = f.copy(); f.shape = (1,f.size)
+        f = f.copy()
+        f = np.reshape(f, (1,f.size))
 
         a = amplitudes
-        a = a.copy(); a.shape = (1,a.size)
+        a = a.copy()
+        a = np.reshape(a, (1,a.size))
 
         p = phase_shifts        
-        p = p.copy(); p.shape = (1,p.size)
+        p = p.copy()
+        p = np.reshape(p, (1,p.size))
 
         assert f.shape == a.shape == p.shape,"Shape of frequencies, amplitudes, and phase shifts must match"
 

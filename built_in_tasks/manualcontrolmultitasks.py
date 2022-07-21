@@ -45,7 +45,7 @@ class ManualControlMixin(traits.HasTraits):
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
-    scale = traits.Array(value=[1.0, 1.0, 1.0], desc="Control scale factor")
+    scale = traits.Float(1.0, desc="Control scale factor")
     pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
@@ -95,9 +95,9 @@ class ManualControlMixin(traits.HasTraits):
             [self.offset[0], self.offset[1], self.offset[2], 1]]
         )
         scale = np.array(
-            [[self.scale[0], 0, 0, 0], 
-            [0, self.scale[1], 0, 0], 
-            [0, 0, self.scale[2], 0], 
+            [[self.scale, 0, 0, 0], 
+            [0, self.scale, 0, 0], 
+            [0, 0, self.scale, 0], 
             [0, 0, 0, 1]]
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
