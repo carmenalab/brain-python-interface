@@ -7,9 +7,9 @@ import time
 
 class DataOnline():
 
-    def __init__(self, channels, buffer_len=5):
+    def __init__(self, source, channels, buffer_len=5):
         self.channels = channels
-        self.ds = source.MultiChanDataSource(LFP, channels=channels, buffer_len=buffer_len)
+        self.ds = source.MultiChanDataSource(source, channels=channels, buffer_len=buffer_len)
         self.ds.start()
 
     def get_new(self):
