@@ -13,8 +13,6 @@ import unittest
 channel = 4
 mode = 'off'
 freq = 0
-b_rate = 115200
-port_laser = '/dev/qwalorlaser'
 
 # pulse_width_list = [0.00001, 0.00002, 0.00003, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.001, 0.002, 0.003, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 1]
 pulse_width_list = [5]
@@ -34,7 +32,7 @@ class LaserTests(unittest.TestCase):
 
     def test_run(self):
 
-        laser = qwalor_laser.QwalorLaserSerial(channel, laser_port=port_laser, laser_baud_rate=b_rate)
+        laser = qwalor_laser.QwalorLaserSerial(channel)
         laser.set_mode(mode)
         laser.set_freq(freq)
 
@@ -48,6 +46,33 @@ class LaserTests(unittest.TestCase):
                     pass
                 laser.off()
                 time.sleep(0.5)
+
+    def test_speed(self):
+
+        laser = qwalor_laser.QwalorLaserSerial(channel)
+        laser.set_mode(mode)
+        laser.set_freq(freq)
+
+        n_trials = 1000
+        iti = 0.001
+        width = 0.001
+
+        t_begin = time.perf_counter()
+
+        for n in range(n_trials):
+            laser.set_power(1)
+            t0 = time.perf_counter()
+            laser.on()
+            while (time.perf_counter() - t0 < width):
+                pass
+            laser.off()
+            t1 = time.perf_counter()
+            while (time.perf_counter() - t1 < iti):
+                pass
+
+        t_end = time.perf_counter()
+        print(f"laser took {t_end-t_begin:.2f} s to run {n_trials} trials of {width} width and {iti} iti")
+
 
 if __name__ == '__main__':
     unittest.main()

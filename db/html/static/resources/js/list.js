@@ -29,7 +29,8 @@ function interface_fn_completed() {
     // $("#bmi").hide();
     
     $("#report").show()
-    $("#notes").show()      
+    $("#notes").show()
+    this.controls.show();
     this.controls.deactivate();
     this.report.deactivate();
     this.report.set_mode("completed");
@@ -81,7 +82,8 @@ function interface_fn_running(info) {
     this.report.activate();
 
     $("#report").show()
-    $("#notes").show()   
+    $("#notes").show()
+    this.controls.show();
     this.controls.activate();   
     
     // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
@@ -109,6 +111,7 @@ function interface_fn_testing(info) {
 
     $("#report").show();
     $("#notes").hide();
+    this.controls.show();
     this.controls.activate();
 }
 
@@ -423,6 +426,7 @@ TaskEntry.prototype.update = function(info) {
         $("#notes").attr("value", info.notes);
     feats.unbind_change_callback();
     this.report.update(info.report);
+    this.controls.update(info.controls);
     
     // set the checkboxes for the "visible" and "flagged for backup"
     $('#hidebtn').attr('checked', info.visible);

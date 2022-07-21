@@ -18,6 +18,7 @@ log_path = os.path.join(os.path.dirname(__file__), '../log/reward.log')
 class Basic(singleton.Singleton):
 
     __instance = None
+    timeout = 10
 
     def __init__(self):
         super().__init__()
@@ -25,7 +26,7 @@ class Basic(singleton.Singleton):
         self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
         self.off()
-        print('JUICE')
+        print('Reward system ready.')
 
     def on(self):
         """Open the solenoid."""
@@ -57,6 +58,8 @@ class Basic(singleton.Singleton):
         """
         Calls drain() function in a separate process
         """
+        if not hasattr(self, 'board'):
+            return False # ignore request if board is not initialized
         p = Process(target=self.drain, args=((drain_time,)))
         p.start()
 

@@ -56,8 +56,9 @@ class TargetCapture(Sequence):
     delay_penalty_time = traits.Float(1, desc="Length of penalty time for delay error")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
-    max_attempts = traits.Int(10, desc='The number of attempts at a target before\
+    max_attempts = traits.Int(10, desc='The number of attempts of a target chain before\
         skipping to the next one')
+    num_targets_per_attempt = traits.Int(2, desc="Minimum number of target acquisitions to be counted as an attempt")
 
     def init(self):
         self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8', (3,))])
@@ -132,7 +133,8 @@ class TargetCapture(Sequence):
         pass
 
     def _increment_tries(self):
-        self.tries += 1
+        if self.target_index >= self.num_targets_per_attempt-1:
+            self.tries += 1 # only count errors if the minimum number of targets have been acquired
         self.target_index = -1
 
         if self.tries < self.max_attempts: 

@@ -160,9 +160,9 @@ class DigitalWave(Process):
         ''' Set the wave to a pulse'''
         self.set_edges([0, duration], first_edge)
 
-    def set_square_wave(self, freq, duration, first_edge=True):
+    def set_square_wave(self, freq, duration, duty_cycle=0.5, phase_delay=0., first_edge=True):
         ''' Set the wave to a square wave'''
-        edges = DigitalWave.square_wave(freq, duration)
+        edges = DigitalWave.square_wave(freq, duration, duty_cycle, phase_delay)
         self.set_edges(edges, first_edge)
 
     def run(self):
@@ -185,13 +185,29 @@ class DigitalWave(Process):
         return edges
 
     @staticmethod
-    def square_wave(freq, duration):
+    def square_wave(freq, duration, duty_cycle=0.5, phase_delay=0):
+        '''
+        Generate edges for a square wave
+
+        Arguments
+        ---------
+        freq - frequency of the wave
+        duration - total length of the wave, in seconds
+        duty_cycle - fraction of each cycle which should be in the ON state
+        phase_delay - time in seconds before the start of the wave
+
+        Returns
+        -------
+        edges - list of edge transition times, in seconds
+        '''
         pulse_interval = 1.0/freq
-        edge_interval = pulse_interval/2
-        if duration < edge_interval: # less than one half wavelength
-            edge_interval = duration
-        length = int(duration/edge_interval)
-        delays = np.insert(edge_interval*np.ones(length), 0, 0)
+        edge_interval = [pulse_interval*duty_cycle, pulse_interval*(1-duty_cycle)]
+        n_edges = int(duration/pulse_interval)
+        on_edges = edge_interval[0]*np.ones(n_edges)
+        off_edges = edge_interval[1]*np.ones(n_edges)
+        delays = np.insert(np.ravel([on_edges, off_edges], order='F'), 0, phase_delay)
+        # if len(delays) % 2 == 1:
+        #     delays = np.append(delays, edge_interval[1]) # always have an even number of edges
         return DigitalWave.delays_to_edges(delays)
 
 class DigitalWaveMulti(DigitalWave):
