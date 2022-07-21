@@ -9,7 +9,7 @@ class DataOnline():
 
     def __init__(self, datasource, channels, buffer_len=5):
         self.channels = channels
-        self.ds = source.MultiChanDataSource(datasource, channels=channels, buffer_len=buffer_len)
+        self.ds = source.MultiChanDataSource(datasource, channels=channels, bufferlen=buffer_len)
         self.ds.start()
 
     def get_new(self):
