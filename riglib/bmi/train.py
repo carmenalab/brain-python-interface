@@ -336,7 +336,7 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
 def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
     raise NotImplementedError
 
-def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
+def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=120):
     '''
     Mostly just copied from _get_neural_features_plx()... see their docs
     '''
@@ -352,7 +352,7 @@ def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, ts
     tmask, rows = _get_tmask_ecube(files, tslice)
     neurows = rows[tmask]
 
-    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs)
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
 
     return neural_features, units, extractor_kwargs
 
