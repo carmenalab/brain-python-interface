@@ -38,6 +38,7 @@ def get_sqlite3_databases():
     return dbs
 
 DATABASES = get_sqlite3_databases()
+#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
 if HOSTNAME in ['pagaiisland2', 'aolab']:
     DATABASES['default'] = {

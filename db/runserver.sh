@@ -98,7 +98,9 @@ trap "kill 0" EXIT
 # Start python processes
 cd $BMI3D
 python manage.py runserver 0.0.0.0:8000 --noreload &
-celery -A db.tracker worker -l INFO &
+if [ "$HOST" = "pagaiisland2" ]; then
+    celery -A db.tracker worker -l INFO &
+fi
 # celery flower -A db.tracker --address=0.0.0.0 --port=5555 & # for monitoring
 
 # Start servernode-control

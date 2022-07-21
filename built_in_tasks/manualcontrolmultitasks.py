@@ -45,8 +45,8 @@ class ManualControlMixin(traits.HasTraits):
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
-    pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     scale = traits.Float(1.0, desc="Control scale factor")
+    pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
 
@@ -122,17 +122,14 @@ class ManualControlMixin(traits.HasTraits):
 
         return [pt]
 
-    def move_effector(self, new_position = None):
+    def move_effector(self):
         ''' 
         Sets the 3D coordinates of the cursor. For manual control, uses
         motiontracker / joystick / mouse data. If no data available, returns None
         '''
 
         # Get raw input and save it as task data
-        if new_position is None: 
-            raw_coords = self._get_manual_position() # array of [3x1] arrays
-        else:
-            raw_coords = new_position
+        raw_coords = self._get_manual_position() # array of [3x1] arrays
 
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1

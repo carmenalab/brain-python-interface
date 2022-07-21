@@ -151,6 +151,7 @@ class OptitrackSimulate(Optitrack):
 
         # Start the fake natnet client
         self.client = optitrack.SimulatedClient()
+        self.optitrack_status = 'streaming'
 
         # Create a source to buffer the motion tracking data
         from riglib import source
@@ -178,6 +179,7 @@ class OptitrackPlayback(Optitrack):
 
         # Start the fake natnet client
         self.client = optitrack.PlaybackClient(self.filepath)
+        self.optitrack_status = 'streaming'
 
         # Create a source to buffer the motion tracking data
         from riglib import source

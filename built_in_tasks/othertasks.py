@@ -74,7 +74,7 @@ class Conditions(Sequence):
 
 class LaserConditions(Conditions):
 
-    sequence_generators = ['single_laser_pulse', 'single_laser_square_wave']
+    sequence_generators = ['single_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
     exclude_parent_traits = ['trial_time']
     stimulation_site = traits.String("", desc="Where was the laser stimulation?")
 
@@ -172,7 +172,7 @@ class LaserConditions(Conditions):
         return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
 
     @staticmethod
-    def single_laser_square_wave(nreps=100, freq=[20], duration=[0.005], power=[1], uniformsampling=True, ascending=False):
+    def single_laser_square_wave(nreps=100, freq=[20], duration=[0.5], power=[1], uniformsampling=True, ascending=False):
         '''
         Generates a sequence of laser square waves.
 
@@ -201,6 +201,49 @@ class LaserConditions(Conditions):
             idx, freq_seq, dur_seq, pow_seq = Conditions.gen_conditions(nreps, freq, duration, power, ascend=ascending)
         edge_seq = map(lambda freq, dur: DigitalWave.square_wave(freq, dur), freq_seq, dur_seq)
         return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
+
+    @staticmethod
+    def dual_laser_square_wave(nreps=100, freq_1=[20], freq_2=[20], dur_1=[0.5], dur_2=[0.5], duty_cycle_1=[0.5], duty_cycle_2=[0.5], 
+        phase_delay_1=[0], phase_delay_2=[0], power_1=[1], power_2=[1], uniformsampling=True, ascending=False):
+        '''
+        Generates a sequence of laser square waves.
+
+        Parameters
+        ----------
+        nreps : int
+            The number of repetitions of each unique condition.
+        freq : list of floats
+            The frequency for each square wave. Can be a list, randomly sampled
+        duration: list of floats
+            The duration of each square wave. Can be a list, randomly sampled
+        power : list of floats
+            Power for each square wave. Can be a list, randomly sampled
+
+        Returns
+        -------
+        seq : (nreps*len(duration)*len(power)*len(freq) x 3) tuple of trial indices, laser powers, and edge sequences
+
+        '''
+        freq_1 = make_list_of_float(freq_1)
+        freq_2 = make_list_of_float(freq_2)
+        dur_1 = make_list_of_float(dur_1)
+        dur_2 = make_list_of_float(dur_2)
+        duty_cycle_1 = make_list_of_float(duty_cycle_1)
+        duty_cycle_2 = make_list_of_float(duty_cycle_2)
+        phase_delay_1 = make_list_of_float(phase_delay_1)
+        phase_delay_2 = make_list_of_float(phase_delay_2)
+        power_1 = make_list_of_float(power_1)
+        power_2 = make_list_of_float(power_2)
+        if uniformsampling:
+            idx, freq_1_seq, freq_2_seq, dur_1_seq, dur_2_seq, duty_cycle_1_seq, duty_cycle_2_seq, phase_delay_1_seq, phase_delay_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_random_conditions(nreps, freq_1, freq_2, dur_1, dur_2, duty_cycle_1, duty_cycle_2, phase_delay_1, phase_delay_2, power_1, power_2)
+        else:
+            idx, freq_1_seq, freq_2_seq, dur_1_seq, dur_2_seq, duty_cycle_1_seq, duty_cycle_2_seq, phase_delay_1_seq, phase_delay_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_conditions(nreps, freq_1, freq_2, dur_1, dur_2, duty_cycle_1, duty_cycle_2, phase_delay_1, phase_delay_2, power_1, power_2, ascend=ascending)
+        edge_1_seq= map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), freq_1_seq, dur_1_seq, duty_cycle_1_seq, phase_delay_1_seq)
+        edge_2_seq = map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), freq_2_seq, dur_2_seq, duty_cycle_2_seq, phase_delay_2_seq)
+        return list(zip(idx, [[p1, p2] for p1, p2 in zip(power_1_seq, power_2_seq)], 
+                             [[e1, e2] for e1, e2 in zip(edge_1_seq, edge_2_seq)]))
 
 
 ####################

@@ -2,6 +2,7 @@ import serial
 import pyfirmata
 import time
 import numpy as np
+from . import singleton
 
 # condigPacket is 4 bytes configuration command and contains the laser information
 # configPacket[0] : Channel (red, green, blue, white) & Mode (off, continuous, sin, inverted sin, square waveform)
@@ -75,10 +76,24 @@ def get_config_packet(channel, freq, gain, mode='off', debug=False):
 
     return configPacket
 
+class QwalorLink(singleton.Singleton):
+    '''
+    Helper singleton that acts as the serial link to the laser.
+    '''
+
+    __instance = None
+        
+    def __init__(self, laser_port='/dev/qwalorlaser', laser_baud_rate=115200):
+        super().__init__()
+        self.link = serial.Serial(laser_port, laser_baud_rate, timeout=3)
+
+    def send(self, config_packet):
+        self.link.write(config_packet)
+        self.link.flush()
 
 class QwalorLaserSerial:
     '''
-    Implentation of single-channel operation of the quad-wavelength laser modulator. By default, the laser starts in
+    Implentation of the quad-wavelength laser modulator. By default, the laser starts in
     the 'off' mode, which can be used for TTL operation. Only need to set the power.
     '''
 
@@ -87,15 +102,13 @@ class QwalorLaserSerial:
     gain = 0.
     freq = 0.
 
-    def __init__(self, laser_channel, arduino_port=None, arduino_pin=12, laser_port='/dev/qwalorlaser', laser_baud_rate=115200):
+    def __init__(self, laser_channel, arduino_port=None, arduino_pin=12):
         '''
         Hoping to change this in the future to use a raspberry pi or similar connected to the network to relay the
         config packets to the laser. That way we can have multiple computers talking to the laser at once.
         '''
         if arduino_port == None:
             arduino_port = f"/dev/laser_ch{laser_channel}"
-        self.laser_port = laser_port
-        self.laser_baud_rate = laser_baud_rate
         self.board = pyfirmata.Arduino(arduino_port)
         self.trigger_pin = arduino_pin
         self.channel = laser_channel
@@ -103,10 +116,9 @@ class QwalorLaserSerial:
 
     def _set_config(self):
         config_packet = get_config_packet(self.channel, self.freq, self.gain, self.mode)
-        with serial.Serial(self.laser_port, self.laser_baud_rate, timeout=3) as ser:
-            ser.write(config_packet)
-            time.sleep(0.1)
-
+        link = QwalorLink.get_instance()
+        link.send(config_packet)
+            
     def set_mode(self, mode):
         self.mode = mode
         self._set_config()
