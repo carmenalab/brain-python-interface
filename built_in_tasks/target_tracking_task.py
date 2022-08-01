@@ -96,13 +96,13 @@ class TargetTracking(Sequence):
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
-        if self.frame_index >= np.shape(self.targs)[0]:
+        if self.frame_index + 30 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
     
     def update_frame(self):
         self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        if self.frame_index >= 30: #Offset tracker to move in sync with trajectory
-            self.target.move_to_position(np.array([0,0,self.targs[self.frame_index-30][2]]))
+        if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
+            self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
         self.trajectory.show()
         self.target.show()
         self.frame_index +=1
@@ -241,8 +241,9 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
             
             #A cable trajectory that is just flat to have inbetween trials 
-            self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(120))
-        
+            #self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(120))
+            self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(1))
+
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
             self.add_dtype(*attr)
@@ -292,7 +293,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._cycle()
 
     def move_effector(self):
-        '''Move the end effector, if a robot or similar is being controlled'''
+        '''Move the end effector, if a robot or similar is bself.baseline.show()eing controlled'''
         pass
 
     def run(self):
@@ -321,27 +322,35 @@ class ScreenTargetTracking(TargetTracking, Window):
         if self.calc_trial_num() == 0:
             self.add_model(self.baseline.graphics_models[0])
             self.add_model(self.target.graphics_models[0])
+            self.baseline.hide()
             self.target.hide()
 
         # Set up the next trajectory
-        mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(self.targs)[:,2]),np.zeros(30)))
+        #mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(self.targs)[:,2]),np.zeros(30)))
+        mytrajectory = np.array(np.squeeze(self.targs)[:,2])
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory)
         self.trial_length = np.shape(self.targs[:,2])[0]
         for model in self.trajectory.graphics_models:
             self.add_model(model)
 
-        self.baseline.show()
+        self.baseline.hide()
+        self.target.hide()
         self.trajectory.hide()
             
     def _start_target(self):
         super()._start_target()
-        self.trajectory.show()    
-        self.target.show()
+        self.trajectory.show()  
+        if self.frame_index == 0:
+            self.target.hide()
+        else:
+            self.target.show()    
         self.baseline.hide()
         self.sync_event('TRIAL_START')
     
     def _start_reward(self):
-        self.baseline.show()
+        #self.baseline.show()
+        self.baseline.hide()
+        self.target.hide()
         self.target.cue_trial_end_success()
         self.sync_event('REWARD')
 
@@ -349,6 +358,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._end_reward()
         self.sync_event('TRIAL_END')
         #Adjust target displays
+        self.baseline.hide()
         self.trajectory.hide()
         self.target.hide()
         self.target.reset()
@@ -356,7 +366,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_timeout_penalty(self):
         super()._start_timeout_penalty()
         self.sync_event('OTHER_PENALTY')
-        self.baseline.show()
+        #self.baseline.show()
+        self.baseline.hide()
         self.trajectory.hide()
         self.target.hide()
         self.target.reset()
@@ -385,8 +396,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         assert f.shape == a.shape == p.shape,"Shape of frequencies, amplitudes, and phase shifts must match"
 
         o = np.ones(t.shape)
-        _ = np.sum(np.dot(o,a) * np.sin(2*np.pi*(np.dot(t,f) + np.dot(o,p))),axis=1)
-
+        _ = np.sum(np.dot(o,a) * np.sin(2*np.pi*np.dot(t,f) + np.dot(o,p)),axis=1)
+        
         return _
 
     @staticmethod
@@ -407,9 +418,10 @@ class ScreenTargetTracking(TargetTracking, Window):
             return _
 
     @staticmethod
-    def generate_trajectory(primes, base_period, ramp = .5):
+    def generate_trajectory(primes, base_period, ramp = .0):
         '''
         Sets up variables and uses prime numbers to call the above functions and generate then trajectories
+        ramp is time length for preparatory lines
         '''
         hz = 60 # Hz -- sampling rate
         dt = 1/hz # sec -- sampling period
@@ -423,7 +435,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         dw = 1/T # Hz -- frequency resolution
         W = dw*T/dt/2 # Hz -- signal bandwidth
 
-        f = primes*w0 # stimulated frequencies
+        f = primes # stimulated frequencies
         a = 1/(1+np.arange(f.size)) # amplitude
         o = 2*np.pi*np.random.rand(primes.size) # phase offset
 
@@ -432,7 +444,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         N = t.size # = T/dt -- number of samples
 
-        trajectory = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f, a, o/(2*np.pi))
+        #trajectory = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f, a, o/(2*np.pi))
+        trajectory = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f, a, o)
         normalized_trajectory = trajectory/np.sum(a)
         return normalized_trajectory
 
@@ -510,7 +523,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        buffer_space = int(60*1.5) #1.5 seconds of straight line before and after trial
+        buffer_space_bef = int(60*3) # 3 seconds of straight line before trial
+        buffer_space_aft = int(60*1.5) # 1.5 seconds of straight line before trial
         frames = int(np.round(time_length*60))
         y_primes_freq = np.array(frequencies)
 
@@ -518,11 +532,11 @@ class ScreenTargetTracking(TargetTracking, Window):
             for j in range(ntrials):
                 
                 disturbance = False
-                disturbance_path = np.zeros((frames+2*buffer_space,1))
-                trajectory = np.zeros((frames+2*buffer_space,3))
+                disturbance_path = np.zeros((frames+buffer_space_bef+buffer_space_aft,1))
+                trajectory = np.zeros((frames+buffer_space_bef+buffer_space_aft,3))
                 sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
                 pts = []
-                trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
+                trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
                 pts.append(trajectory)
                 yield idx, pts, disturbance, disturbance_path
                 idx += 1
