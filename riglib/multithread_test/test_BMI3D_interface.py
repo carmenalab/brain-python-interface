@@ -1,4 +1,4 @@
-from test_client import TestClient
+from .test_client import TestClient
 import numpy as np
 from multiprocessing import Process,Lock
 import pickle

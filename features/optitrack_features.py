@@ -1,7 +1,6 @@
 '''
 Features for the Optitrack motiontracker
 '''
-
 from riglib.experiment import traits
 from riglib.optitrack_client import optitrack
 from datetime import datetime
@@ -10,7 +9,7 @@ import numpy as np
 import os
 
 DEFAULT_OFFSET = [0, -60, -30] # optitrack cm [forward, up, right]
-DEFAULT_SCALE = 1 # optitrack cm --> screen cm
+DEFAULT_SCALE = [1, 1, 1] # optitrack cm --> screen cm
 
 ########################################################################################################
 # Optitrack datasources
@@ -25,7 +24,7 @@ class Optitrack(traits.HasTraits):
 
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     smooth_features = traits.Int(1, desc="How many features to average")
-    scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
+    scale = traits.Array(value=DEFAULT_SCALE, desc="Control scale factor")
     offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
 
     hidden_traits = ['optitrack_feature', 'smooth_features']
@@ -152,6 +151,7 @@ class OptitrackSimulate(Optitrack):
 
         # Start the fake natnet client
         self.client = optitrack.SimulatedClient()
+        self.optitrack_status = 'streaming'
 
         # Create a source to buffer the motion tracking data
         from riglib import source
@@ -179,6 +179,7 @@ class OptitrackPlayback(Optitrack):
 
         # Start the fake natnet client
         self.client = optitrack.PlaybackClient(self.filepath)
+        self.optitrack_status = 'streaming'
 
         # Create a source to buffer the motion tracking data
         from riglib import source
@@ -201,9 +202,11 @@ class HidePlantOnPause():
 
 # Helper class for natnet logging
 import logging
+log_path = os.path.join(os.path.dirname(__file__), '../log/optitrack.log')
+
 class Logger(object):
 
-    def __init__(self, msg="", log_filename='../log/optitrack.log'):
+    def __init__(self, msg="", log_filename=log_path):
         self.log_filename = log_filename
         self.reset(msg)
 

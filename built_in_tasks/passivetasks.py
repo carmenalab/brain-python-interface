@@ -5,8 +5,10 @@ import numpy as np
 import os
 import tables
 import time
+import subprocess
+import signal
 
-from riglib.experiment import traits
+from riglib.experiment import traits, Experiment
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D
 from riglib.bmi.bmi import Decoder, BMILoop, MachineOnlyFilter
 from riglib.bmi.extractor import DummyExtractor
@@ -136,3 +138,37 @@ class TargetCaptureReplay(ScreenTargetCapture):
 
     def _test_stop(self, ts):
         return super()._test_stop(ts) or self.cycle_count == len(self.replay_task)
+
+
+class YouTube(Experiment):
+
+    youtube_url = traits.String("", desc="URL pointing to a YouTube video. Only works for videos that support embedding")
+
+    def start_video(self):
+        self.video_process = subprocess.Popen(["bash", "../utils/start-youtube.sh", self.youtube_url])
+
+    def stop_video(self):
+        os.kill(self.video_process.pid, signal.SIGINT)
+        self.video_process.wait()
+        
+    def _cycle(self):
+        try:
+            status = self.video_process.poll()
+            if status is not None:
+                self.state = None
+        except:
+            pass
+        super()._cycle()
+   
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). Starts the YouTube video and stops it after the FSM has finished running
+        '''
+        try:
+            self.start_video()
+            super().run()
+        finally:
+            print("Stopping video")
+            self.stop_video()
+            

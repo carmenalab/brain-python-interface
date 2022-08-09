@@ -3,10 +3,10 @@ Interface between the Django database methods/models and data analysis code
 '''
 # django initialization
 import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-import django
-django.setup()
+from .boot_django import boot_django
+from django.db import connection
+from django.db.utils import OperationalError
 
 import sys
 import json
@@ -14,16 +14,25 @@ import numpy as np
 import datetime
 import pickle
 import tables
-import matplotlib.pyplot as plt
-import time
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
-import db
 from .tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
 
+# configure django
+boot_django()
+
+# decorator for mysql access
+def mysqlreconnect(f):
+    def inner(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except OperationalError:
+            connection.close()
+            return f(*args, **kwargs)
+    return inner
 
 class TaskEntry(object):
     '''
@@ -41,8 +50,7 @@ class TaskEntry(object):
             'id' number associated with the TaskEntry (database primary key)
         dbname : string, optional, default='default'
             Name of database (if multiple databases are available). Database must
-            be declared in db/settings.py and paths must be configured using
-            config_files/make_config.py
+            be declared in db/settings.py
         **kwargs : dict
             For any additional parameters unused by child classes
 
@@ -98,47 +106,6 @@ class TaskEntry(object):
         except:
             self.report = ''
 
-
-        # Parse out trial messages into separate trials
-        if os.path.exists(self.hdf_filename):
-            try:
-                task_msgs = self.hdf.root.task_msgs[:]
-                # Ignore the last message if it's the "None" transition used to stop the task
-                if task_msgs[-1]['msg'] == b'None':
-                    task_msgs = task_msgs[:-1]
-
-                # ignore "update bmi" messages. These have been removed in later datasets
-                task_msgs = task_msgs[task_msgs['msg'] != b'update_bmi']
-
-                # Try to add the target index.. these are not present in every task type
-                try:
-                    target = self.hdf.root.task[:]['target'].ravel()
-                    target_index = self.hdf.root.task[:]['target_index'].ravel()
-                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8'), ('target', ('f8', 3))])
-                    task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
-                    for k in range(len(task_msgs)):
-                        task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                        task_msgs_ext[k]['time'] = task_msgs[k]['time'] # 'time' is the frame number
-                        try:
-                            task_msgs_ext[k]['target'] = target[task_msgs[k]['time']]
-                            task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
-                        except:
-                            task_msgs_ext[k]['target'] = np.empty((3,))
-                            task_msgs_ext[k]['target_index'] = np.nan
-
-                    self.task_msgs = task_msgs_ext
-                except:
-                    self.task_msgs = task_msgs
-                    import traceback
-                    traceback.print_exc()
-
-
-            except:
-                print("Couldn't process HDF file!")
-                import traceback
-                traceback.print_exc()
-        else:
-            print("No HDF file found!")
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -221,16 +188,15 @@ class TaskEntry(object):
         trial_proc_fn = proc
         data_comb_fn = comb
 
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
-        if isinstance(trial_filter_fn, str):
-            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(trial_filter_fn, str):
+        #     trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
-        if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
+        # if isinstance(trial_proc_fn, str):
+        #     trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
 
-        if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
-
+        # if isinstance(trial_condition_fn, str):
+        #     trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         te = self
         trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
@@ -660,6 +626,262 @@ class TaskEntry(object):
                 inds[k] = 1
         return inds
 
+
+
+class TaskEntryCollection(object):
+    '''
+    Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
+    '''
+    def __init__(self, blocks, name='', cls=TaskEntry, **kwargs):
+        '''
+        Constructor for TaskEntryCollection
+
+        Parameters
+        ----------
+        blocks : np.iterable
+            Some iterable object which contains TaskEntry ID numbers to look up in the database
+        name : string, optional, default=''
+            Name to give this collection
+        cls : type, optional, default=TaskEntry
+            class constructor to use for all the IDs. Uses the generic TaskEntry defined above by default
+
+        Returns
+        -------
+        '''
+        self.block_ids = blocks
+        self.blocks = parse_blocks(blocks, cls=cls, **kwargs)
+        self.kwargs = kwargs
+        self.name = name
+
+    def __len__(self):
+        return len(self.blocks)
+
+    def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
+        '''
+        Generic framework to perform a trial-level analysis on the entire dataset
+
+        Parameters
+        ----------
+        filt: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function
+        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        comb: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+        verbose: boolean, optional, default = True
+            Feedback print statements so that you know processing is happening
+        max_errors: int, optional, default = 10
+            Number of trials resulting in error before the processing quits. Below this threshold, errors are printed but the code continues on to the next trial.
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result.
+        '''
+
+        if filt == None:
+            filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
+        if cond == None:
+            cond = kwargs.pop('trial_condition_fn', default_trial_condition_fn)
+        if proc == None:
+            proc = kwargs.pop('trial_proc_fn', default_trial_proc_fn)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
+
+
+        trial_filter_fn = filt
+        trial_condition_fn = cond
+        trial_proc_fn = proc
+        data_comb_fn = comb
+
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(trial_filter_fn, str):
+        #     trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+
+        # if isinstance(trial_proc_fn, str):
+        #     trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
+
+        # if isinstance(trial_condition_fn, str):
+        #     trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
+
+
+        result = []
+        error_count = 0
+        for blockset in self.blocks:
+            if not np.iterable(blockset):
+                blockset = (blockset,)
+
+            blockset_data = defaultdict(list)
+            for te in blockset:
+                if verbose:
+                    print(".")
+
+                # Filter out the trials you want
+                trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
+                n_trials = len(trial_msgs)
+
+                ## Call a function on each trial
+                for k in range(n_trials):
+                    try:
+                        output = trial_proc_fn(te, trial_msgs[k], **kwargs)
+                        trial_condition = trial_condition_fn(te, trial_msgs[k])
+                        blockset_data[trial_condition].append(output)
+                    except:
+                        error_count += 1
+                        print(trial_msgs[k])
+                        import traceback
+                        traceback.print_exc()
+                        if error_count > max_errors:
+                            raise Exception
+
+            # Aggregate the data from the blockset, which may include multiple task entries
+            blockset_data_comb = dict()
+            for key in blockset_data:
+                blockset_data_comb[key] = data_comb_fn(blockset_data[key])
+            if len(list(blockset_data_comb.keys())) == 1:
+                key = list(blockset_data_comb.keys())[0]
+                result.append(blockset_data_comb[key])
+            else:
+                result.append(blockset_data_comb)
+
+        if verbose:
+            sys.stdout.write('\n')
+        return result
+
+    def proc_blocks(self, filt=None, proc=None, cond=None, comb=None, verbose=False, return_type=list, **kwargs):
+        '''
+        Generic framework to perform a block-level analysis on the entire dataset,
+        e.g., percent of trials correct, which require analyses across trials
+
+        Parameters
+        ----------
+        block_filter_fn: callable; call signature: block_filter_fn(task_entry)
+            Function must return True/False values to determine if a task entry is valid for the analysis
+        block_proc_fn: callable; call signature: trial_proc_fn(task_entry)
+            The main workhorse function
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result.
+        '''
+        if filt == None:
+            filt = kwargs.pop('block_filter_fn', default_block_filter_fn)
+        if cond == None:
+            cond = kwargs.pop('block_condition_fn', default_trial_condition_fn)
+        if proc == None:
+            proc = kwargs.pop('block_proc_fn', default_trial_proc_fn)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
+
+
+        block_filter_fn = filt
+        block_condition_fn = cond
+        block_proc_fn = proc
+        data_comb_fn = comb
+
+        # Look up functions by name, if strings are given instead of functions
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(block_filter_fn, str):
+        #     block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
+
+        # if isinstance(block_proc_fn, str):
+        #     block_proc_fn = getattr(block_proc_functions, block_proc_fn)
+
+        result = []
+        for blockset in self.blocks:
+            if not np.iterable(blockset):
+                blockset = (blockset,)
+
+            blockset_data = []
+            for te in blockset:
+                if verbose:
+                    print(".")
+
+                if block_filter_fn(te):
+                    blockset_data.append(block_proc_fn(te, **kwargs))
+
+            blockset_data = data_comb_fn(blockset_data)
+            result.append(blockset_data)
+
+        if verbose:
+            sys.stdout.write('\n')
+        return return_type(result)
+
+    def __repr__(self):
+        if not self.name == '':
+            return str(self.block_ids)
+        else:
+            return "TaskEntryCollection: ", self.name
+
+    def __str__(self):
+        return self.__repr__()
+
+
+##################
+# Query functions
+##################
+@mysqlreconnect
+def get_task_entries_by_id(ids):
+    '''
+    Returns list of task entries according to the given id or multiple ids
+    '''
+    return list(models.TaskEntry.objects.filter(pk__in=ids))
+
+@mysqlreconnect
+def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db_name):
+    '''
+    Returns list of task entries within date range (inclusive). startdate and enddate
+    are date objects. End date is optional- today's date by default.
+    '''
+    return list(models.TaskEntry.objects.using(dbname).filter(date__gte=startdate).filter(date__lte=enddate))
+
+@mysqlreconnect
+def get_task_entries(subj=None, date=None, task=None, dbname=db_name, **kwargs):
+    '''
+    Get all the task entries for a particular date
+
+    Parameters
+    ----------
+    subj: string, optional, default=None
+        Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
+    date: multiple types, optional, default=today
+        Query date for blocks. The date can be specified as a datetime.date object, a tuple of (start, end) datetime.date objects,
+        or a 3-tuple of ints (year, month, day).
+    task: string
+        name of task to filter
+    kwargs: dict, optional
+        Additional keyword arguments to pass to models.TaskEntry.objects.filter
+    '''
+
+    if isinstance(date, datetime.date):
+        kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
+    elif isinstance(date, tuple) and len(date) == 2:
+        kwargs.update(dict(date__gte=date[0], date__lte=date[1]))
+    elif isinstance(date, tuple) and len(date) == 3:
+        kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
+
+    if isinstance(subj, str):
+        kwargs['subject__name__startswith'] = str(subj)
+    elif subj is not None:
+        kwargs['subject__name'] = subj.name
+    
+    if isinstance(task, str):
+        kwargs['task__name__startswith'] = task
+    elif task is not None:
+        kwargs['task__name'] = task.name
+
+    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
+
+#################
+# Collections
+###############
 def parse_blocks(blocks, cls=TaskEntry, **kwargs):
     '''
     Parse out a hierarchical structure of block ids. Used to construct TaskEntryCollection objects
@@ -699,6 +921,9 @@ def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
         grouped_ids.append(tuple(keyed_ids[date]))
     return grouped_ids
 
+############
+# Statistics
+############
 def default_data_comb_fn(x):
     return x
 
@@ -777,7 +1002,7 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+    return os.path.join(paths.pathdict[dbname], 'decoders', decoder_basename)
 
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
@@ -924,13 +1149,9 @@ def session_summary(entry):
     print("Reward rate: ", get_reward_rate(entry), "trials/minute")
     print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
 
-def query_daterange(startdate, enddate=datetime.date.today()):
-    '''
-    Returns QuerySet for task entries within date range (inclusive). startdate and enddate
-    are date objects. End date is optional- today's date by default.
-    '''
-    return models.TaskEntry.objects.using(db_name).filter(date__gte=startdate).filter(date__lte=enddate)
-
+###############
+# Decoder query
+###############
 def get_decoder_parent(decoder):
     '''
     decoder = database record of decoder object
@@ -978,7 +1199,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     dec_list = []
     for dec in all_decoders:
         try:
-            decobj = pickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
+            decobj = pickle.load(open(paths.data_path+'/decoders/'+dec.path))
             decset = set(tuple(unit) for unit in decobj.units)
             if subset==decset:
                 dec_list = dec_list + [dec]
@@ -987,33 +1208,6 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
         except:
             pass
     return dec_list
-
-def get_task_entries_by_date(subj=None, date=None, dbname=db_name, **kwargs):
-    '''
-    Get all the task entries for a particular date
-
-    Parameters
-    ----------
-    subj: string, optional, default=None
-        Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
-    date: multiple types, optional, default=today
-        Query date for blocks. The date can be specified as a datetime.date object
-        or a 3-tuple (year, month, day).
-    kwargs: dict, optional
-        Additional keyword arguments to pass to models.TaskEntry.objects.filter
-    '''
-
-    if isinstance(date, datetime.date):
-        kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
-    elif isinstance(date, tuple) and len(date) == 3:
-        kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
-
-    if isinstance(subj, str) or isinstance(subj, str):
-        kwargs['subject__name__startswith'] = str(subj)
-    elif subj is not None:
-        kwargs['subject__name'] = subj.name
-
-    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
 
 def load_last_decoder():
     '''
@@ -1024,204 +1218,6 @@ def load_last_decoder():
     record = all_decoder_records[len(all_decoder_records)-1]
     return record.load()
 
-
-
-
-class TaskEntryCollection(object):
-    '''
-    Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
-    '''
-    def __init__(self, blocks, name='', cls=TaskEntry, **kwargs):
-        '''
-        Constructor for TaskEntryCollection
-
-        Parameters
-        ----------
-        blocks : np.iterable
-            Some iterable object which contains TaskEntry ID numbers to look up in the database
-        name : string, optional, default=''
-            Name to give this collection
-        cls : type, optional, default=TaskEntry
-            class constructor to use for all the IDs. Uses the generic TaskEntry defined above by default
-
-        Returns
-        -------
-        '''
-        self.block_ids = blocks
-        self.blocks = parse_blocks(blocks, cls=cls, **kwargs)
-        self.kwargs = kwargs
-        self.name = name
-
-    def __len__(self):
-        return len(self.blocks)
-
-    def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
-        '''
-        Generic framework to perform a trial-level analysis on the entire dataset
-
-        Parameters
-        ----------
-        filt: callable; call signature: trial_filter_fn(trial_msgs)
-            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
-        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
-            The main workhorse function
-        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
-            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
-        comb: callable; call signature: data_comb_fn(list)
-            Combine the list into the desired output structure
-        verbose: boolean, optional, default = True
-            Feedback print statements so that you know processing is happening
-        max_errors: int, optional, default = 10
-            Number of trials resulting in error before the processing quits. Below this threshold, errors are printed but the code continues on to the next trial.
-
-        Returns
-        -------
-        result: list
-            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
-            grouped by tuples are combined into a single result.
-        '''
-
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
-        if filt == None:
-            filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
-        if cond == None:
-            cond = kwargs.pop('trial_condition_fn', default_trial_condition_fn)
-        if proc == None:
-            proc = kwargs.pop('trial_proc_fn', default_trial_proc_fn)
-        if comb == None:
-            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
-
-
-        trial_filter_fn = filt
-        trial_condition_fn = cond
-        trial_proc_fn = proc
-        data_comb_fn = comb
-
-
-        if isinstance(trial_filter_fn, str):
-            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
-
-        if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
-
-        if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
-
-
-        result = []
-        error_count = 0
-        for blockset in self.blocks:
-            if not np.iterable(blockset):
-                blockset = (blockset,)
-
-            blockset_data = defaultdict(list)
-            for te in blockset:
-                if verbose:
-                    print(".")
-
-                # Filter out the trials you want
-                trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
-                n_trials = len(trial_msgs)
-
-                ## Call a function on each trial
-                for k in range(n_trials):
-                    try:
-                        output = trial_proc_fn(te, trial_msgs[k], **kwargs)
-                        trial_condition = trial_condition_fn(te, trial_msgs[k])
-                        blockset_data[trial_condition].append(output)
-                    except:
-                        error_count += 1
-                        print(trial_msgs[k])
-                        import traceback
-                        traceback.print_exc()
-                        if error_count > max_errors:
-                            raise Exception
-
-            # Aggregate the data from the blockset, which may include multiple task entries
-            blockset_data_comb = dict()
-            for key in blockset_data:
-                blockset_data_comb[key] = data_comb_fn(blockset_data[key])
-            if len(list(blockset_data_comb.keys())) == 1:
-                key = list(blockset_data_comb.keys())[0]
-                result.append(blockset_data_comb[key])
-            else:
-                result.append(blockset_data_comb)
-
-        if verbose:
-            sys.stdout.write('\n')
-        return result
-
-    def proc_blocks(self, filt=None, proc=None, cond=None, comb=None, verbose=False, return_type=list, **kwargs):
-        '''
-        Generic framework to perform a block-level analysis on the entire dataset,
-        e.g., percent of trials correct, which require analyses across trials
-
-        Parameters
-        ----------
-        block_filter_fn: callable; call signature: block_filter_fn(task_entry)
-            Function must return True/False values to determine if a task entry is valid for the analysis
-        block_proc_fn: callable; call signature: trial_proc_fn(task_entry)
-            The main workhorse function
-        data_comb_fn: callable; call signature: data_comb_fn(list)
-            Combine the list into the desired output structure
-
-        Returns
-        -------
-        result: list
-            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
-            grouped by tuples are combined into a single result.
-        '''
-        if filt == None:
-            filt = kwargs.pop('block_filter_fn', default_block_filter_fn)
-        if cond == None:
-            cond = kwargs.pop('block_condition_fn', default_trial_condition_fn)
-        if proc == None:
-            proc = kwargs.pop('block_proc_fn', default_trial_proc_fn)
-        if comb == None:
-            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
-
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
-
-        block_filter_fn = filt
-        block_condition_fn = cond
-        block_proc_fn = proc
-        data_comb_fn = comb
-
-        # Look up functions by name, if strings are given instead of functions
-        if isinstance(block_filter_fn, str):
-            block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
-
-        if isinstance(block_proc_fn, str):
-            block_proc_fn = getattr(block_proc_functions, block_proc_fn)
-
-        result = []
-        for blockset in self.blocks:
-            if not np.iterable(blockset):
-                blockset = (blockset,)
-
-            blockset_data = []
-            for te in blockset:
-                if verbose:
-                    print(".")
-
-                if block_filter_fn(te):
-                    blockset_data.append(block_proc_fn(te, **kwargs))
-
-            blockset_data = data_comb_fn(blockset_data)
-            result.append(blockset_data)
-
-        if verbose:
-            sys.stdout.write('\n')
-        return return_type(result)
-
-    def __repr__(self):
-        if not self.name == '':
-            return str(self.block_ids)
-        else:
-            return "TaskEntryCollection: ", self.name
-
-    def __str__(self):
-        return self.__repr__()
 
 ######################
 ## Filter functions

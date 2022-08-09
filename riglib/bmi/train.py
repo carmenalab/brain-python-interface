@@ -7,17 +7,12 @@ import sys
 
 import numpy as np
 from scipy.io import loadmat
-from riglib.dio import parse
+from ..dio import parse
 
 import tables
 from . import kfdecoder, ppfdecoder
-import pdb
 from . import state_space_models
-
-
-import stat
 import os
-import subprocess
 
 ############
 ## Constants
@@ -69,6 +64,9 @@ def _get_tmask(files, tslice, sys_name='task'):
         else:
             fn = _get_tmask_blackrock
             fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+    elif 'ecube' in files:
+        fn = _get_tmask_ecube
+        fname = files
     else:
         raise Exception("Neural data file(s) not found!")
 
@@ -200,7 +198,6 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     if u is not None:
         upper = rows < u
     tmask = np.logical_and(lower, upper)
-
     return tmask, rows
 
 def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
@@ -223,6 +220,37 @@ def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
         upper = rows < u
     tmask = np.logical_and(lower, upper)
 
+    return tmask, rows
+
+def _get_tmask_ecube(files, tslice, **kwargs):
+    '''
+    Find the "rows" of the ecube file to use for training the decoder.
+    For compatibility with plexon and blackrock data, since actually we aren't saving
+    any BMI3D rows into the ecube file, only sync'ing the cycle number via a strobe BNC
+    output. 
+
+    Args: 
+        data_dir: location where the ecube data resides
+        tslice : list of length 2
+            Specify the start and end time to examine the file, in seconds
+
+    Returns:
+        tmask: np.ndarray of shape (N, ) of booleans
+            Specifies which BMI3D cycles are within the time bounds
+        rows: np.ndarray of shape (N, ) of integers
+            The times at which BMI3D cycles were recorded on the ecube
+    '''
+    from riglib.ecube import load_bmi3d_cycle_times
+    rows = load_bmi3d_cycle_times(files)
+
+    # Determine which rows are within the time bounds
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
     return tmask, rows
 
 ################################################################################
@@ -254,9 +282,9 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
         Keyword arguments used to construct the feature extractor used online
     '''
 
-    hdf = tables.openFile(files['hdf'])
+    hdf = tables.open_file(files['hdf'])
 
-    plx_fname = str(files['plexon'])
+    plx_fname = files['plexon'].encode('utf-8')
     from plexon import plexfile
     try:
         plx = plexfile.openFile(plx_fname)
@@ -308,6 +336,26 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
 def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
     raise NotImplementedError
 
+def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
+    '''
+    Mostly just copied from _get_neural_features_plx()... see their docs
+    '''
+    from riglib.ecube import parse_file
+    info = parse_file(files['ecube'])
+    # Use all of the units if none are specified
+    if units is None:
+        units = np.array(info.units).astype(np.int32)
+
+    if tslice is None:
+        tslice = (1., info.length-1)
+
+    tmask, rows = _get_tmask_ecube(files, tslice)
+    neurows = rows[tmask]
+
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs)
+
+    return neural_features, units, extractor_kwargs
+
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
     '''
     Docstring
@@ -319,8 +367,6 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     -------
     '''
 
-    hdf = tables.openFile(files['hdf'])
-
     if 'plexon' in files:
         fn = _get_neural_features_plx
     elif 'blackrock' in files:
@@ -328,6 +374,8 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
         strobe_rate = 20.
     elif 'tdt' in files:
         fn = _get_neural_features_tdt
+    elif 'ecube' in files:
+        fn = _get_neural_features_ecube
     else:
         raise Exception('Could not find any recognized neural data files!')
 
@@ -372,7 +420,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     if pos_key == 'plant_pos':  # used for ibmi tasks
         vel_key = 'plant_vel'
 
-    hdf = tables.openFile(files['hdf'])
+    hdf = tables.open_file(files['hdf'])
     kin = hdf.root.task[:][pos_key]
 
     inds, = np.nonzero(tmask)
@@ -727,7 +775,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,
-    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=True, simple_lin_reg=False,
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=False, simple_lin_reg=False,
     use_data_kwargs=None, update_rate_hz=60, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
@@ -782,9 +830,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     ## get neural features
     if 'blackrock' in list(files.keys()):
         strobe_rate = 20.
+    elif 'ecube' in list(files.keys()):
+        strobe_rate = update_rate_hz # they are always the same
     else:
         strobe_rate = 60.
-
+    
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file,
         extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
 
@@ -794,9 +844,10 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     neural_features = neural_features[:-1].T
 
     if filter_kin:
-        filts = get_filterbank(fs=1./update_rate)
+        n_channels = len(kin)
+        filts = get_filterbank(fs=1./update_rate, n_channels=n_channels)
         kin_filt = np.zeros_like(kin)
-        for chan in range(14):
+        for chan in range(n_channels):
             for filt in filts[chan]:
                 kin_filt[chan, :] = filt(kin[chan, :])
     else:
@@ -824,11 +875,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         decoder.extractor_cls = extractor_cls
         decoder.extractor_kwargs = extractor_kwargs
 
-    return decoder, neural_features, kin_filt
+    return decoder #, neural_features, kin_filt
 
 def get_filterbank(n_channels=14, fs=1000.):
-    from ismore.filter import Filter
-    from scipy.signal import butter
+    # from ismore.filter import Filter
+    from scipy.signal import butter, filtfilt
     band  = [.001, 1]  # Hz
     nyq   = 0.5 * fs
     low   = band[0] / nyq
@@ -838,7 +889,8 @@ def get_filterbank(n_channels=14, fs=1000.):
 
     channel_filterbank = [None]*n_channels
     for k in range(n_channels):
-        filts = [Filter(bpf_coeffs[0], bpf_coeffs[1])]
+        # filts = [Filter(bpf_coeffs[0], bpf_coeffs[1])]
+        filts = [lambda x: filtfilt(bpf_coeffs[0], bpf_coeffs[1], x)]
         channel_filterbank[k] = filts
     return channel_filterbank
 
@@ -922,9 +974,9 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     if type(zscore) is bool:
         pass
     else:
-        if zscore == 'True':
+        if zscore == 'on':
             zscore = True
-        elif zscore == 'False':
+        elif zscore == 'off':
             zscore = False
         else:
             raise Exception
@@ -1247,6 +1299,37 @@ def rand_KFDecoder(ssm, units, dt=0.1):
     return decoder
 
 _train_KFDecoder_2D_sim_2 = rand_KFDecoder
+
+def make_fixed_kf_decoder(units, ssm, C, dt=0.1):
+    n_neurons = units.shape[0]
+    assert n_neurons == C.shape[0], "C matrix must have same first dimension as number of neurons"
+    binlen = dt
+
+    A, B, W = ssm.get_ssm_matrices(update_rate=dt)
+    drives_neurons = ssm.drives_obs
+    is_stochastic = ssm.is_stochastic
+    nX = ssm.n_states
+    assert nX == C.shape[1], "C matrix must have same second dimension as number of states"
+
+    Q = 10 * np.identity(n_neurons)
+
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
+
+    mFR = 0
+    sdFR = 1
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen)
+
+    decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
+    decoder.kf.S = decoder.kf.C
+    decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+    decoder.kf.ESS = 3000.
+
+    decoder.ssm = ssm
+    decoder.n_features = n_neurons
+
+    # decoder.bounder = make_rect_bounder_from_ssm(ssm)
+
+    return decoder
 
 def load_from_mat_file(decoder_fname, bounding_box=None,
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):

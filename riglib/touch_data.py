@@ -1,13 +1,9 @@
 '''
 Code for getting data from kinarm
 '''
-
-import time
 import numpy as np
-from riglib.source import DataSourceSystem
+from .source import DataSourceSystem
 import serial
-import struct
-import time
 
 class TouchData(DataSourceSystem):
     '''

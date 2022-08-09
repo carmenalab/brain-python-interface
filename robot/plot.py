@@ -125,7 +125,6 @@ from .SerialLink import *
 from .Link import * 
 from .utility import *
 from .transform import *
-from robot import *
 import matplotlib.pyplot as plt
 import numpy as np
 

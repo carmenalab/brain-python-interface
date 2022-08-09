@@ -2,16 +2,6 @@
 '''
 Features for a touch sensor on the neurosync arduino
 '''
-
-import time
-import random
-import traceback
-import numpy as np
-
-import os
-import subprocess
-
-import time
 from riglib.experiment import traits
 from riglib import touch_data
 

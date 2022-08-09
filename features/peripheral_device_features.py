@@ -8,7 +8,6 @@ import pygame
 ###### CONSTANTS
 sec_per_min = 60
 
-
 class Joystick(object):
     '''
     Code to use an analog joystick with signals digitized by the phidgets board

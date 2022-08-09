@@ -1,13 +1,8 @@
-import os
-import sys
 import time
 import inspect
 import traceback
 import multiprocessing as mp
-from multiprocessing import sharedctypes as shm
 import io
-import numpy as np
-
 
 class PipeWrapper(object):
     def __init__(self, pipe=None, log_filename='', cmd_event=None, **kwargs):

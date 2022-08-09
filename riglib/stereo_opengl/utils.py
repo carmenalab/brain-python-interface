@@ -1,10 +1,7 @@
 
 '''Needs docs'''
-
-
 import numpy as np
 from .textures import Texture
-from OpenGL.GL import glBindTexture, glGetTexImage, GL_TEXTURE_2D, GL_RGBA, GL_UNSIGNED_BYTE
 
 def frustum(l, r, t, b, n, f):
     '''

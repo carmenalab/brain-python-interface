@@ -1,9 +1,12 @@
-from riglib.gpio import ArduinoGPIO
+from .gpio import ArduinoGPIO
 from multiprocessing import Process
 from riglib import singleton
 #from pyfirmata import Arduino, util
 import traceback
 import time
+import os
+
+log_path = os.path.join(os.path.dirname(__file__), '../log/reward.log')
 
 class Basic(singleton.Singleton):
 

@@ -5,10 +5,7 @@ some knowledge of the task goals is available.
 '''
 
 import numpy as np 
-from riglib.stereo_opengl import ik
-from riglib.bmi import feedback_controllers
-import pickle
-
+from ..bmi import feedback_controllers
 from utils.angle_utils import *
 from utils.constants import *
 

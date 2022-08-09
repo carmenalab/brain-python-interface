@@ -2,17 +2,7 @@
 """
 Classes to simulate neural activity (spike firing rates and lfp) by various methods.
 """
-
-import os
 import numpy as np
-
-from scipy.io import loadmat
-
-import numpy as np
-from scipy.io import loadmat, savemat
-
-
-
 from scipy.integrate import trapz, simps
 
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]

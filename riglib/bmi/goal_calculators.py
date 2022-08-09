@@ -5,12 +5,8 @@ task goal is required for many versions of assistive control (see assist.py) and
 many versions of CLDA (see clda.py). 
 '''
 import numpy as np
-from . import train
-from riglib import mp_calc
-# from riglib.stereo_opengl import ik # appears to be unused
-import re
+from .. import mp_calc
 import pickle
-from riglib.bmi import state_space_models
 
 # TODO -- does ssm really need to be passed as an argument into __init__?
 # maybe just make it an optional kwarg for the classes that really need it

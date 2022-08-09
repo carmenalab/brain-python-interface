@@ -1,21 +1,8 @@
 '''
 Features for the phasephase motiontracker
 '''
-
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
-import os
-
 from riglib import calibrations
-
-import os
-import subprocess
-
-import time
 from riglib.experiment import traits
 
 mm_per_cm = 1./10

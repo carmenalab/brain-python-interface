@@ -1,25 +1,93 @@
 import time
 from riglib import source
-from riglib.ecube import Broadband, make
+from riglib.ecube import Broadband, LFP
+from riglib.ecube.file import parse_file
+from riglib.bmi import state_space_models, train, extractor
 import numpy as np
+import unittest
 
-DURATION = 5
+import unittest
 
-ecube = make(Broadband, headstages=[7], channels=[(1,1)])
-ds = source.DataSource(ecube)
-ds.start()
-time.sleep(DURATION)
-data = ds.get()
-ds.stop()
+STREAMING_DURATION = 3
 
-print("Received {} packets in {} seconds ({} Hz)".format(data.shape[0], DURATION, data.shape[0]/DURATION))
-ts = [d['timestamp'] for d in data]
-print("First timestamp: {} ns ({:.5f} s)\tLast timestamp {} ns ({:.5f} s)".format(
-    ts[0], ts[0]/1e9, ts[-1], ts[-1]/1e9
-))
-duration = (ts[-1]-ts[0])/1e9
-samples = [d['data'].shape[0] for d in data]
-print("Calculated duration: {:.5f} s, at {:.2f} Hz packet frequency and {} Hz sampling rate".format(
-    duration, data.shape[0]/duration, np.sum(samples[:-1])/duration))
-print("For reference, the ecube datasource is meant to have a sampling rate of {:.2f} Hz".format(ecube.update_freq))
+class TestStreaming(unittest.TestCase):
 
+    # Note: for the multiprocessing code to work, you must have servernode-control open separately
+
+    @unittest.skip('works')
+    def test_ecube_stream(self):
+        channels = [1, 3]
+        bb = Broadband(channels=channels) # Note: this is not how this is normally used, just testing
+        bb.start()
+        data = bb.conn.get()
+        bb.stop()
+        print(data[2].shape)
+    
+    @unittest.skip('works')
+    def test_broadband_class(self):
+        channels = [1, 3]
+        bb = Broadband(channels=channels)
+        bb.start()
+        ch_data = []
+        for d in range(2):
+            for i in range(len(channels)):
+                ch, data = bb.get()
+                ch_data.append(data)
+                print(f"Got channel {ch} with {data.shape} samples")
+        bb.stop()
+
+    @unittest.skip('works')
+    def test_broadband_datasource(self):
+        channels = [1, 62]
+        ds = source.MultiChanDataSource(Broadband, channels=channels)
+        ds.start()
+        time.sleep(STREAMING_DURATION)
+        data = ds.get_new(channels)
+        ds.stop()
+        data = np.array(data)
+
+        n_samples = int(Broadband.update_freq * STREAMING_DURATION / 728) * 728 # closest multiple of 728 (floor)
+
+        self.assertEqual(data.shape[0], len(channels))
+        self.assertEqual(data.shape[1], n_samples)
+    
+    #@unittest.skip('works')
+    def test_ds_with_extractor(self):
+        # Create the datasource
+        channels = [1, 62]
+        ds = source.MultiChanDataSource(LFP, channels=channels)
+
+        # Make a feature extractor
+        extr = extractor.LFPMTMPowerExtractor(ds, channels=channels, bands=[(90,110)], win_len=0.1, fs=1000)
+
+        # Run the feature extractor
+        extract_rate = 1/60
+        feats = []
+        ds.start()
+        t0 = time.perf_counter()
+        while (time.perf_counter() - STREAMING_DURATION < t0):
+            neural_features_dict = extr(time.perf_counter())
+            feats.append(neural_features_dict['lfp_power'])
+            time.sleep(extract_rate)
+        
+        ds.stop()
+        data = np.array(feats)
+        print(feats)
+        print(data.shape)
+        self.assertEqual(data.shape[1], len(channels))
+        self.assertEqual(data.shape[0], STREAMING_DURATION/extract_rate)
+
+class TestFileLoadin(unittest.TestCase):
+
+    def test_ecube_load(self):
+        pass
+
+
+    def extract_from_file_lfp(self):
+
+        pass
+
+        #LFPMTMPowerExtractor.extract_from_file()
+
+if __name__ == '__main__':
+    unittest.main()

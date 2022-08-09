@@ -10,18 +10,10 @@ import shutil
 import datetime
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
-import django
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from distutils.version import StrictVersion
-
-from riglib import experiment
 from .models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
-import pickle
-import tempfile
-
-from riglib.mp_calc import MultiprocShellCommand
 
 def save_log(idx, log, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
@@ -121,15 +113,15 @@ def save_bmi(name, entry, filename, dbname='default'):
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
-    try:
-        decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
-    except:
-        print('too many decoders to list: ')
-        import dbfunctions as dbfn
-        d = dbfn.TaskEntry(entry.pk)
-        d_list = d.get_decoders_trained_in_block()
-        for d in d_list:
-            print(d.pk, d.name)
+    # try:
+    #     decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
+    # except:
+    #     print('too many decoders to list: ')
+    #     import dbfunctions as dbfn
+    #     d = dbfn.TaskEntry(entry.pk)
+    #     d_list = d.get_decoders_trained_in_block()
+    #     for d in d_list:
+    #         print(f"{d.pk}, {d.name}")
     print("Saved decoder to %s"%os.path.join(base, pklname))
 
 def cleanup(entry, dbname='default'):

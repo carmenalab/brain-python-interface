@@ -1,4 +1,4 @@
-from db.tracker.models import DataFile, System, TaskEntry
+from .tracker.models import DataFile, System, TaskEntry
 import os
 import sys
 

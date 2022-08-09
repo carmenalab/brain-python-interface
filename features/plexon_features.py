@@ -1,20 +1,9 @@
 '''
 Features for interacting with Plexon's Omniplex neural recording system
 '''
-
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
 import os
-import subprocess
-from riglib import bmi
-from riglib.bmi import extractor
-from riglib.experiment import traits
 from .hdf_features import SaveHDF
-import sys
 import glob
 import datetime
 

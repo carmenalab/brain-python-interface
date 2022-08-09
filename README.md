@@ -1,7 +1,7 @@
 
 brain-python-interface (a.k.a. bmi3d)
 ====================================
-**This the unstable python 3 branch. It may not yet do what you want it to do. Use the master branch for the heavily-tested (but out of date) python 2 version**
+**This fork is for private use in aolabs and is not intended to be a stable release**
 
 This package contains Python code to run electrophysiology behavioral tasks,
 with emphasis on brain-machine interface (BMIs) tasks. This package differs
@@ -11,6 +11,7 @@ in that it is primarily intended for intracortical BMI experiments.
 This package has been used with the following recording systems:
 - Omniplex neural recording system (Plexon, Inc.).
 - Blackrock NeuroPort
+- White-matter eCube
 
 Code documentation can be found at http://carmenalab.github.io/bmi3d_docs/
 
@@ -34,9 +35,17 @@ Visual C++ Build tools (for the 'traits' package)
 
 # Installation
 ```bash
-git clone -b develop https://github.com/carmenalab/brain-python-interface.git
+git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
 cd brain-python-interface
 pip3 install -r requirements.txt
+pip3 install -e .
+./install-rabbitmq.sh
+```
+
+## Database access only
+```bash
+git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
+cd brain-python-interface
 pip3 install -e .
 ```
 
@@ -53,7 +62,7 @@ python3 test_built_in_vfb_task.py
 If successful, you'll see the pygame window pop up looking like a poorly-made video game. If unsuccessful, you'll see the graphics in the terminal itself in ASCII art.
 
 
-# Setting up the database
+# Setting up a test database
 ```bash
 cd db
 touch db.sql 				   # Make empty file for database
@@ -63,9 +72,23 @@ python3 manage.py makemigrations tracker
 python3 manage.py migrate                  # make sure to do this twice!
 ```
 
-# Start server
+# Use
+Several use cases:
+
+## Start the full BMI3D
+```bash
+./runserver.sh
+```
+
+## Start just the server
 ```bash
 python3 manage.py runserver
+```
+
+## Use the database models in analysis
+```python
+from db import dbfunctions as db
+te = db.get_task_entries()
 ```
 
 # Setup paths and configurations
@@ -73,7 +96,7 @@ Once the server is running, open up Chrome and navigate to localhost:8000/setup
 - Under "Subjects", make sure at least one subject is listed. A subject named "test" is recommended for separating exploration/debugging from real data.
 - Under "tasks", add a task to the system by giving it the python path for your task class. See documentation link above for details on how to write a task. There are a couple of built in tasks to help you get started.
 
-	- For example, you can add the built-in task `riglib.experiment.mocks.MockSequenceWithGenerator` just to check that the user interface works
+    - For example, you can add the built-in task `riglib.experiment.mocks.MockSequenceWithGenerator` just to check that the user interface works
 	- If you want to try something graphical, you can add the built-in task `built_in_tasks.passivetasks.TargetCaptureVFB2DWindow`. This will be a "visual feedback" task in which a cursor automatically does the center-out task, a standard task in motor ephys.
 
 
@@ -92,20 +115,6 @@ Then start the server with
 ```bash
 python3 manage.py runserver 0.0.0.0:8000
 ```
-
-# Remote access
-On Ubuntu, use the `ufw` package to open the port that Django is using
-```bash
-sudo ufw allow 8000/tcp
-sudo ufw allow ssh
-sudo ufw enable    # this is needed even if raspi-config enables SSH
-```
-
-Then start the server with 
-```bash
-python3 manage.py runserver 0.0.0.0:8000
-```
-
 
 # Troubleshooting
 This package has a lot of dependencies which makes installation somewhat brittle due to versions of different dependencies not getting along.

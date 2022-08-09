@@ -1,7 +1,11 @@
 # run with manage.py:
 # > python manage.py shell
-# > import update_db_paths
+# > from db.migrate_db import *
 
+from .boot_django import boot_django
+boot_django()
+
+from .tracker import models
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import django

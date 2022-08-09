@@ -1,9 +1,6 @@
 '''
 Code for interacting with the Crist reward system(s). Consult the Crist manual for the command protocol
 '''
-
-
-import glob
 import time
 
 import struct
@@ -16,7 +13,6 @@ import traceback
 import serial
 import time
 
-import numpy
 
 try:
     import traits.api as traits

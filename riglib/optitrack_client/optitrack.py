@@ -1,11 +1,9 @@
 '''
 Base code for 'optitrack' feature, compatible with Optitrack motiontracker
 '''
-
-import os
 import time
 import numpy as np
-from riglib.source import DataSourceSystem
+from ..source import DataSourceSystem
 
 class System(DataSourceSystem):
     '''

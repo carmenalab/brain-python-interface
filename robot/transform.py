@@ -6,7 +6,7 @@ Primitive operations for 3x3 orthonormal and 4x4 homogeneous matrices.
 """
 
 from numpy import *
-from robot.utility import *
+from .utility import *
 from numpy.linalg import norm
 from .Quaternion import *
 

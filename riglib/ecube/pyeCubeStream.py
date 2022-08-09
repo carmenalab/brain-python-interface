@@ -6,6 +6,8 @@ import time
 import zmq
 import numpy as np
 
+__version__ = '0.3.1'
+
 class eCubeStream:
 
     VERSTR = b"ECZQ01"
@@ -23,12 +25,14 @@ class eCubeStream:
     'DigitalPanel': np.uint64
     }
 
-    def __init__(self, sources=None, asfloat=False, ctladdress='127.0.0.1', ctlport=49686, dataport=49676, autoshutdown=True, debug=False):
+    def __init__(self, sources=None, asfloat=False, snaddress=None, ctladdress='127.0.0.1', ctlport=49686, dataport=49676, autoshutdown=True, debug=False):
         '''Initializes a pyeCubeStream object. This is the default usage of this wrapper class.'''
         self.autoshutdown = autoshutdown
         self.proc = None
         self.debug = debug
         self.retryconnect = False
+
+        self.snaddress = snaddress
 
         self.__testconnection(endpoint=(ctladdress, ctlport))
 
@@ -77,11 +81,19 @@ class eCubeStream:
         elif len(exelist) > 1:
             raise RuntimeError('Cannot connect to remote address, multiple servernode-control found')
 
+        launchcmd = [exelist[0]]
+
+        if self.snaddress is not None and isinstance(self.snaddress, str):
+            launchcmd.append(self.snaddress)
+
         if self.debug is True:
-            self.proc = subprocess.Popen(exelist[0])
+            self.proc = subprocess.Popen(launchcmd)
         else:
-            self.proc = subprocess.Popen(exelist[0], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            self.proc = subprocess.Popen(launchcmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         time.sleep(3)
+
+        if self.proc.poll() is not None:
+            raise RuntimeError('Error from servernode-control process detected')
 
         self.retryconnect = True
         self.__testconnection(endpoint)
@@ -519,6 +531,20 @@ class eCubeStream:
         self.datasock.disconnect(self.dataaddr)
 
         self.isstreaming = False
+        return True
+
+    def resetheadstage(self, hsnum):
+        '''Sends headstage reset command.'''
+
+        if not isinstance(hsnum, int) or hsnum < 1 or hsnum > 10:
+            raise ValueError("Headstage# must be an integer between 1 - 10")
+
+        self.ctlsock.send_multipart([self.VERSTR, b"RESETHS",
+            hsnum.to_bytes(4, 'little')])
+        reply = self.ctlsock.recv_multipart()
+        if len(reply) == 1 and reply[0] != b"OKRESETHS":
+            raise ValueError(reply[0].decode('utf-8'))
+
         return True
 
     def __hassessions(self):

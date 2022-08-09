@@ -1,22 +1,9 @@
 '''
 Features for use in simulation tasks
 '''
-
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
-import os
-import subprocess
-from riglib.experiment import traits
-
-from riglib.bmi import accumulator, assist, bmi, clda, extractor, feedback_controllers, goal_calculators, robot_arms, sim_neurons, kfdecoder, ppfdecoder, state_space_models, train
+from riglib.bmi import clda, extractor, sim_neurons, kfdecoder, train
 from riglib.bmi.sim_neurons import KalmanEncoder
-
-import pickle
-
 
 class FakeHDF(object):
     def __init__(self):

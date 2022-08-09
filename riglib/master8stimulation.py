@@ -1,24 +1,7 @@
 '''
 Code for the triggering stimulation from the Master-8 voltage-programmable stimulator
 '''
-
-import time
-import tempfile
-import random
-import traceback
-import numpy as np
-import fnmatch
-import os
 import comedi
-
-from riglib import calibrations, bmi
-
-from riglib.bmi import extractor
-
-import os
-import subprocess
-
-import time
 
 ###### CONSTANTS
 sec_per_min = 60

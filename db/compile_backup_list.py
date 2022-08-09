@@ -2,8 +2,8 @@
 Compile a list of all the files which should be backed up
 '''
 import os
-from db import dbfunctions as dbfn
-from db.tracker import models
+from . import dbfunctions as dbfn
+from .tracker import models
 import datetime
 
 #Get backup list:

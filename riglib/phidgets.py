@@ -2,7 +2,6 @@
 Code for interacting with the Phdigets API
 '''
 import time
-import itertools
 import numpy as np
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit

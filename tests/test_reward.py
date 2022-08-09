@@ -34,6 +34,7 @@ class TestAoPellet(unittest.TestCase):
         self.reward_sys = reward.pellet_open()
 
     def test_connection(self):
+        self.assertTrue(self.reward_sys is not None)
         self.assertTrue(self.reward_sys.board is not None)
 
     def test_calibrate(self):
