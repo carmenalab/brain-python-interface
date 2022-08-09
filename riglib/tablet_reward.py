@@ -1,6 +1,8 @@
 from .gpio import ArduinoGPIO
 from multiprocessing import Process
-from . import singleton
+from riglib import singleton
+#from pyfirmata import Arduino, util
+import traceback
 import time
 import os
 
@@ -40,9 +42,12 @@ class RemoteReward():
 
     def __init__(self):
 
-        self.hostName = "localhost"
+        self.hostName = "192.168.0.200"
         self.serverPort = 8080
 
     def trigger(self):
         url = f"http://{self.hostName}:{self.serverPort}"
-        requests.post(url)
+        try:
+            requests.post(url, timeout=3)
+        except:
+            traceback.print_exc()
