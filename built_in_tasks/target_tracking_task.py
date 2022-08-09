@@ -35,8 +35,9 @@ class TargetTracking(Sequence):
     common type of motor control tracking tasks.
     '''
     status = dict(
-        wait = dict(start_trial="target"),
-        target = dict(success="reward", timeout="timeout_penalty"),
+        wait = dict(start_trial="initiation"),
+        initiation = dict(start_tracking="tracking"),
+        tracking = dict(success="reward", timeout="timeout_penalty"),
         timeout_penalty = dict(timeout_penalty_end = "wait", end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
@@ -82,15 +83,27 @@ class TargetTracking(Sequence):
 
         #saved plant poitions
         self.plant_position = []
-        
-    def _start_target(self):
-        self.trial_timed_out = False
+
+    def _start_initiation(self):
         self.frame_index = 0
+        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
+
+    def _while_initiation(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _end_initiation(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _start_tracking(self):
+        self.trial_timed_out = False
         self.total_distance_error = 0
 
-    def _while_target(self):
+    def _while_tracking(self):
         # Calculate and sum distance between center of cursor and current target position
-        self.total_distance_error += self.test_in_target() 
+        self.total_distance_error += self.test_in_tracking() 
         
         # Move Target and trajectory to next frame so it appears to be moving
         self.update_frame()
@@ -101,13 +114,13 @@ class TargetTracking(Sequence):
     
     def update_frame(self):
         self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
-            self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
+        #if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
         self.trajectory.show()
         self.target.show()
         self.frame_index +=1
 
-    def _end_target(self):
+    def _end_tracking(self):
         '''Nothing generic to do.'''
         pass
 
@@ -129,7 +142,15 @@ class TargetTracking(Sequence):
             - a random delay
             - require some initiation action
         '''
-        return True
+        return False
+
+    def _test_start_tracking(self, time_in_state):
+        '''
+        Test if the cursor is inside the target to initiate trials. 
+        '''
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.target.get_position())
+        return d <= (self.target_radius - self.cursor_radius)
 
     def _test_success(self, time_in_state):
         '''
@@ -168,7 +189,7 @@ class TargetTracking(Sequence):
         self.reportstats['Trial #'] = self.calc_trial_num()
         self.reportstats['Reward/min'] = np.round(self.calc_events_per_min('reward', 120.), decimals=2)
     
-    def test_in_target(self):
+    def test_in_tracking(self):
         '''
         return the distance between center of cursor and cednter of the target
         '''
@@ -236,13 +257,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-
             # This is the target at the center being followed by the user
             self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-            
-            #A cable trajectory that is just flat to have inbetween trials 
-            #self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(120))
-            self.baseline = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=np.zeros(1))
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -320,36 +336,29 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_wait(self):
         super()._start_wait()
         if self.calc_trial_num() == 0:
-            self.add_model(self.baseline.graphics_models[0])
             self.add_model(self.target.graphics_models[0])
-            self.baseline.hide()
             self.target.hide()
 
         # Set up the next trajectory
-        #mytrajectory = np.concatenate((np.zeros(60),np.array(np.squeeze(self.targs)[:,2]),np.zeros(30)))
         mytrajectory = np.array(np.squeeze(self.targs)[:,2])
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory)
         self.trial_length = np.shape(self.targs[:,2])[0]
         for model in self.trajectory.graphics_models:
             self.add_model(model)
 
-        self.baseline.hide()
         self.target.hide()
         self.trajectory.hide()
+
+    def _start_initiation(self):
+        super()._start_initiation()
+        self.target.show()
+        self.trajectory.show()
             
-    def _start_target(self):
-        super()._start_target()
-        self.trajectory.show()  
-        if self.frame_index == 0:
-            self.target.hide()
-        else:
-            self.target.show()    
-        self.baseline.hide()
+    def _start_tracking(self):
+        super()._start_tracking()
         self.sync_event('TRIAL_START')
     
     def _start_reward(self):
-        #self.baseline.show()
-        self.baseline.hide()
         self.target.hide()
         self.target.cue_trial_end_success()
         self.sync_event('REWARD')
@@ -357,8 +366,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _end_reward(self):
         super()._end_reward()
         self.sync_event('TRIAL_END')
-        #Adjust target displays
-        self.baseline.hide()
         self.trajectory.hide()
         self.target.hide()
         self.target.reset()
@@ -366,8 +373,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_timeout_penalty(self):
         super()._start_timeout_penalty()
         self.sync_event('OTHER_PENALTY')
-        #self.baseline.show()
-        self.baseline.hide()
         self.trajectory.hide()
         self.target.hide()
         self.target.reset()
@@ -523,7 +528,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        buffer_space_bef = int(60*3) # 3 seconds of straight line before trial
+        buffer_space_bef = int(60*1.3) # 3 seconds of straight line before trial
         buffer_space_aft = int(60*1.5) # 1.5 seconds of straight line before trial
         frames = int(np.round(time_length*60))
         y_primes_freq = np.array(frequencies)
