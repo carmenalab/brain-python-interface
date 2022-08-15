@@ -434,13 +434,13 @@ class ScreenTargetTracking(TargetTracking, Window):
         T0 = base_period # sec -- base period
         w0 = 1/T0 # Hz -- base frequency
 
-        P = 1 # number of periods in signal
+        P = 2 # number of periods in signal
         T = P*T0 # sec -- signal duration
         r = ramp # "ramp" duration (see sum_of_sines_ramp)
         dw = 1/T # Hz -- frequency resolution
         W = dw*T/dt/2 # Hz -- signal bandwidth
 
-        f = primes # stimulated frequencies
+        f = primes*w0 # stimulated frequencies
         a = 1/(1+np.arange(f.size)) # amplitude
         o = 2*np.pi*np.random.rand(primes.size) # phase offset
 
@@ -528,9 +528,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        buffer_space_bef = int(60*1.3) # 3 seconds of straight line before trial
-        buffer_space_aft = int(60*1.5) # 1.5 seconds of straight line before trial
-        frames = int(np.round(time_length*60))
+        buffer_space_bef = int(60*1.3) # 1.3 seconds of straight line before trial #78 frames
+        buffer_space_aft = int(60*1.5) # 1.5 seconds of straight line before trial #90 frames
+        frames = int(np.round(time_length*60)) #300 frames when time_length=5
         y_primes_freq = np.array(frequencies)
 
         for i in range(nblocks):
@@ -539,8 +539,9 @@ class ScreenTargetTracking(TargetTracking, Window):
                 disturbance = False
                 disturbance_path = np.zeros((frames+buffer_space_bef+buffer_space_aft,1))
                 trajectory = np.zeros((frames+buffer_space_bef+buffer_space_aft,3))
-                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
+                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,20)
                 pts = []
+                # cannot broadcast array of length 768 to 468
                 trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
                 pts.append(trajectory)
                 yield idx, pts, disturbance, disturbance_path
