@@ -16,6 +16,8 @@ from riglib import plants
 from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 
+import matplotlib.pyplot as plt
+
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
 cursor = plants.CursorPlant()
@@ -60,7 +62,7 @@ class TargetTracking(Sequence):
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
-        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial
+        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # yield idx, pts, disturbance, dis_trajectory
         
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -401,7 +403,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         assert f.shape == a.shape == p.shape,"Shape of frequencies, amplitudes, and phase shifts must match"
 
         o = np.ones(t.shape)
-        trajectory = np.sum(np.dot(o,a) * np.sin(2*np.pi*np.dot(t,f) + np.dot(o,p)),axis=1)
+        trajectory = np.sum(np.dot(o,a) * np.sin(2*np.pi*(np.dot(t,f) + np.dot(o,p))),axis=1)
         
         return trajectory
 
@@ -424,11 +426,12 @@ class ScreenTargetTracking(TargetTracking, Window):
             return trajectory
 
     @staticmethod
-    def generate_trajectories(num_trials=2, time_length=5, sample_rate=60, base_period=20, ramp=0):
+    def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=60, base_period=20, ramp=0):
         '''
         Sets up variables and uses prime numbers to call the above functions and generate then trajectories
         ramp is time length for preparatory lines
         '''
+        np.random.seed(seed)
         hz = sample_rate # Hz -- sampling rate
         dt = 1/hz # sec -- sampling period
 
@@ -437,9 +440,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         r = ramp # "ramp" duration (see sum_of_sines_ramp)
         P = time_length/T0 # number of periods in signal
-        T = time_length # sec -- signal duration
+        T = P*T0+r # sec -- signal duration
         dw = 1/T # Hz -- frequency resolution
-        W = dw*T/dt/2 # Hz -- signal bandwidth
+        W = 1/dt/2 # Hz -- signal bandwidth
 
         full_primes = np.asarray([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 
             101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199])
@@ -454,17 +457,19 @@ class ScreenTargetTracking(TargetTracking, Window):
         a_ref = a.copy()
         a_dis = a.copy()
 
-        o = np.random.rand(primes.size) # phase offset
+        o = np.random.rand(num_trials,primes.size) # phase offset
         o_ref = o.copy()
-        o_dis = o.copy()
+        o_dis = o.copy()*0.8
 
-        t = np.arange(0,T,dt) # time samples
+        t = np.arange(0,T,dt) # time samplesseed
         w = np.arange(0,W,dw) # frequency samples
 
         N = t.size # = T/dt -- number of samples
         
         # create trials dictionary
-        trials = dict(id=np.arange(num_trials), times=t, ref=np.zeros((num_trials,N)), dis=np.zeros((num_trials,N)))
+        trials = dict(
+            id=np.arange(num_trials), times=np.tile(t,(num_trials,1)), ref=np.zeros((num_trials,N)), dis=np.zeros((num_trials,N))
+            )
 
         # randomize order of first two trials to provide random starting point
         order = np.random.choice([0,1])
@@ -474,7 +479,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             trial_order = [(1,'O','E'),(1,'E','O')]
 
         # generate reference and disturbance trajectories for all trials
-        for trial_id, (num_reps,ref_ind,dis_ind) in enumerate( functiontrial_order*int(num_trials/2)):   
+        for trial_id, (num_reps,ref_ind,dis_ind) in enumerate(trial_order*int(num_trials/2)):   
             if ref_ind == 'E': 
                 sines_r = np.arange(len(primes))[0::2] # use even indices
             elif ref_ind == 'O': 
@@ -499,7 +504,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=5, frequencies = [1,.75], boundaries=(-10,10,-10,10)):
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, ramp=0, boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories for debugging
 
@@ -510,8 +515,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         ntrials : int
             The number trials in a block
         time_length : int
-        frequencies: numpy.ndarray
-            A list of frequencies used to generate the trajectories
         boundaries: 4 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
@@ -520,23 +523,24 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        buffer_space_bef = int(60*1.3) # 1.3 seconds of straight line before trial #78 frames
-        buffer_space_aft = int(60*1.5) # 1.5 seconds of straight line before trial #90 frames
-        frames = int(np.round(time_length*60)) #300 frames when time_length=5
-        y_primes_freq = np.array(frequencies)
-
-        for i in range(nblocks):
-            for j in range(ntrials):
-                
-                disturbance = False
-                disturbance_path = np.zeros((frames+buffer_space_bef+buffer_space_aft,1))
-                trajectory = np.zeros((frames+buffer_space_bef+buffer_space_aft,3))
-                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,20) # TODO
+        disturbance = False
+        sample_rate = 60
+        base_period = 20
+        for block_id in range(nblocks):                
+            trials, trial_order = ScreenTargetTracking.generate_trajectories(
+                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp
+                )
+            for trial_id in range(ntrials):
+                # if trial_id==0:
+                #     plt.figure(); plt.plot(trials['times'][trial_id],trials['ref'][trial_id])
+                #     plt.show()
                 pts = []
-                # cannot broadcast array of length 768 to 468
-                trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
-                pts.append(trajectory)
-                yield idx, pts, disturbance, disturbance_path
+                ref_trajectory = np.zeros((time_length*sample_rate,3))
+                dis_trajectory = ref_trajectory.copy()
+                ref_trajectory[:,2] = trials['ref'][trial_id]
+                dis_trajectory[:,2] = trials['dis'][trial_id]
+                pts.append(ref_trajectory)
+                yield idx, pts, disturbance, dis_trajectory
                 idx += 1
 
     @staticmethod
@@ -567,7 +571,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         frames = int(np.round(time_length*60))
         disturbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
         random_start = random.randint(0, 1)
-        
         for i in range(nblocks):
             for j in range(ntrials):
                 if idx % 2 == random_start:
