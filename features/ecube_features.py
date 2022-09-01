@@ -88,6 +88,9 @@ class RecordECube(traits.HasTraits):
         if hasattr(self, 'sync_code'):
             print('Sending stop recording pulse')
             self.sync_code(1 << self.sync_params['recording_pin'])
+            if hasattr(self, 'pulse'):
+                self.pulse.join()
+
         else:
             print('No sync feature enabled. Cannot send stop pulse.')
 
@@ -182,6 +185,8 @@ class RecordECube(traits.HasTraits):
             if hasattr(self, 'sync_code'):
                 print('Sending start recording pulse')
                 self.sync_code(1 << self.sync_params['recording_pin'])
+                if hasattr(self, 'pulse'):
+                    self.pulse.join()
             else:
                 print('No sync feature enabled. Cannot send start pulse.')
             time.sleep(0.1)
