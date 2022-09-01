@@ -523,7 +523,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        disturbance = False
+        disturbance = True
         sample_rate = 60
         base_period = 20
         for block_id in range(nblocks):                
@@ -531,9 +531,10 @@ class ScreenTargetTracking(TargetTracking, Window):
                 num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp
                 )
             for trial_id in range(ntrials):
-                # if trial_id==0:
-                #     plt.figure(); plt.plot(trials['times'][trial_id],trials['ref'][trial_id])
-                #     plt.show()
+                if trial_id==0:
+                    plt.figure(); plt.plot(trials['times'][trial_id],trials['ref'][trial_id])
+                    plt.plot(trials['times'][trial_id],trials['dis'][trial_id])
+                    plt.show()
                 pts = []
                 ref_trajectory = np.zeros((time_length*sample_rate,3))
                 dis_trajectory = ref_trajectory.copy()
