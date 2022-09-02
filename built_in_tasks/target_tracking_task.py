@@ -589,11 +589,11 @@ class ScreenTargetTracking(TargetTracking, Window):
                 disturbance = False
                 disturbance_path = np.zeros((frames+2*buffer_space,1))
                 trajectory = np.zeros((frames+2*buffer_space,3))
-                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,time_length)
+                sum_of_sins_path = ScreenTargetTracking.generate_trajectories(y_primes_freq,time_length)
                 pts = []
                 trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
                 if np.any(idx == disturbance_trials):
-                    disterb = ScreenTargetTracking.generate_trajectory(disturbance_freq,time_length,0.75)
+                    disterb = ScreenTargetTracking.generate_trajectories(disturbance_freq,time_length,0.75)
                     disturbance_path = 5*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
                     disturbance = True
                 pts.append(trajectory)
@@ -633,7 +633,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 disturbance = False
                 disturbance_path = np.zeros((frames+buffer_space_bef+buffer_space_aft,1))
                 trajectory = np.zeros((frames+buffer_space_bef+buffer_space_aft,3))
-                sum_of_sins_path = ScreenTargetTracking.generate_trajectory(y_primes_freq,20)
+                sum_of_sins_path = ScreenTargetTracking.generate_trajectories(y_primes_freq,20)
                 pts = []
                 # cannot broadcast array of length 768 to 468
                 trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
