@@ -6,6 +6,7 @@ from features.hdf_features import SaveHDF
 from riglib.stereo_opengl.window import WindowDispl2D
 from riglib import experiment
 from features.peripheral_device_features import MouseControl
+from features.optitrack_features import OptitrackSimulate
 import cProfile
 import pstats
 from riglib.stereo_opengl.window import Window, Window2D 
@@ -27,13 +28,12 @@ def init_exp(base_class, feats, seq=None, **kwargs):
 
 class TestManualControlTasks(unittest.TestCase):
     
-    @unittest.skip("")
     def test_exp(self):
-        seq = TrackingTask.tracking_target_training(blocks,trials,trial_length,frequencies)
-        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
+        seq = ManualControl.centerout_2D()
+        exp = init_exp(ManualControl, [MouseControl, Window2D], seq)
         exp.rotation = 'xzy'
         exp.run()
-
+    
     def test_tracking(self):
         seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40)
         exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
