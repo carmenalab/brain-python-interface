@@ -122,7 +122,7 @@ class ManualControlMixin(traits.HasTraits):
 
         return [pt]
 
-    def move_effector(self):
+    def move_effector(self, pos_offset=[0,0,0], vel_offset=[0,0,0]):
         ''' 
         Sets the 3D coordinates of the cursor. For manual control, uses
         motiontracker / joystick / mouse data. If no data available, returns None
@@ -152,6 +152,10 @@ class ManualControlMixin(traits.HasTraits):
         except:
             if self.limit2d:
                 coords[1] = 0
+
+        # Add cursor disturbance
+        # print(pos_offset, flush=True)
+        coords += pos_offset + vel_offset
                 
         # Set cursor position
         if not self.velocity_control:

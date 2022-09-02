@@ -59,6 +59,10 @@ class TargetTracking(Sequence):
         self.trial_timed_out = True # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
+        self.pos_control = True
+        self.vel_control = False
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
@@ -93,6 +97,8 @@ class TargetTracking(Sequence):
 
     def _while_initiation(self):
         '''Nothing generic to do.'''
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
         pass
 
     def _end_initiation(self):
@@ -107,6 +113,15 @@ class TargetTracking(Sequence):
         # Calculate and sum distance between center of cursor and current target position
         self.total_distance_error += self.test_in_tracking() 
         
+        # Add Disturbance
+        cursor_pos = self.plant.get_endpoint_pos()
+        if self.disturbance_trial == True:
+            if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
+                self.pos_offset = self.disturbance_path[self.frame_index]
+                # print(self.frame_index, self.pos_offset, flush=True)
+            elif self.vel_control == True:
+                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
+
         # Move Target and trajectory to next frame so it appears to be moving
         self.update_frame()
         
@@ -128,6 +143,8 @@ class TargetTracking(Sequence):
 
     def _while_reward(self):
         '''Nothing generic to do.'''
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
         pass
 
     def _end_reward(self):
@@ -277,18 +294,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        prev_pt = np.copy(self.last_pt)
-        self.move_effector()
-        
-        # Add Disturbance
-        # Note: doesn't work with velocity control
-        if self.disturbance_trial and self.state == "target": # If disturbance trial use disturbed position
-            manual_pos = self.last_pt
-            manual_vel = self.last_pt - prev_pt
-            disturbance_position = self.add_disturbance(manual_pos, manual_vel,
-                self.disturbance_path[self.frame_index],self.disturbance_path[self.frame_index-1])
-            self.plant.set_endpoint_pos(disturbance_position)
-            self.last_pt = self.plant.get_endpoint_pos()
+        self.move_effector(pos_offset=np.asarray(self.pos_offset), vel_offset=np.asarray(self.vel_offset))
 
         ## Run graphics commands to show/hide the plant if the visibility has changed
         self.update_plant_visibility()
@@ -504,7 +510,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, ramp=0, boundaries=(-10,10,-10,10)):
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, ramp=0, boundaries=(-10,10,-10,10)): # TODO: cursor can't reach bottom of screen??
         '''
         Generates a sequence of 1D (z axis) target trajectories for debugging
 
@@ -531,15 +537,15 @@ class ScreenTargetTracking(TargetTracking, Window):
                 num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp
                 )
             for trial_id in range(ntrials):
-                if trial_id==0:
-                    plt.figure(); plt.plot(trials['times'][trial_id],trials['ref'][trial_id])
-                    plt.plot(trials['times'][trial_id],trials['dis'][trial_id])
-                    plt.show()
+                # if trial_id==0:
+                #     plt.figure(); plt.plot(trials['times'][trial_id],trials['ref'][trial_id])
+                #     plt.plot(trials['times'][trial_id],trials['dis'][trial_id])
+                #     plt.show()
                 pts = []
                 ref_trajectory = np.zeros((time_length*sample_rate,3))
                 dis_trajectory = ref_trajectory.copy()
-                ref_trajectory[:,2] = trials['ref'][trial_id]
-                dis_trajectory[:,2] = trials['dis'][trial_id]
+                ref_trajectory[:,2] = 10*trials['ref'][trial_id]
+                dis_trajectory[:,2] = 5*trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
                 yield idx, pts, disturbance, dis_trajectory
                 idx += 1
