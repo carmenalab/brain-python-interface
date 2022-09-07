@@ -12,12 +12,13 @@ import pstats
 from riglib.stereo_opengl.window import Window, Window2D 
 import unittest
 import numpy as np
+import os
+import socket
 
 def init_exp(base_class, feats, seq=None, **kwargs):
-    blocks = 2
-    trials = 2
-    trial_length = 5
-    frequencies = np.array([.5])
+    hostname = socket.gethostname()
+    if hostname in ['pagaiisland2']:
+        os.environ['DISPLAY'] = ':0.1'
     Exp = experiment.make(base_class, feats=feats)
     if seq is not None:
         exp = Exp(seq, **kwargs)
@@ -27,7 +28,7 @@ def init_exp(base_class, feats, seq=None, **kwargs):
     return exp
 
 class TestManualControlTasks(unittest.TestCase):
-    
+
     def test_exp(self):
         seq = ManualControl.centerout_2D()
         exp = init_exp(ManualControl, [MouseControl, Window2D], seq)
