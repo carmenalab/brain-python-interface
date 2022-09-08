@@ -92,7 +92,7 @@ class TargetTracking(Sequence):
         self.plant_position = []
 
     def _start_initiation(self):
-        self.frame_index = 0
+        self.frame_index = -30 # TODO
         self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
         self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
 
@@ -148,7 +148,24 @@ class TargetTracking(Sequence):
         pass
 
     def _while_tracking_out(self):
-        '''Nothing generic to do.'''
+        # Calculate and sum distance between center of cursor and current target position
+        self.total_distance_error += self.test_in_tracking() 
+        
+        # Add Disturbance
+        cursor_pos = self.plant.get_endpoint_pos()
+        if self.disturbance_trial == True:
+            if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
+                self.pos_offset = self.disturbance_path[self.frame_index]
+                # print(self.frame_index, self.pos_offset, flush=True)
+            elif self.vel_control == True:
+                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
+
+        # Move Target and trajectory to next frame so it appears to be moving
+        self.update_frame()
+        
+        # Check if the trial is over and there are no more target frames to display
+        if self.frame_index + 30 >= np.shape(self.targs)[0]:
+            self.trial_timed_out = True
         pass
 
     def _end_tracking_out(self):
