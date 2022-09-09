@@ -48,7 +48,7 @@ class TargetTracking(Sequence):
     # initial state
     state = "wait"
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
-    penalty_time = traits.Float(2.0, desc="Length of penalty")
+    penalty_time = traits.Float(20.0, desc="Length of penalty")
     max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
     
     def init(self):
@@ -92,9 +92,29 @@ class TargetTracking(Sequence):
         self.plant_position = []
 
     def _start_initiation(self):
-        self.frame_index = -30 # TODO
-        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
+        # debug purposes
+        size = self.window_size
+        # px = [[0.,0.],size]
+        SC = float(size[0])
+        xy = (0,self.targs[self.frame_index][2])
+        # print(px, size, SC)
+        
+        # px2xy (time, traj)
+        # print([[(_[0]-size[0]/2.)/SC,(_[1]-size[1]/2.)/SC] for _ in px])
+
+        # xy2px
+        px = [int(SC*xy[1]+size[0]/2.), int(size[1]/2.-SC*xy[0])]
+        # print(px)
+        # print(self.window_size)
+
+    
+        self.frame_index = 0 # TODO
+        # self.trajectory.move_to_position(np.array([(-self.frame_index)+21.333333,0,0]))
+        self.trajectory.move_to_position(np.array([-px[1]/60+SC/60/2,0,0]))
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]]))
+        print(self.targs[self.frame_index])
+
+
 
     def _while_initiation(self):
         '''Nothing generic to do.'''
@@ -128,15 +148,35 @@ class TargetTracking(Sequence):
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
-        if self.frame_index + 30 >= np.shape(self.targs)[0]:
+        if self.frame_index + 1 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
     
     def update_frame(self):
-        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        #if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
+        # debug purposes
+        size = self.window_size
+        # px = [[0.,0.],size]
+        SC = float(size[0])
+        xy = (0,self.targs[self.frame_index][2])
+        # print(px, size, SC)
+        
+        # px2xy (time, traj)
+        # print([[(_[0]-size[0]/2.)/SC,(_[1]-size[1]/2.)/SC] for _ in px])
+
+        # xy2px
+        px = [int(SC*xy[1]+size[0]/2.), int(size[1]/2.-SC*xy[0])]
+        # print(px)
+        # print(self.window_size)
+
+        # self.trajectory.move_to_position(np.array([-self.frame_index,0,0]))
+        # #if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
+        # self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
+        self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0]-size[1])/2/60,0,0]))
+        # print(-self.frame_index/3+(size[0]-size[1])/2/60)
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]]))
         self.trajectory.show()
         self.target.show()
+        # print(self.frame_index, flush=True)
+        # print(self.trajectory.trajectory[self.frame_index] == self.targs[self.frame_index][2])
         self.frame_index +=1
 
     def _end_tracking_in(self):
@@ -155,6 +195,7 @@ class TargetTracking(Sequence):
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
             if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
+                print(self.frame_index, np.shape(self.targs)[0])
                 self.pos_offset = self.disturbance_path[self.frame_index]
                 # print(self.frame_index, self.pos_offset, flush=True)
             elif self.vel_control == True:
@@ -164,7 +205,7 @@ class TargetTracking(Sequence):
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
-        if self.frame_index + 30 >= np.shape(self.targs)[0]:
+        if self.frame_index + 1 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
         pass
 
@@ -353,7 +394,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def run(self):
         '''
-        See experiment.Experiment.run for documentation.
+        See experiment.Experiment.run for trajectorydocumentation.
         '''
         # Fire up the plant. For virtual/simulation plants, this does little/nothing.
         self.plant.start()
@@ -382,6 +423,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         mytrajectory = np.array(np.squeeze(self.targs)[:,2])
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory)
         self.trial_length = np.shape(self.targs[:,2])[0]
+        # print(np.shape(self.trajectory.trajectory))
         for model in self.trajectory.graphics_models:
             self.add_model(model)
 
@@ -615,7 +657,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 ref_trajectory = np.zeros((time_length*sample_rate,3))
                 dis_trajectory = ref_trajectory.copy()
                 ref_trajectory[:,2] = 10*trials['ref'][trial_id]
-                dis_trajectory[:,2] = 5*trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
+                dis_trajectory[:,2] = 10*trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
                 yield idx, pts, disturbance, dis_trajectory
                 idx += 1
