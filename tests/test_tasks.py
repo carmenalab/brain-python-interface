@@ -37,7 +37,7 @@ class TestManualControlTasks(unittest.TestCase):
         exp.run()
     
     def test_tracking(self):
-        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40)
+        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=2, time_length=5, seed=40)
         exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
         exp.rotation = 'xzy'
         exp.run()

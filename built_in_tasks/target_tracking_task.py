@@ -92,29 +92,14 @@ class TargetTracking(Sequence):
         self.plant_position = []
 
     def _start_initiation(self):
-        # debug purposes
-        size = self.window_size
-        # px = [[0.,0.],size]
-        SC = float(size[0])
-        xy = (0,self.targs[self.frame_index][2])
-        # print(px, size, SC)
-        
-        # px2xy (time, traj)
-        # print([[(_[0]-size[0]/2.)/SC,(_[1]-size[1]/2.)/SC] for _ in px])
-
-        # xy2px
-        px = [int(SC*xy[1]+size[0]/2.), int(size[1]/2.-SC*xy[0])]
-        # print(px)
-        # print(self.window_size)
-
-    
-        self.frame_index = 0 # TODO
-        # self.trajectory.move_to_position(np.array([(-self.frame_index)+21.333333,0,0]))
-        self.trajectory.move_to_position(np.array([-px[1]/60+SC/60/2,0,0]))
+        size = self.window_size 
+        self.frame_index = 0
+        self.trajectory.move_to_position(np.array([10,0,0])) # for cable
+        # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
+        # print(self.trajectory.get_position())
         self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]]))
-        print(self.targs[self.frame_index])
-
-
+        # print(self.target.get_position())
+        # print(self.trajectory.trajectory[self.frame_index], self.targs[self.frame_index][2])
 
     def _while_initiation(self):
         '''Nothing generic to do.'''
@@ -139,7 +124,7 @@ class TargetTracking(Sequence):
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
             if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
-                self.pos_offset = self.disturbance_path[self.frame_index]
+                self.pos_offset = self.disturbance_path[self.frame_index] # TODO: "index is out of bounds" error
                 # print(self.frame_index, self.pos_offset, flush=True)
             elif self.vel_control == True:
                 self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
@@ -152,31 +137,16 @@ class TargetTracking(Sequence):
             self.trial_timed_out = True
     
     def update_frame(self):
-        # debug purposes
         size = self.window_size
-        # px = [[0.,0.],size]
-        SC = float(size[0])
-        xy = (0,self.targs[self.frame_index][2])
-        # print(px, size, SC)
+        # self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0])/2/60,0,0])) # for cable
+        self.trajectory.move_to_position(np.array([-self.frame_index/3+10,0,0]))
+        # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
         
-        # px2xy (time, traj)
-        # print([[(_[0]-size[0]/2.)/SC,(_[1]-size[1]/2.)/SC] for _ in px])
-
-        # xy2px
-        px = [int(SC*xy[1]+size[0]/2.), int(size[1]/2.-SC*xy[0])]
-        # print(px)
-        # print(self.window_size)
-
-        # self.trajectory.move_to_position(np.array([-self.frame_index,0,0]))
-        # #if self.frame_index >= 0: #Offset tracker to move in sync with trajectory
-        # self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+30][2]]))
-        self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0]-size[1])/2/60,0,0]))
-        # print(-self.frame_index/3+(size[0]-size[1])/2/60)
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]]))
+        print(self.trajectory.get_position())
+        # print(-self.frame_index/3+10)
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]])) # xzy
         self.trajectory.show()
         self.target.show()
-        # print(self.frame_index, flush=True)
-        # print(self.trajectory.trajectory[self.frame_index] == self.targs[self.frame_index][2])
         self.frame_index +=1
 
     def _end_tracking_in(self):
@@ -195,7 +165,7 @@ class TargetTracking(Sequence):
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
             if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
-                print(self.frame_index, np.shape(self.targs)[0])
+                # print(self.frame_index, np.shape(self.targs))
                 self.pos_offset = self.disturbance_path[self.frame_index]
                 # print(self.frame_index, self.pos_offset, flush=True)
             elif self.vel_control == True:
@@ -316,8 +286,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     is_bmi_seed = True
 
     # Runtime settable traits
-    target_radius = traits.Float(2, desc="Radius of targets in cm")
-    trajectory_radius = traits.Float(.25, desc="Radius of targets in cm")
+    target_radius = traits.Float(.6, desc="Radius of targets in cm") #2
+    trajectory_radius = traits.Float(.5, desc="Radius of targets in cm")
     trajectory_color = traits.OptionsList("gold", *target_colors, desc="Color of the trajectory", bmi3d_input_options=list(target_colors.keys()))
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
@@ -421,11 +391,17 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Set up the next trajectory
         mytrajectory = np.array(np.squeeze(self.targs)[:,2])
+        print(np.shape(mytrajectory))
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory)
+
+        # self.trajectory = []
+        # for i in range(self.window_size[0]/60):
+        #     self.trajectory.append(VirtualRectangularTarget(target_width=self.trajectory_radius*2, target_height=self.trajectory_radius*2, target_color=target_colors[self.trajectory_color]))
+        # print(type(self.trajectory), len(self.trajectory), type(self.trajectory[0]))
+
         self.trial_length = np.shape(self.targs[:,2])[0]
-        # print(np.shape(self.trajectory.trajectory))
         for model in self.trajectory.graphics_models:
-            self.add_model(model)
+                self.add_model(model)
 
         self.target.hide()
         self.trajectory.hide()
