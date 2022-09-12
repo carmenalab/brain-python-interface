@@ -35,6 +35,22 @@ rotations = dict(
     xyz = np.identity(4),
 )
 
+exp_rotations = dict(
+    none = np.identity(4),
+    about_x_90 = np.array(
+        [[1, 0, 0, 0], 
+        [0, 0, 1, 0], 
+        [0, 1, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    about_x_minus_90 = np.array(
+        [[1, 0, 0, 0], 
+        [0, 0, -1, 0], 
+        [0, 1, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+)
+
 class ManualControlMixin(traits.HasTraits):
     '''Target capture task where the subject operates a joystick
     to control a cursor. Targets are captured by having the cursor
@@ -46,6 +62,7 @@ class ManualControlMixin(traits.HasTraits):
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
     scale = traits.Float(1.0, desc="Control scale factor")
+    exp_rotation = traits.OptionsList(*exp_rotations, desc="Experimental rotation matrix", bmi3d_input_options=list(exp_rotations.keys()))
     pertubation_rotation = traits.Float(0.0, desc="rotation in the x,y plane in degrees")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
@@ -101,7 +118,7 @@ class ManualControlMixin(traits.HasTraits):
             [0, 0, 0, 1]]
         )
         old = np.concatenate((np.reshape(coords, -1), [1]))
-        new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
+        new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation], exp_rotations[self.exp_rotation]))
         pertubation_rot = R.from_euler('y', self.pertubation_rotation, degrees=True)
         return np.matmul(pertubation_rot.as_matrix(), new[0:3])
 
