@@ -27,6 +27,7 @@ class E3Video(traits.HasTraits):
         try:
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
+                self.e3v_filename = take
                 e3v = E3VisionInterface(take)
                 e3v.update_camera_status()
                 e3v.start_rec()
@@ -72,7 +73,7 @@ class E3Video(traits.HasTraits):
         print("Saving WM e3vision files to database...")
         try:
             suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
-            database.save_data(self.filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
+            database.save_data(self.e3v_filename, "e3v", saveid, False, False, suffix) # Make sure you actually have an "e3v" system added!
         except Exception as e:
             print(e)
             return False
