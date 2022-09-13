@@ -68,9 +68,12 @@ class TargetTracking(Sequence):
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
         self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # yield idx, pts, disturbance, dis_trajectory
-        
+
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
+
+        lookahead = np.zeros((self.lookahead,np.shape(self.targs)[1])) # (33,3)
+        self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+33,3)
 
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information
@@ -94,10 +97,10 @@ class TargetTracking(Sequence):
     def _start_initiation(self):
         size = self.window_size 
         self.frame_index = 0
-        self.trajectory.move_to_position(np.array([10,0,0])) # for cable
+        self.trajectory.move_to_position(np.array([0,0,0])) # for cable - tablet screen x-axis ranges 0,41.33333, center 22ish
         # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
         # print(self.trajectory.get_position())
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]]))
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # tablet screen x-axis ranges -19,19, center 0
         # print(self.target.get_position())
         # print(self.trajectory.trajectory[self.frame_index], self.targs[self.frame_index][2])
 
@@ -133,18 +136,17 @@ class TargetTracking(Sequence):
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
-        if self.frame_index + 1 >= np.shape(self.targs)[0]:
+        if self.frame_index+self.lookahead + 1 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
     
     def update_frame(self):
         size = self.window_size
         # self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0])/2/60,0,0])) # for cable
-        self.trajectory.move_to_position(np.array([-self.frame_index/3+10,0,0]))
+        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
         # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
-        
-        print(self.trajectory.get_position())
-        # print(-self.frame_index/3+10)
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index][2]])) # xzy
+        # print(self.trajectory.get_position())
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # xzy
+        print(self.frame_index, self.frame_index+self.lookahead)
         self.trajectory.show()
         self.target.show()
         self.frame_index +=1
@@ -160,7 +162,7 @@ class TargetTracking(Sequence):
     def _while_tracking_out(self):
         # Calculate and sum distance between center of cursor and current target position
         self.total_distance_error += self.test_in_tracking() 
-        
+        print(self.frame_index, self.trial_timed_out) # TODO: cycle doesn't end even when trial_timed_out is False
         # Add Disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -175,7 +177,7 @@ class TargetTracking(Sequence):
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
-        if self.frame_index + 1 >= np.shape(self.targs)[0]:
+        if self.frame_index+self.lookahead + 1 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
         pass
 
@@ -309,6 +311,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
+        self.lookahead = 33 # points needed in cable trajectory to fill left half of screen & account for longer distance between first 2 points
         
         # Add graphics models for the plant and targets to the window
         if hasattr(self.plant, 'graphics_models'):
@@ -350,8 +353,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
         
-        #Save the target position at each cycle. 
-        if self.trial_timed_out or  self.trial_length == self.frame_index:
+        # Save the target position at each cycle. 
+        if self.trial_timed_out or self.trial_length == self.frame_index:
              self.task_data['current_trajectory_coord'] = [0,0,0]
         else:
             self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
@@ -390,9 +393,13 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.target.hide()
 
         # Set up the next trajectory
+        # self.targs[:,2] = np.zeros(len(self.targs[:,2])) # distance between first two points in cable is different - longer than any other two points
+        # self.targs[33::10,2] = 10
+        # print(self.targs)
         mytrajectory = np.array(np.squeeze(self.targs)[:,2])
+        mytrajectory[:self.lookahead] = mytrajectory[self.lookahead]
         print(np.shape(mytrajectory))
-        self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color],trajectory=mytrajectory)
+        self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=mytrajectory[2:])
 
         # self.trajectory = []
         # for i in range(self.window_size[0]/60):
@@ -478,6 +485,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             t = np.asarray(t).copy(); t.shape = (t.size,1)
 
             r = ramp
+            print(r, flush=True)
 
             trajectory = ScreenTargetTracking.calc_sum_of_sines(t, frequencies, amplitudes, phase_shifts)
 
@@ -498,13 +506,13 @@ class ScreenTargetTracking(TargetTracking, Window):
         dt = 1/hz # sec -- sampling period
 
         T0 = base_period # sec -- base period
-        w0 = 1/T0 # Hz -- base frequency
+        w0 = 1./T0 # Hz -- base frequency
 
         r = ramp # "ramp" duration (see sum_of_sines_ramp)
         P = time_length/T0 # number of periods in signal
         T = P*T0+r # sec -- signal duration
-        dw = 1/T # Hz -- frequency resolution
-        W = 1/dt/2 # Hz -- signal bandwidth
+        dw = 1./T # Hz -- frequency resolution
+        W = 1./dt/2 # Hz -- signal bandwidth
 
         full_primes = np.asarray([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 
             101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199])
@@ -630,7 +638,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 #     plt.plot(trials['times'][trial_id],trials['dis'][trial_id])
                 #     plt.show()
                 pts = []
-                ref_trajectory = np.zeros((time_length*sample_rate,3))
+                ref_trajectory = np.zeros(((time_length+ramp)*sample_rate,3))
                 dis_trajectory = ref_trajectory.copy()
                 ref_trajectory[:,2] = 10*trials['ref'][trial_id]
                 dis_trajectory[:,2] = 10*trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
