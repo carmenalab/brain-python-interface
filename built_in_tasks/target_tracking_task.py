@@ -100,15 +100,25 @@ class TargetTracking(Sequence):
             self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
-        # if self.disturbance_trial:
-        #     print("Disturbance trial")
-
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
 
-        #saved plant poitions
+        # number of times this trajectory has been attempted
+        self.tries = 0
+
+        # index of current target presented to subject
+        self.target_index = -1
+
+        # saved plant poitions
         self.plant_position = []
+
+    def _start_trajectory(self):
+        self.target_index += 1
+
+    def _end_trajectory(self):
+        '''Nothing generic to do.'''
+        pass
 
     def _start_initiation(self):
         size = self.window_size 
@@ -132,7 +142,20 @@ class TargetTracking(Sequence):
         self.total_distance_error = 0
         pass
 
+    def _start_hold(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _while_hold(self):
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
+
+    def _end_hold(self):
+        '''Nothing generic to do.'''
+        pass
+
     def _start_tracking_in(self):
+        '''Nothing generic to do.'''
         pass
 
     def _while_tracking_in(self):
@@ -154,18 +177,6 @@ class TargetTracking(Sequence):
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead + 1 >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
-    
-    def update_frame(self):
-        size = self.window_size
-        # self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0])/2/60,0,0])) # for cable
-        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
-        # print(self.trajectory.get_position())
-        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # xzy
-        print(self.frame_index, self.frame_index+self.lookahead)
-        self.trajectory.show()
-        self.target.show()
-        self.frame_index +=1
 
     def _end_tracking_in(self):
         '''Nothing generic to do.'''
@@ -201,19 +212,61 @@ class TargetTracking(Sequence):
         '''Nothing generic to do.'''
         pass
 
+    def _start_timeout_penalty(self):
+        '''Nothing generic to do.'''
+        # self._increment_tries()
+        pass
+
+    def _while_timeout_penalty(self):
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
+
+    def _end_timeout_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _start_hold_penalty(self):
+        '''Nothing generic to do.'''
+        # self._increment_tries()
+        pass
+
+    def _while_hold_penalty(self):
+        self.pos_offset = [0,0,0]
+        self.vel_offset = [0,0,0]
+
+    def _end_hold_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
     def _start_reward(self):
         '''Nothing generic to do.'''
         pass
 
     def _while_reward(self):
-        '''Nothing generic to do.'''
         self.pos_offset = [0,0,0]
         self.vel_offset = [0,0,0]
-        pass
 
     def _end_reward(self):
         '''Nothing generic to do.'''
         pass
+  
+    def update_frame(self):
+        size = self.window_size
+        # self.trajectory.move_to_position(np.array([-self.frame_index/3+(size[0])/2/60,0,0])) # for cable
+        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
+        # self.trajectory.move_to_position(np.array([0,0,0]))#self.targs[self.frame_index][2]])) # for rectangle
+        # print(self.trajectory.get_position())
+        self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # xzy
+        print(self.frame_index, self.frame_index+self.lookahead)
+        self.trajectory.show()
+        self.target.show()
+        self.frame_index +=1
+
+    def add_disturbance(self, current_position, current_velocity, disturbance, prev_disturbance):
+        if self.limit1d:
+            return current_position + current_velocity + [0,0,(disturbance - prev_disturbance)]
+        else:
+            raise NotImplementedError("No 2D disturbance!")
 
     ################## State transition test functions ##################
     def _test_start_trial(self, time_in_state):
@@ -221,45 +274,70 @@ class TargetTracking(Sequence):
             - a random delay
             - require some initiation action
         '''
-        return False
+        return True
 
-    def _test_start_tracking(self, time_in_state):
-        '''
-        Test if the cursor is inside the target to initiate trials. 
-        '''
-        cursor_pos = self.plant.get_endpoint_pos()
-        d = np.linalg.norm(cursor_pos - self.target.get_position())
-        return d <= (self.target_radius - self.cursor_radius)
+    def _test_timeout(self, time_in_state):
+        return time_in_state > self.timeout_time or self.pause
 
-    def _test_success(self, time_in_state):
+    def _test_hold_complete(self, time_in_state):
         '''
-        Test if the current state is successful and should transition to reward state.
-        In order to be successful it needs to be the end of the trial and the total 
-        distance error must be less than max_distance_error cm on average of the whole trial.
-        This means the center of the cursor was on average within max_distance_error cm of the center of the target.
-        '''
-        return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
+        Test whether the target is held long enough to declare the
+        trial a success
 
-    def _test_leave_target(self, time_in_state):
+        Possible options
+            - Target held for the minimum requred time (implemented here)
+            - Sensorized object moved by a certain amount
+            - Sensorized object moved to the required location
+            - Manually triggered by experimenter
         '''
-        Test if the cursor is outside the
-        '''
-        cursor_pos = self.plant.get_endpoint_pos()
-        d = np.linalg.norm(cursor_pos - self.target.get_position())
-        return d > (self.target_radius - self.cursor_radius)
+        return time_in_state > self.hold_time
+
+    def _test_trial_complete(self, time_in_state):
+        '''Test whether all targets in sequence have been acquired'''
+        return self.target_index == self.chain_length-1 # TODO
+
+    # def _test_trial_abort(self, time_in_state):
+    #     '''Test whether the target capture sequence should just be skipped due to too many failures'''
+    #     return (not self._test_trial_complete(time_in_state)) and (self.tries==self.max_attempts)
 
     def _test_timeout_penalty_end(self, time_in_state):
-        '''  
-        Test the penalty state has ended.
-        '''
-        return time_in_state > self.penalty_time
+        return time_in_state > self.timeout_penalty_time
+
+    def _test_hold_penalty_end(self, time_in_state):
+        return time_in_state > self.hold_penalty_time
 
     def _test_reward_end(self, time_in_state):
-        '''
-        Test the reward state has ended
-        '''
         return time_in_state > self.reward_time
 
+    def _test_enter_target(self, time_in_state):
+        '''This function is task-specific and not much can be done generically'''
+        return False
+
+    def _test_leave_target(self, time_in_state):
+        '''This function is task-specific and not much can be done generically'''
+        return self.pause
+
+    # def _test_success(self, time_in_state):
+    #     '''
+    #     Test if the current state is successful and should transition to reward state.
+    #     In order to be successful it needs to be the end of the trial and the total 
+    #     distance error must be less than max_distance_error cm on average of the whole trial.
+    #     This means the center of the cursor was on average within max_distance_error cm of the center of the target.
+    #     '''
+    #     return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
+
+    # def test_in_tracking(self):
+    #     '''
+    #     return the distance between center of cursor and cednter of the target
+    #     '''
+    #     cursor_pos = self.plant.get_endpoint_pos()
+    #     d = np.linalg.norm(cursor_pos - self.target.get_position())
+    #     if d <= (self.target_radius - self.cursor_radius):
+    #         self.target.cue_trial_end_success()
+    #     else:
+    #         self.target.reset()
+    #     return d
+    
     def update_report_stats(self):
         '''
         see experiment.Experiment.update_report_stats for docs
@@ -267,24 +345,6 @@ class TargetTracking(Sequence):
         super().update_report_stats()
         self.reportstats['Trial #'] = self.calc_trial_num()
         self.reportstats['Reward/min'] = np.round(self.calc_events_per_min('reward', 120.), decimals=2)
-    
-    def test_in_tracking(self):
-        '''
-        return the distance between center of cursor and cednter of the target
-        '''
-        cursor_pos = self.plant.get_endpoint_pos()
-        d = np.linalg.norm(cursor_pos - self.target.get_position())
-        if d <= (self.target_radius - self.cursor_radius):
-            self.target.cue_trial_end_success()
-        else:
-            self.target.reset()
-        return d
-    
-    def add_disturbance(self, current_position, current_velocity, disturbance, prev_disturbance):
-        if self.limit1d:
-            return current_position + current_velocity + [0,0,(disturbance - prev_disturbance)]
-        else:
-            raise NotImplementedError("No 2D disturbance!")
 
 
 class ScreenTargetTracking(TargetTracking, Window):
@@ -337,8 +397,11 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            # This is the target at the center being followed by the user
+            # This is the center target being followed by the user
             self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+
+            # This is the trajectory that spans the screen
+            self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color])
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -347,7 +410,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
-        self.add_dtype('current_trajectory_coord', 'f8', (3,))
+        self.add_dtype('current_trajectory_coord', 'f8', (3,)) # TODO what is this used for?
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
@@ -401,14 +464,35 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.plant_vis_prev = self.plant_visible
             self.plant.set_visibility(self.plant_visible)
 
+    #### TEST FUNCTIONS ####
+    def _test_enter_target(self, time_in_state):
+        '''
+        Test if the cursor is inside the center target 
+        '''
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.target.get_position())
+        return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(time_in_state)
+
+    def _test_leave_target(self, time_in_state):
+        '''
+        Test if the cursor is outside the center target
+        '''
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.target.get_position())
+        return d > (self.target_radius - self.cursor_radius) or super()._test_leave_target(time_in_state)
+
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
+        
         if self.calc_trial_num() == 0:
-            self.add_model(self.target.graphics_models[0])
-            self.target.hide()
+            # self.add_model(self.target.graphics_models[0])
+            # self.target.hide()
+            for model in self.target.graphics_models:
+                self.add_model(model)
+                self.target.hide()
 
-        # Set up the next trajectory
+        # Set up the next trajectory # TODO FIRST
         # self.targs[:,2] = np.zeros(len(self.targs[:,2])) # distance between first two points in cable is different - longer than any other two points
         # self.targs[33::10,2] = 10
         # print(self.targs)
