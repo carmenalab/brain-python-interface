@@ -1,6 +1,7 @@
 '''
 A generic target tracking task
 '''
+from multiprocessing.connection import wait
 import numpy as np
 import time
 import os
@@ -14,6 +15,7 @@ from riglib.stereo_opengl import ik
 from riglib import plants
 
 from riglib.stereo_opengl.window import Window
+from robot import trajectory
 from .target_graphics import *
 
 import matplotlib.pyplot as plt
@@ -37,19 +39,33 @@ class TargetTracking(Sequence):
     common type of motor control tracking tasks.
     '''
     status = dict(
-        wait = dict(start_trial="initiation"),
-        initiation = dict(start_tracking="tracking_in"),
-        tracking_in = dict(success="reward", leave_target ="tracking_out"),
-        tracking_out = dict(start_tracking="tracking_in", timeout_penalty_end = "wait"),
-        #timeout_penalty = dict(timeout_penalty_end = "wait", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+        wait = dict(start_trial="trajectory"),
+        trajectory = dict(enter_target="hold", timeout="timeout_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="tracking_in"),
+        tracking_in = dict(trial_complete="reward", leave_target="tracking_out"),
+        tracking_out = dict(trial_complete="reward", enter_target="tracking_in", tracking_out_timeout="wait"),
+        timeout_penalty = dict(timeout_penalty_end="wait", end_state=True),
+        hold_penalty = dict(hold_penalty_end="wait", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True),
+        # wait = dict(start_trial="initiation"),
+        # initiation = dict(start_tracking="tracking_in"), # timeout="timeout_penalty"
+        # tracking_in = dict(success="reward", leave_target ="tracking_out"),
+        # tracking_out = dict(start_tracking="tracking_in", timeout_penalty_end = "wait"),
+        # #timeout_penalty = dict(timeout_penalty_end = "wait", end_state=True),
+        # reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
     # initial state
     state = "wait"
+    tries = 0 # Helper variable to keep track of the number of failed attempts at a given trajectory
+
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
-    penalty_time = traits.Float(20.0, desc="Length of penalty")
-    max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
+    timeout_time = traits.Float(10, desc="Time allowed to go between trajectories")
+    timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
+    hold_time = traits.Float(0, desc="Length of hold required at target before trajectory begins")
+    hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
+    tracking_out_timeout_time = traits.Float(10, desc="Time allowed to be tracking outside the target") # AKA tolerance time
+    # max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
     
     def init(self):
         self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance_path', 'f8',(3,)), ('is_disturbance', '?')])
