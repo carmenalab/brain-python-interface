@@ -67,14 +67,14 @@ class ManualControlMixin(traits.HasTraits):
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
 
-    def _test_trial_complete(self, ts):
-        if self.target_index==self.chain_length-1 :
-            if self.random_rewards:
-                if not self.rand_reward_set_flag: #reward time has not been set for this iteration
-                    self.reward_time = np.max([2*(np.random.rand()-0.5) + self.reward_time_base, self.reward_time_base/2]) #set randomly with min of base / 2
-                    self.rand_reward_set_flag =1
-                    #print self.reward_time, self.rand_reward_set_flag
-            return self.target_index==self.chain_length-1
+    # def _test_trial_complete(self, ts):
+    #     if self.target_index==self.chain_length-1 :
+    #         if self.random_rewards:
+    #             if not self.rand_reward_set_flag: #reward time has not been set for this iteration
+    #                 self.reward_time = np.max([2*(np.random.rand()-0.5) + self.reward_time_base, self.reward_time_base/2]) #set randomly with min of base / 2
+    #                 self.rand_reward_set_flag =1
+    #                 #print self.reward_time, self.rand_reward_set_flag
+    #         return self.target_index==self.chain_length-1
 
     def _test_reward_end(self, ts):
         #When finished reward, reset flag.

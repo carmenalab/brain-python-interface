@@ -46,13 +46,8 @@ class TargetTracking(Sequence):
         tracking_out = dict(trial_complete="reward", enter_target="tracking_in", tracking_out_timeout="wait"),
         timeout_penalty = dict(timeout_penalty_end="wait", end_state=True),
         hold_penalty = dict(hold_penalty_end="wait", end_state=True),
+        # tracking_out_penalty = dict(tracking_out_penalty_end="wait", end_state=True) # TODO implement a penalty state before wait
         reward = dict(reward_end="wait", stoppable=False, end_state=True),
-        # wait = dict(start_trial="initiation"),
-        # initiation = dict(start_tracking="tracking_in"), # timeout="timeout_penalty"
-        # tracking_in = dict(success="reward", leave_target ="tracking_out"),
-        # tracking_out = dict(start_tracking="tracking_in", timeout_penalty_end = "wait"),
-        # #timeout_penalty = dict(timeout_penalty_end = "wait", end_state=True),
-        # reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
     # initial state
@@ -61,10 +56,11 @@ class TargetTracking(Sequence):
 
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between trajectories")
-    timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
-    hold_time = traits.Float(.2, desc="Length of hold required at target before trajectory begins")
+    timeout_penalty_time = traits.Float(1, desc="Length of penalty time for initiation timeout error")
+    hold_time = traits.Float(.1, desc="Time of hold required at target before trajectory begins")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
-    tracking_out_timeout_time = traits.Float(10, desc="Time allowed to be tracking outside the target") # AKA tolerance time
+    tracking_out_time = traits.Float(2, desc="Time allowed to be tracking outside the target") # AKA tolerance time
+    # tracking_out_penalty_time = traits.Float(1, desc="Length of penalty time for tracking out error")
     # max_distance_error = traits.Float(2, desc="Maximum deviation from the trajectory for reward (cm)")
     
     def init(self):
@@ -83,13 +79,14 @@ class TargetTracking(Sequence):
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
-        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # yield idx, pts, disturbance, dis_trajectory
+        # yield idx, pts, disturbance, dis_trajectory :
+        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
 
-        lookahead = np.zeros((self.lookahead,np.shape(self.targs)[1])) # (33,3)
-        self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+33,3)
+        lookahead = np.zeros((self.lookahead,np.shape(self.targs)[1])) # (30,3)
+        self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
 
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information
@@ -228,15 +225,15 @@ class TargetTracking(Sequence):
 
     def _test_trial_complete(self, time_in_state):
         '''Test whether all targets in sequence have been acquired'''
-        return self.frame_index == self.trajectory_length-1
+        return self.frame_index + self.lookahead == self.trajectory_length
 
     # def _test_trial_abort(self, time_in_state):
     #     '''Test whether the target capture sequence should just be skipped due to too many failures'''
     #     return (not self._test_trial_complete(time_in_state)) and (self.tries==self.max_attempts)
 
-    def _test_tracking_out_timeout(self, time_in_state):
+    def _test_tracking_out_timeout(self, time_in_state): # TODO right now, this would test when to end the tracking out timeout
         '''This function is task-specific and not much can be done generically'''
-        return time_in_state > self.tracking_out_timeout_time
+        return time_in_state > self.tracking_out_time
 
     def _test_timeout_penalty_end(self, time_in_state):
         return time_in_state > self.timeout_penalty_time
@@ -303,7 +300,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     # Runtime settable traits
     target_radius = traits.Float(.6, desc="Radius of targets in cm") #2
-    trajectory_radius = traits.Float(.5, desc="Radius of targets in cm")
+    trajectory_radius = traits.Float(.6, desc="Radius of targets in cm")
     trajectory_color = traits.OptionsList("gold", *target_colors, desc="Color of the trajectory", bmi3d_input_options=list(target_colors.keys()))
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
@@ -312,7 +309,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
-    starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
+    starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor')
+    fps = traits.Float(60, desc="Rate at which the FSM is called in Hz") # originally set by class Experiment
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -325,7 +323,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
-        self.lookahead = 33 # points needed in cable trajectory to fill left half of screen & account for longer distance between first 2 points
+        self.lookahead = 30 # number of frames to create a "lookahead" window of 0.5 seconds (half the screen)
         
         # Add graphics models for the plant and targets to the window
         if hasattr(self.plant, 'graphics_models'):
@@ -405,8 +403,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def update_frame(self):
         self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # xzy
-        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0]))
-        # print(self.frame_index, self.frame_index+self.lookahead)
+        self.trajectory.move_to_position(np.array([-self.frame_index/3,0,0])) # same update constant works for 60 and 120 hz
         self.target.show()
         self.trajectory.show()
         self.frame_index +=1
@@ -431,23 +428,22 @@ class ScreenTargetTracking(TargetTracking, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
+        print('WAIT')
                 
         if self.calc_trial_num() == 0:
-            # self.add_model(self.target.graphics_models[0])
-            # self.target.hide()
-
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
             for model in self.target.graphics_models:
                 self.add_model(model)
                 self.target.hide()
+                
+            for model in self.trajectory.graphics_models:
+                self.add_model(model)
+                self.trajectory.hide()
 
         # Set up the next trajectory
-        next_trajectory = np.zeros(len(self.targs)) # np.array(np.squeeze(self.targs)[:,2])
+        next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
-        # print(np.shape(next_trajectory))
-        self.trajectory.trajectory = next_trajectory
-        print('SET TRAJ')
-        # self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=mytrajectory[2:])
+        self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
         self.trial_length = np.shape(self.targs[:,2])[0]
         for model in self.trajectory.graphics_models:
@@ -460,14 +456,13 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_trajectory()
         if self.frame_index == 0:
             self.target.move_to_position(np.array([0,0,self.targs[self.frame_index+self.lookahead][2]])) # tablet screen x-axis ranges -19,19, center 0
-            # print(self.target.get_position())
             self.trajectory.move_to_position(np.array([0,0,0])) # tablet screen x-axis ranges 0,41.33333, center 22ish
+            # print(self.target.get_position())
             # print(self.trajectory.get_position())
             print('SHOW TRAJ')
 
             self.target.show()
-            print(self.trajectory.trajectory) # printing the trajectory is zeros, even though showing sinusoid
-            # self.trajectory.show()
+            self.trajectory.show()
             self.sync_event('TARGET_ON')
 
     def _start_hold(self):
@@ -487,7 +482,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
             if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
-                self.pos_offset = self.disturbance_path[self.frame_index] # TODO: "index is out of bounds" error
+                self.pos_offset = self.disturbance_path[self.frame_index]
                 # print(self.frame_index, self.pos_offset, flush=True)
             elif self.vel_control == True:
                 self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
@@ -507,11 +502,12 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_tracking_out(self):
         super()._while_tracking_out()
 
+        # print(self.frame_index)
         # Add Disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
             if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
-                self.pos_offset = self.disturbance_path[self.frame_index] # TODO: "index is out of bounds" error
+                self.pos_offset = self.disturbance_path[self.frame_index]
                 # print(self.frame_index, self.pos_offset, flush=True)
             elif self.vel_control == True:
                 self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
@@ -551,8 +547,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._end_hold_penalty()
         self.sync_event('TRIAL_END')
 
-    def _start_reward(self):
+    def _start_reward(self): # right now, reward is happening after every True trial_complete
         super()._start_reward()
+        print('REWARD')
         self.target.cue_trial_end_success()
         self.sync_event('REWARD')
 
@@ -601,7 +598,6 @@ class ScreenTargetTracking(TargetTracking, Window):
             t = np.asarray(t).copy(); t.shape = (t.size,1)
 
             r = ramp
-            # print(r, flush=True)
 
             trajectory = ScreenTargetTracking.calc_sum_of_sines(t, frequencies, amplitudes, phase_shifts)
 
@@ -722,7 +718,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, ramp=0, boundaries=(-10,10,-10,10)): # TODO: cursor can't reach bottom of screen??
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, boundaries=(-10,10,-10,10)): # TODO: cursor can't reach bottom of screen??
         '''
         Generates a sequence of 1D (z axis) target trajectories for debugging
 
@@ -742,7 +738,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         idx = 0
         disturbance = True
-        sample_rate = 60
         base_period = 20
         for block_id in range(nblocks):                
             trials, trial_order = ScreenTargetTracking.generate_trajectories(
