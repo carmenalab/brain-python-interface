@@ -90,6 +90,7 @@ class QwalorLink(singleton.Singleton):
     def send(self, config_packet):
         self.link.write(config_packet)
         self.link.flush()
+        time.sleep(0.005)
 
 class QwalorLaserSerial:
     '''
@@ -109,10 +110,10 @@ class QwalorLaserSerial:
         '''
         if arduino_port == None:
             arduino_port = f"/dev/laser_ch{laser_channel}"
-        self.board = pyfirmata.Arduino(arduino_port)
         self.trigger_pin = arduino_pin
         self.channel = laser_channel
         self._set_config()
+        self.board = pyfirmata.Arduino(arduino_port)
 
     def _set_config(self):
         config_packet = get_config_packet(self.channel, self.freq, self.gain, self.mode)

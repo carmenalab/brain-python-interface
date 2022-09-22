@@ -151,7 +151,7 @@ class ManualControlMixin(traits.HasTraits):
         if raw_coords is None or len(raw_coords) < 1:
             self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
             self.update_report_stats()
-            self.task_data['manual_input'] = np.empty((3,))
+            self.task_data['manual_input'] = np.ones((3,))*np.nan
             return
 
         self.task_data['manual_input'] = raw_coords.copy()

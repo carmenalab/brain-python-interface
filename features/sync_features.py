@@ -61,7 +61,7 @@ rig1_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(rig1_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 11,
+    sync_protocol_version = 12,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),
@@ -118,6 +118,7 @@ class HDFSync(traits.HasTraits):
         # Send a sync impulse to set t0
         time.sleep(self.sync_params['sync_pulse_width']*10)
         self.has_sync_event = False
+        print("Sending t0 event")
         self.sync_event('TIME_ZERO', 0, immediate=True)
         self.t0 = time.perf_counter()
         time.sleep(self.sync_params['sync_pulse_width']*10)
@@ -138,7 +139,9 @@ class HDFSync(traits.HasTraits):
         self.sync_event_record['code'] = code
         if immediate:
             self.sinks.send("sync_events", self.sync_event_record)
-            self.sync_code(self.sync_event_record['code'])
+            self.sync_code(int(self.sync_event_record['code']) << self.sync_params['event_sync_data_shift'])
+            if hasattr(self, 'pulse'):
+                self.pulse.join()
             self.has_sync_event = False
         else:
             self.has_sync_event = True
