@@ -71,8 +71,11 @@ class TargetTracking(Sequence):
         self.trial_timed_out = True # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
-        self.pos_control = True
-        self.vel_control = False
+
+        if self.velocity_control:
+            print('VELOCITY CONTROL')
+        else:
+            print('POSITION CONTROL') # default is position control - see manualcontrolmixin
         self.pos_offset = [0,0,0]
         self.vel_offset = [0,0,0]
 
@@ -266,27 +269,6 @@ class TargetTracking(Sequence):
     def _test_leave_target(self, time_in_state):
         '''This function is task-specific and not much can be done generically'''
         return self.pause
-
-    # def _test_success(self, time_in_state):
-    #     '''
-    #     Test if the current state is successful and should transition to reward state.
-    #     In order to be successful it needs to be the end of the trial and the total 
-    #     distance error must be less than max_distance_error cm on average of the whole trial.
-    #     This means the center of the cursor was on average within max_distance_error cm of the center of the target.
-    #     '''
-    #     return self.trial_timed_out and self.total_distance_error/self.frame_index < self.max_distance_error
-
-    # def test_in_tracking(self):
-    #     '''
-    #     return the distance between center of cursor and cednter of the target
-    #     '''
-    #     cursor_pos = self.plant.get_endpoint_pos()
-    #     d = np.linalg.norm(cursor_pos - self.target.get_position())
-    #     if d <= (self.target_radius - self.cursor_radius):
-    #         self.target.cue_trial_end_success()
-    #     else:
-    #         self.target.reset()
-    #     return d
     
     def update_report_stats(self):
         '''
@@ -372,11 +354,11 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         self.move_effector(pos_offset=np.asarray(self.pos_offset), vel_offset=np.asarray(self.vel_offset))
 
-        ## Run graphics commands to show/hide the plant if the visibility has changed
+        # Run graphics commands to show/hide the plant if the visibility has changed
         self.update_plant_visibility()
         self.task_data['plant_visible'] = self.plant_visible
 
-        ## Save plant status to HDF file
+        # Save plant status to HDF file
         plant_data = self.plant.get_data_to_save()
         for key in plant_data:
             self.task_data[key] = plant_data[key]
@@ -464,7 +446,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         for model in self.trajectory.graphics_models:
                 self.add_model(model)
 
-        self.target.hide() # TODO need both this and if trial_num == 0?
+        self.target.hide()
         self.trajectory.hide()
 
     def _start_trajectory(self):
@@ -496,16 +478,18 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _while_tracking_in(self):
         super()._while_tracking_in()
-        # Add Disturbance
+
+        # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
-            if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
+            if self.velocity_control:
+                # TODO check manualcontrolmixin for how to implement velocity control
+                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
+            else: 
+                # position control
                 self.pos_offset = self.disturbance_path[self.frame_index]
-                # print(self.frame_index, self.pos_offset, flush=True)
-            elif self.vel_control == True:
-                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
 
-        # Move Target and trajectory to next frame so it appears to be moving
+        # Move target and trajectory to next frame so it appears to be moving
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
@@ -521,16 +505,18 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _while_tracking_out(self):
         super()._while_tracking_out()
-        # Add Disturbance
+
+        # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
-            if self.pos_control == True: # TODO: use velocity_control flag from manualcontrolmixin class
+            if self.velocity_control:
+                # TODO check manualcontrolmixin for how to implement velocity control
+                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
+            else: 
+                # position control
                 self.pos_offset = self.disturbance_path[self.frame_index]
-                # print(self.frame_index, self.pos_offset, flush=True)
-            elif self.vel_control == True:
-                self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/60 # TODO (u+d)*dt, set self.dt
 
-        # Move Target and trajectory to next frame so it appears to be moving
+        # Move target and trajectory to next frame so it appears to be moving
         self.update_frame()
         
         # Check if the trial is over and there are no more target frames to display
@@ -784,7 +770,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 #     plt.plot(trials['times'][trial_id],trials['dis'][trial_id])
                 #     plt.show()
                 pts = []
-                ref_trajectory = np.zeros(((time_length+ramp)*sample_rate,3))
+                ref_trajectory = np.zeros((int((time_length+ramp)*sample_rate),3))
                 dis_trajectory = ref_trajectory.copy()
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking

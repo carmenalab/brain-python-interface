@@ -154,13 +154,12 @@ class ManualControlMixin(traits.HasTraits):
                 coords[1] = 0
 
         # Add cursor disturbance
-        # print(pos_offset, flush=True)
         coords += pos_offset + vel_offset
                 
         # Set cursor position
         if not self.velocity_control:
             self.current_pt = coords
-        else:
+        else: # TODO how to implement velocity control?
             epsilon = 2*(10**-2) # Define epsilon to stabilize cursor movement
             if sum((coords)**2) > epsilon:
 
