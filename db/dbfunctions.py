@@ -1265,3 +1265,40 @@ def bmi_filt(te):
     bmi_feat = models.Feature.objects.using(te._state.db).get(name='bmi')
     return bmi_feat in te.feats.all()
 
+##################
+## aolab functions
+##################
+def get_entry_details(entry):
+    '''
+    Returns subject, date, and id for the given entry
+    '''
+    subject = db.get_subject(entry)
+    date = db.get_date(entry).date()
+    te = entry.id
+    return subject, date, te
+
+def get_sessions(subject, date, task_name, session_name=None, exclude_ids=None):
+    '''
+    Returns list of subject, date, and id for all sessions on the given date
+    '''
+    if session_name:
+        entries = db.get_task_entries(subj=subject, task=task_name, date=date, session=session_name)
+    else:
+        entries = db.get_task_entries(subj=subject, task=task_name, date=date)
+    if len(entries) == 0:
+        warnings.warn("No entries found")
+        return [], [], []
+    subject, date, te = zip(*[get_entry_details(e) for e in entries if e.id not in exclude_ids])
+    return subject, date, te
+    
+def get_mc_sessions(subject, date, mc_task_name='manual control', **kwargs):
+    '''
+    Returns list of subject, date, and id for all bmi control sessions on the given date
+    '''
+    return get_sessions(subject, date, session_name=session, task_name=mc_task_name, **kwargs)
+    
+def get_bmi_sessions(subject, date, session_name='training', bmi_task_name='bmi control', **kwargs):
+    '''
+    Returns list of subject, date, and id for all bmi control sessions on the given date
+    '''
+    return get_sessions(subject, date, session_name=session_name, task_name=bmi_task_name, **kwargs)
