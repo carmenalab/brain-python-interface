@@ -296,7 +296,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     is_bmi_seed = True
 
     # Runtime settable traits
-    target_radius = traits.Float(.75, desc="Radius of targets in cm") #2
+    target_radius = traits.Float(2, desc="Radius of targets in cm") #2,0.75
     trajectory_radius = traits.Float(.5, desc="Radius of targets in cm")
     trajectory_color = traits.OptionsList("gold", *target_colors, desc="Color of the trajectory", bmi3d_input_options=list(target_colors.keys()))
     target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
@@ -335,6 +335,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
             # This is the trajectory that spans the screen
             self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color])
+
+            # This is the progress bar
+            self.bar = VirtualRectangularTarget(target_width=15, target_height=1, target_color=(0., 1., 0., 0.75), starting_pos=[0,0,16])
             print('INIT TRAJ')
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
@@ -437,6 +440,10 @@ class ScreenTargetTracking(TargetTracking, Window):
                 self.add_model(model)
                 self.trajectory.hide()
 
+            for model in self.bar.graphics_models:
+                self.add_model(model)
+                self.bar.hide()
+
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
@@ -448,6 +455,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         self.target.hide()
         self.trajectory.hide()
+        self.bar.hide()
 
     def _start_trajectory(self):
         super()._start_trajectory()
@@ -460,6 +468,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
             self.target.show()
             self.trajectory.show()
+            self.bar.show()
+
             self.sync_event('TARGET_ON')
 
     def _start_hold(self):
@@ -478,7 +488,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _while_tracking_in(self):
         super()._while_tracking_in()
-
+    
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -532,6 +542,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.target.reset()
         self.trajectory.hide()
         self.trajectory.reset()
+        self.bar.hide()
+        self.bar.reset()
 
     def _end_timeout_penalty(self):
         super()._end_timeout_penalty()
@@ -546,6 +558,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.target.reset()
         self.trajectory.hide()
         self.trajectory.reset()
+        self.bar.hide()
+        self.bar.reset()
 
     def _end_hold_penalty(self):
         super()._end_hold_penalty()
@@ -566,6 +580,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.target.reset()
         self.trajectory.hide()
         self.trajectory.reset()
+        self.bar.hide()
+        self.bar.reset()
 
     def _start_reward(self):
         super()._start_reward()
@@ -582,6 +598,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.target.reset()
         self.trajectory.hide()
         self.trajectory.reset()
+        self.bar.hide()
+        self.bar.reset()
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):

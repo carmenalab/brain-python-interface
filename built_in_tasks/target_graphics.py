@@ -99,7 +99,7 @@ class RectangularTarget(object):
         self._pickle_init()
 
     def _pickle_init(self):
-        self.cube = Cube(side_len=self.target_width, color=self.target_color)
+        self.cube = Cube(side_len=self.target_width,side_height=self.target_height,color=self.target_color)
         self.graphics_models = [self.cube]
         #self.center_offset = np.array([self.target_width, 0, self.target_width], dtype=np.float64) / 2
         self.center_offset = np.array([0, 0, self.target_width], dtype=np.float64) / 2
