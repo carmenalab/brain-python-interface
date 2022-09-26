@@ -1272,12 +1272,12 @@ def get_entry_details(entry):
     '''
     Returns subject, date, and id for the given entry
     '''
-    subject = db.get_subject(entry)
-    date = db.get_date(entry).date()
+    subject = get_subject(entry)
+    date = get_date(entry).date()
     te = entry.id
     return subject, date, te
 
-def get_sessions(subject, date, task_name, session_name=None, exclude_ids=None):
+def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[]):
     '''
     Returns list of subject, date, and id for all sessions on the given date
     '''
