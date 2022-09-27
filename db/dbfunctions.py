@@ -1277,7 +1277,7 @@ def get_entry_details(entry):
     te = entry.id
     return subject, date, te
 
-def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[]):
+def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[], filter_fn=lambda x:True):
     '''
     Returns list of subject, date, and id for all sessions on the given date
     '''
@@ -1289,7 +1289,7 @@ def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[]):
         import warnings
         warnings.warn("No entries found")
         return [], [], []
-    subject, date, te = zip(*[get_entry_details(e) for e in entries if e.id not in exclude_ids])
+    subject, date, te = zip(*[get_entry_details(e) for e in entries if filter_fn(e) and e.id not in exclude_ids])
     return subject, date, te
     
 def get_mc_sessions(subject, date, mc_task_name='manual control', **kwargs):
