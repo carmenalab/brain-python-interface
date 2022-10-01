@@ -147,5 +147,5 @@ class PoissonWait(traits.HasTraits):
     exclude_parent_traits = ['wait_time']
 
     def _parse_next_trial(self):
-        self.wait_time = np.random.exponential(lam=self.poisson_mu)
+        self.wait_time = np.random.exponential(self.poisson_mu)
         super()._parse_next_trial()
