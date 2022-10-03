@@ -328,10 +328,13 @@ Parameters.prototype.add_instance = function(name, info) {
         var opt = document.createElement("option");
         opt.value = options[i][0];
         opt.innerHTML = options[i][1];
-        if (!info['required'] && 
-            (typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
-            (info['default'] == opt.value))
+        if (!info['required'] &&
+        (typeof(info['value']) != "undefined" && info['value'] == opt.value))
+        opt.setAttribute("selected", "selected");
+        else if (!info['required'] && typeof(info['value']) == "undefined" && info['default'] == opt.value)
             opt.setAttribute("selected", "selected");
+        else if (info['required'] && info['default'] == opt.value)
+            opt.setAttribute("selected", "selected");        
         input.appendChild(opt);
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
@@ -365,8 +368,11 @@ Parameters.prototype.add_enum = function(name, info) {
         opt.value = options[i];
         opt.innerHTML = options[i];
         if (!info['required'] &&
-            (typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
-            (info['default'] == opt.value))
+            (typeof(info['value']) != "undefined" && info['value'] == opt.value))
+            opt.setAttribute("selected", "selected");
+        else if (!info['required'] && typeof(info['value']) == "undefined" && info['default'] == opt.value)
+            opt.setAttribute("selected", "selected");
+        else if (info['required'] && info['default'] == opt.value)
             opt.setAttribute("selected", "selected");
         input.appendChild(opt);
     }
