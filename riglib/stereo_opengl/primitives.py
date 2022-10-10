@@ -27,11 +27,12 @@ class Plane(TriMesh):
                 tcoords=tcoords, normals=np.array(normals), **kwargs)
 
 class Cube(TriMesh):
-    def __init__(self, side_len=1, side_height=0.5, segments=36, **kwargs):
+    def __init__(self, side_len=1, side_height=None, segments=36, **kwargs):
         self.side_len = side_len
-        #side_len_half = side_len/2.
-        side_len_half = side_height
-        #self.side_height = side_height
+        if side_height is None:
+            side_len_half = side_len/2.
+        else:
+            side_len_half = side_height # 0.5
         side = np.linspace(-1, 1, int(segments/4), endpoint=True)
         
         unit1 = np.hstack(( side[:,np.newaxis], np.ones((len(side),1)), np.ones((len(side),1)) ))

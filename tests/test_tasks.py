@@ -19,7 +19,7 @@ import socket
 def init_exp(base_class, feats, seq=None, **kwargs):
     hostname = socket.gethostname()
     if hostname in ['pagaiisland2']:
-        os.environ['DISPLAY'] = ':0.0'
+        os.environ['DISPLAY'] = ':0.1'
     Exp = experiment.make(base_class, feats=feats)
     if seq is not None:
         exp = Exp(seq, **kwargs)
@@ -40,7 +40,7 @@ class TestManualControlTasks(unittest.TestCase):
     def test_tracking(self):
         print("Running tracking task test")
         seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
-        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
+        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq) # , window_size=(1000,800)
         exp.rotation = 'xzy'
         exp.run()
 
