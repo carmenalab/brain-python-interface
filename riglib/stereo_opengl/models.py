@@ -129,7 +129,6 @@ class Group(Model):
     
     def add(self, model):
         self.models.append(model)
-        print(f'model length {len(self.models)}')
         model.parent = self
         model._recache_xfm()
 
