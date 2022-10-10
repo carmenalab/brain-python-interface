@@ -7,6 +7,7 @@ from riglib.stereo_opengl.window import WindowDispl2D
 from riglib import experiment
 from features.peripheral_device_features import MouseControl
 from features.optitrack_features import OptitrackSimulate
+from features.reward_features import ProgressBar
 import cProfile
 import pstats
 from riglib.stereo_opengl.window import Window, Window2D 
@@ -18,7 +19,7 @@ import socket
 def init_exp(base_class, feats, seq=None, **kwargs):
     hostname = socket.gethostname()
     if hostname in ['pagaiisland2']:
-        os.environ['DISPLAY'] = ':0.1'
+        os.environ['DISPLAY'] = ':0.0'
     Exp = experiment.make(base_class, feats=feats)
     if seq is not None:
         exp = Exp(seq, **kwargs)
@@ -37,10 +38,18 @@ class TestManualControlTasks(unittest.TestCase):
         exp.run()
     
     def test_tracking(self):
+        print("Running tracking task test")
         seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
         exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
         exp.rotation = 'xzy'
         exp.run()
+
+    # @unittest.skip("only to test progress bar")
+    # def test_tracking(self):
+    #     seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+    #     exp = init_exp(TrackingTask, [MouseControl, Window2D, ProgressBar], seq)
+    #     exp.rotation = 'xzy'
+    #     exp.run()
 
 class TestSeqGenerators(unittest.TestCase):
 

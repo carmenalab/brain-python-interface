@@ -134,10 +134,10 @@ class Group(Model):
 
     def remove(self, model):
         # remove the redundant models
-        if len(self.models)>=4:
-            del self.models[3:-1]
-        model.parent = self
-        model._recache_xfm()
+        if model not in self.models:
+            return
+        self.models.remove(model)
+        del model
 
     def init(self):
         for model in self.models:

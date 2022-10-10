@@ -200,6 +200,18 @@ class JackpotRewards(traits.HasTraits):
         else:
             return True
 
+
+class ProgressBar(traits.HasTraits):
+    '''
+    Adds a graphical progress bar for the tracking task which fills up when the cursor is
+    inside the target. Does not decrease. When the trail is over, the amount the bar filled
+    up scales the amount of reward. Maximum reward is the 'reward_time' parameter.
+    '''
+
+    def _while_tracking_in(self):
+        super()._while_tracking_in()
+
+
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
 

@@ -134,7 +134,6 @@ class Window(LogExperiment):
 
     def remove_model(self, model):
         '''remove the second model from the last'''
-        model.init()
         self.world.remove(model)
 
     def show_object(self, obj, show=False):

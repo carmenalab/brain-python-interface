@@ -510,10 +510,14 @@ class ScreenTargetTracking(TargetTracking, Window):
         #print(self.tracking_frame_index)
         tracking_rate = self.tracking_frame_index/np.shape(self.targs)[0]*self.bar_width
 
+        if hasattr(self, 'bar'):
+            for model in self.bar.graphics_models:
+                self.remove_model(model)
+            del self.bar
+
         self.bar = VirtualRectangularTarget(target_width=1.3, target_height=tracking_rate, target_color=(1,1,0,0.75), starting_pos=[tracking_rate-self.bar_width,0,9])
         for model in self.bar.graphics_models:
             self.add_model(model)
-            self.remove_model(model)
 
         if tracking_rate >= 0.7*self.bar_width:
             self.bar.cue_trial_end_success()
