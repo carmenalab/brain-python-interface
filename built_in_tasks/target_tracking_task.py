@@ -507,7 +507,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update progress bar
         self.tracking_frame_index += 1
-        print(self.tracking_frame_index)
+        #print(self.tracking_frame_index)
         tracking_rate = self.tracking_frame_index/np.shape(self.targs)[0]*self.bar_width
 
         self.bar = VirtualRectangularTarget(target_width=1.3, target_height=tracking_rate, target_color=(1,1,0,0.75), starting_pos=[tracking_rate-self.bar_width,0,9])
