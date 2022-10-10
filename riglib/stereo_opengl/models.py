@@ -129,9 +129,17 @@ class Group(Model):
     
     def add(self, model):
         self.models.append(model)
+        print(f'model length {len(self.models)}')
         model.parent = self
         model._recache_xfm()
-        
+
+    def remove(self, model):
+        # remove the redundant models
+        if len(self.models)>=4:
+            del self.models[3:-1]
+        model.parent = self
+        model._recache_xfm()
+
     def init(self):
         for model in self.models:
             model.init()

@@ -1,6 +1,7 @@
 '''
 A generic target tracking task
 '''
+from __future__ import barry_as_FLUFL
 from multiprocessing.connection import wait
 import numpy as np
 import time
@@ -337,7 +338,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color])
 
             # This is the progress bar
-            self.bar = VirtualRectangularTarget(target_width=15, target_height=1, target_color=(0., 1., 0., 0.75), starting_pos=[0,0,16])
+            self.bar = VirtualRectangularTarget(target_width=1, target_height=0, target_color=(0., 1., 0., 0.75), starting_pos=[0,0,9])
             print('INIT TRAJ')
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
@@ -429,7 +430,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_wait(self):
         super()._start_wait()
         print('WAIT')
-                
+
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
             for model in self.target.graphics_models:
@@ -444,6 +445,10 @@ class ScreenTargetTracking(TargetTracking, Window):
                 self.add_model(model)
                 self.bar.hide()
 
+        # Set up for progress bar
+        self.bar_width = 12        
+        self.tracking_frame_index = 0
+        
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
@@ -455,7 +460,6 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         self.target.hide()
         self.trajectory.hide()
-        self.bar.hide()
 
     def _start_trajectory(self):
         super()._start_trajectory()
@@ -468,7 +472,6 @@ class ScreenTargetTracking(TargetTracking, Window):
 
             self.target.show()
             self.trajectory.show()
-            self.bar.show()
 
             self.sync_event('TARGET_ON')
 
@@ -501,7 +504,24 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Move target and trajectory to next frame so it appears to be moving
         self.update_frame()
-        
+
+        # Update progress bar
+        self.tracking_frame_index += 1
+        print(self.tracking_frame_index)
+        tracking_rate = self.tracking_frame_index/np.shape(self.targs)[0]*self.bar_width
+
+        self.bar = VirtualRectangularTarget(target_width=1.3, target_height=tracking_rate, target_color=(1,1,0,0.75), starting_pos=[tracking_rate-self.bar_width,0,9])
+        for model in self.bar.graphics_models:
+            self.add_model(model)
+            self.remove_model(model)
+
+        if tracking_rate >= 0.7*self.bar_width:
+            self.bar.cue_trial_end_success()
+        else:
+            self.bar.cue_trial_end_failure()
+
+        self.bar.show()
+
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
@@ -528,7 +548,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Move target and trajectory to next frame so it appears to be moving
         self.update_frame()
-        
+
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True

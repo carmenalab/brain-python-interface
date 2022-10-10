@@ -14,6 +14,7 @@ sec_per_min = 60.0
 RED = (1,0,0,.5)
 GREEN = (0,1,0,0.5)
 GOLD = (1., 0.843, 0., 0.5)
+YELLOW = (1,1,0,0.75)
 mm_per_cm = 1./10
 
 target_colors = {
@@ -133,7 +134,7 @@ class VirtualRectangularTarget(RectangularTarget):
         self.cube.color = GREEN
 
     def cue_trial_end_failure(self):
-        self.cube.color = RED
+        self.cube.color = YELLOW
         self.hide()
 
     def idle(self):
