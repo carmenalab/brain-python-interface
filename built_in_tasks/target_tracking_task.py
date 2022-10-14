@@ -505,22 +505,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Move target and trajectory to next frame so it appears to be moving
         self.update_frame()
 
-        # Update progress bar
-        self.tracking_frame_index += 1
-        self.tracking_rate = self.tracking_frame_index/np.shape(self.targs)[0]*self.bar_width
-
-        if hasattr(self, 'bar'):
-            for model in self.bar.graphics_models:
-                self.remove_model(model)
-            del self.bar
-
-        self.bar = VirtualRectangularTarget(target_width=1.3, target_height=self.tracking_rate, target_color=(1,1,0,0.75), starting_pos=[self.tracking_rate-self.bar_width,0,9])
-        for model in self.bar.graphics_models:
-            self.add_model(model)
-
-        self.bar.cue_trial_end_success()
-        self.bar.show()
-
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
@@ -608,26 +592,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('REWARD')
         # Cue successful trial
         self.target.cue_trial_end_success()
-        self.reward_frame_index = 0
-
-    def _while_reward(self):
-        super()._while_reward()
-
-        if hasattr(self, 'bar'):
-            for model in self.bar.graphics_models:
-                self.remove_model(model)
-            del self.bar
-
-        self.reward_frame_index += 1
-        reward_numframe = self.reward_time*self.fps
-        reward_amount = self.tracking_rate - self.reward_frame_index*self.tracking_rate/reward_numframe
-        self.bar = VirtualRectangularTarget(target_width=1.3, target_height=reward_amount, target_color=(1,1,0,0.75), starting_pos=[reward_amount-self.bar_width,0,9])
-        for model in self.bar.graphics_models:
-            self.add_model(model)
-
-        self.bar.cue_trial_end_success()
-        self.bar.show()        
-
+        self.reward_frame_index = 0   
 
     def _end_reward(self):
         super()._end_reward()
