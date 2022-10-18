@@ -170,7 +170,7 @@ class TargetTracking(Sequence):
     
     def test_in_target(self):
         '''
-        return the distance between center of cursor and cednter of the target
+        return the distance between center of cursor and center of the target
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.target.get_position())
