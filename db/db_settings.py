@@ -40,7 +40,7 @@ def get_sqlite3_databases():
 DATABASES = get_sqlite3_databases()
 #DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
-if HOSTNAME in ['pagaiisland2', 'aolab', 'aolab2']:
+if HOSTNAME in ['pagaiisland2', 'aolab', 'aolab2', 'ecube']:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'rig1',
