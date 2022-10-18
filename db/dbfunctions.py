@@ -1303,3 +1303,49 @@ def get_bmi_sessions(subject, date, session_name='training', bmi_task_name='bmi 
     Returns list of subject, date, and id for all bmi control sessions on the given date
     '''
     return get_sessions(subject, date, session_name=session_name, task_name=bmi_task_name, **kwargs)
+
+
+def get_preprocessed_sources(entry):
+    '''
+    Returns a list of datasource names that should be preprocessed for the given entry
+    '''
+    params = entry.task_params
+    sources = ['exp']
+    if 'record_headstage' in params and params['record_headstage']:
+        sources.append('broadband')
+        sources.append('lfp')
+    sources.append('eye')
+    
+    return sources
+    
+
+def get_rawfiles_for_taskentry(e, system_subfolders=None):
+    '''
+    Gets the hdf and ecube files associated with each task entry 
+    
+    Args:
+        entry (TaskEntry): recording to find raw files for 
+        system_subfolders (dict, optional): dictionary of system subfolders where the 
+           data for that system is located. If None, defaults to the system name
+    
+    Returns: 
+        files : list of (system, filepath) for each datafile associated with this task entry 
+    '''
+    file_list = e.get_data_files()
+    files = {}
+    for df in file_list:
+        if df.system.name == 'optitrack' or df.system.name == 'e3v':
+            path = os.path.normpath(df.path)
+            parts = path.split(os.sep)
+            filepath = os.path.join(*parts[1:])
+            filepath = filepath.replace(':', '_')
+        else:
+            filepath = os.path.basename(df.path)
+        if system_subfolders is None:
+            files[df.system.name] = os.path.join(df.system.name, filepath)
+        elif df.system.name in system_subfolders:
+            files[df.system.name] = os.path.join(system_subfolders[df.system.name], filepath)
+        else:
+            files[df.system.name] = filepath
+
+    return files
