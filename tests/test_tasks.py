@@ -30,13 +30,14 @@ def init_exp(base_class, feats, seq=None, **kwargs):
 
 class TestManualControlTasks(unittest.TestCase):
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_exp(self):
         seq = ManualControl.centerout_2D()
         exp = init_exp(ManualControl, [MouseControl, Window2D], seq)
         exp.rotation = 'xzy'
         exp.run()
     
+    # @unittest.skip("")
     def test_tracking(self):
         print("Running tracking task test")
         seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
@@ -53,12 +54,12 @@ class TestManualControlTasks(unittest.TestCase):
 
 class TestSeqGenerators(unittest.TestCase):
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_gen_ascending(self):
         seq = Conditions.gen_conditions(3, [1, 2], ascend=True)
         self.assertSequenceEqual(seq[0], [0, 0, 0, 1, 1, 1])
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_gen_out_2D(self):
         seq = ScreenTargetCapture.out_2D(nblocks=1, )
         seq = list(seq)
@@ -76,7 +77,7 @@ class TestSeqGenerators(unittest.TestCase):
         self.assertAlmostEqual(loc[idx == 3, 0][0], 10)
         self.assertAlmostEqual(loc[idx == 3, 2][0], 0)
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_dual_laser_wave(self):
         seq = LaserConditions.dual_laser_square_wave(duty_cycle_1=0.025, duty_cycle_2=0.025, phase_delay_2=0.1)
         print(seq[0])

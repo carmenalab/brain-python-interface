@@ -154,8 +154,9 @@ class ManualControlMixin(traits.HasTraits):
                 coords[1] = 0
 
         # Add cursor disturbance
-        coords += pos_offset + vel_offset
-                
+        coords += pos_offset
+        coords += vel_offset
+   
         # Set cursor position
         if not self.velocity_control:
             self.current_pt = coords
