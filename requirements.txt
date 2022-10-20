@@ -9,7 +9,7 @@ traits==6.1.0
 Cython==0.29.22
 requests==2.25.1
 scipy==1.5.4
-nitime==0.8.1
+# nitime==0.8.1
 pygame==2.0.0
 h5py==2.10.0
 Owl==0.2.1

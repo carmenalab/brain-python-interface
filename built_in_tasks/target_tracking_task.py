@@ -278,6 +278,27 @@ class TargetTracking(Sequence):
         super().update_report_stats()
         self.reportstats['Trial #'] = self.calc_trial_num()
         self.reportstats['Reward/min'] = np.round(self.calc_events_per_min('reward', 120.), decimals=2)
+<<<<<<< HEAD
+=======
+    
+    def test_in_target(self):
+        '''
+        return the distance between center of cursor and center of the target
+        '''
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.target.get_position())
+        if d <= (self.target_radius - self.cursor_radius):
+            self.target.cue_trial_end_success()
+        else:
+            self.target.reset()
+        return d
+    
+    def add_disturbance(self, current_position, current_velocity, disturbance, prev_disturbance):
+        if self.limit1d:
+            return current_position + current_velocity + [0,0,(disturbance - prev_disturbance)]
+        else:
+            raise NotImplementedError("No 2D disturbance!")
+>>>>>>> a341625473d3b5654eb8881b31d790786784a04c
 
 
 class ScreenTargetTracking(TargetTracking, Window):
