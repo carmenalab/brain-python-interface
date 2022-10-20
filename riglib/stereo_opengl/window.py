@@ -132,6 +132,10 @@ class Window(LogExperiment):
             model.init()
             self.world.add(model)
 
+    def remove_model(self, model):
+        '''remove the second model from the last'''
+        self.world.remove(model)
+
     def show_object(self, obj, show=False):
         '''
         Show or hide an object. This function is an abstraction so that tasks don't need to know about attach/detach

@@ -163,7 +163,7 @@ class Transform(object):
     Homogenous transformations ???
     '''
     def __init__(self, move=(0,0,0), scale=1, rotate=None):
-        self.move = np.array(move, dtype=np.float)
+        self.move = np.array(move, dtype=float)
         self.scale = scale
         self.rotate = rotate if rotate is not None else Quaternion()
 

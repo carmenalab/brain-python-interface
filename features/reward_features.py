@@ -7,6 +7,8 @@ import subprocess
 from riglib.experiment import traits
 from riglib.experiment.experiment import control_decorator
 from riglib.audio import AudioPlayer
+from built_in_tasks.target_graphics import VirtualRectangularTarget
+import numpy as np
 import serial, glob
 
 ###### CONSTANTS
@@ -199,6 +201,50 @@ class JackpotRewards(traits.HasTraits):
             return ts > self.reward_time
         else:
             return True
+
+
+class ProgressBar(traits.HasTraits):
+    '''
+    Adds a graphical progress bar for the tracking task which fills up when the cursor is
+    inside the target. Does not decrease. When the trail is over, the amount the bar filled
+    up scales the amount of reward. Maximum reward is the 'reward_time' parameter.
+    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _while_tracking_in(self):
+        super()._while_tracking_in()
+        
+        # Update progress bar
+        self.tracking_frame_index += 1
+        self.tracking_rate = self.tracking_frame_index/np.shape(self.targs)[0]*self.bar_width
+
+        if hasattr(self, 'bar'):
+            for model in self.bar.graphics_models:
+                self.remove_model(model)
+            del self.bar
+
+        self.bar = VirtualRectangularTarget(target_width=1.3, target_height=self.tracking_rate, target_color=(0., 1., 0., 0.75), starting_pos=[self.tracking_rate-self.bar_width,0,9])
+        for model in self.bar.graphics_models:
+            self.add_model(model)
+        self.bar.show()
+
+    def _while_reward(self):
+        super()._while_reward()
+
+        if hasattr(self, 'bar'):
+            for model in self.bar.graphics_models:
+                self.remove_model(model)
+            del self.bar
+
+        self.reward_frame_index += 1
+        reward_numframe = self.reward_time*self.fps
+        reward_amount = self.tracking_rate - self.reward_frame_index*self.tracking_rate/reward_numframe
+        self.bar = VirtualRectangularTarget(target_width=1.3, target_height=reward_amount, target_color=(0., 1., 0., 0.75), starting_pos=[reward_amount-self.bar_width,0,9])
+        for model in self.bar.graphics_models:
+            self.add_model(model)
+        self.bar.show()        
+
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

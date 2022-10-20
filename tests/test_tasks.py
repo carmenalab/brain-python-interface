@@ -1,4 +1,4 @@
-from built_in_tasks.manualcontrolmultitasks import TrackingTask, rotations, ManualControl
+from built_in_tasks.manualcontrolmultitasks import TrackingTask, rotations, ManualControl, ScreenTargetTracking
 from built_in_tasks.othertasks import Conditions, LaserConditions
 from built_in_tasks.target_capture_task import ScreenTargetCapture
 from built_in_tasks.passivetasks import YouTube
@@ -6,17 +6,20 @@ from features.hdf_features import SaveHDF
 from riglib.stereo_opengl.window import WindowDispl2D
 from riglib import experiment
 from features.peripheral_device_features import MouseControl
+from features.optitrack_features import OptitrackSimulate, Optitrack
+from features.reward_features import ProgressBar
 import cProfile
 import pstats
 from riglib.stereo_opengl.window import Window, Window2D 
 import unittest
 import numpy as np
+import os
+import socket
 
 def init_exp(base_class, feats, seq=None, **kwargs):
-    blocks = 2
-    trials = 2
-    trial_length = 5
-    frequencies = np.array([.5])
+    hostname = socket.gethostname()
+    if hostname in ['pagaiisland2']:
+        os.environ['DISPLAY'] = ':0.1'
     Exp = experiment.make(base_class, feats=feats)
     if seq is not None:
         exp = Exp(seq, **kwargs)
@@ -26,20 +29,37 @@ def init_exp(base_class, feats, seq=None, **kwargs):
     return exp
 
 class TestManualControlTasks(unittest.TestCase):
-    
-    @unittest.skip("")
+
+    # @unittest.skip("")
     def test_exp(self):
-        seq = TrackingTask.tracking_target_training(blocks,trials,trial_length,frequencies)
-        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq)
+        seq = ManualControl.centerout_2D()
+        exp = init_exp(ManualControl, [MouseControl, Window2D], seq)
+        exp.rotation = 'xzy'
+        exp.run()
+    
+    # @unittest.skip("")
+    def test_tracking(self):
+        print("Running tracking task test")
+        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq) # , window_size=(1000,800)
         exp.rotation = 'xzy'
         exp.run()
 
+    # @unittest.skip("only to test progress bar")
+    # def test_tracking(self):
+    #     seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+    #     exp = init_exp(TrackingTask, [MouseControl, Window2D, ProgressBar], seq)
+    #     exp.rotation = 'xzy'
+    #     exp.run()
+
 class TestSeqGenerators(unittest.TestCase):
 
+    # @unittest.skip("")
     def test_gen_ascending(self):
         seq = Conditions.gen_conditions(3, [1, 2], ascend=True)
         self.assertSequenceEqual(seq[0], [0, 0, 0, 1, 1, 1])
 
+    # @unittest.skip("")
     def test_gen_out_2D(self):
         seq = ScreenTargetCapture.out_2D(nblocks=1, )
         seq = list(seq)
@@ -57,12 +77,14 @@ class TestSeqGenerators(unittest.TestCase):
         self.assertAlmostEqual(loc[idx == 3, 0][0], 10)
         self.assertAlmostEqual(loc[idx == 3, 2][0], 0)
 
+    # @unittest.skip("")
     def test_dual_laser_wave(self):
         seq = LaserConditions.dual_laser_square_wave(duty_cycle_1=0.025, duty_cycle_2=0.025, phase_delay_2=0.1)
         print(seq[0])
 
 class TestYouTube(unittest.TestCase):
 
+    @unittest.skip("")
     def test_youtube_exp(self):
 
         exp = init_exp(YouTube, [], youtube_url="https://www.youtube.com/watch?v=Qe9ansjvF7M")
