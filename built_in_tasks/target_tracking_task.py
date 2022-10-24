@@ -123,16 +123,20 @@ class TargetTracking(Sequence):
         # saved plant poitions
         self.plant_position = []
 
+    def _while_wait(self):
+        '''Nothing generic to do.'''
+        pass
+
     def _start_trajectory(self):
         self.frame_index += 1
+
+    def _while_trajectory(self):
+        '''Nothing generic to do.'''
+        pass        
 
     def _end_trajectory(self):
         '''Nothing generic to do.'''
         pass
-
-    # def _end_initiation(self): 
-    #     self.trial_timed_out = False
-    #     self.total_distance_error = 0
 
     def _start_hold(self):
         '''Nothing generic to do.'''
@@ -462,6 +466,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.trajectory.hide()
 
     def _while_wait(self):
+        super()._while_wait()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -487,6 +492,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.sync_event('TARGET_ON')
 
     def _while_trajectory(self):
+        super()._while_trajectory()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -583,6 +589,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.reset()
 
     def _while_timeout_penalty(self):
+        super()._while_timeout_penalty()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -600,7 +607,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_hold_penalty(self):
         super()._start_hold_penalty()
         print('START HOLD TIMEOUT')
-        print(self.frame_index)
         self.sync_event('HOLD_PENALTY') 
         # Hide target and trajectory
         self.target.hide()
@@ -611,6 +617,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.reset()
 
     def _while_hold_penalty(self):
+        super()._while_hold_penalty()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -628,12 +635,16 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_tracking_out_penalty(self):
         super()._start_tracking_out_penalty()
         print('START TRACKING TIMEOUT')
-        # print(self.frame_index)
         self.sync_event('OTHER_PENALTY')
         # Cue failed trial
-        self.target.cue_trial_end_failure()  
+        self.target.cue_trial_end_failure()
 
-    def _while_hold_tracking_out_penalty(self):
+        cursor_pos = self.plant.get_endpoint_pos()
+        print(cursor_pos)
+        print(self.disturbance_path[self.frame_index])
+
+    def _while_tracking_out_penalty(self):
+        super()._while_tracking_out_penalty()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
@@ -642,7 +653,8 @@ class ScreenTargetTracking(TargetTracking, Window):
                 self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
             else: 
                 # position control
-                self.pos_offset = self.disturbance_path[self.frame_index]   
+                self.pos_offset = self.disturbance_path[self.frame_index]
+        print(self.disturbance_path[self.frame_index])
 
     def _end_tracking_out_penalty(self):
         super()._end_tracking_out_penalty()
@@ -664,6 +676,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.reward_frame_index = 0
 
     def _while_reward(self):
+        super()._while_reward()
         # Add disturbance
         cursor_pos = self.plant.get_endpoint_pos()
         if self.disturbance_trial == True:
