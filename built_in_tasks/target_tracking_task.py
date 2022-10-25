@@ -639,10 +639,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Cue failed trial
         self.target.cue_trial_end_failure()
 
-        cursor_pos = self.plant.get_endpoint_pos()
-        print(cursor_pos)
-        print(self.disturbance_path[self.frame_index])
-
     def _while_tracking_out_penalty(self):
         super()._while_tracking_out_penalty()
         # Add disturbance
@@ -654,7 +650,6 @@ class ScreenTargetTracking(TargetTracking, Window):
             else: 
                 # position control
                 self.pos_offset = self.disturbance_path[self.frame_index]
-        print(self.disturbance_path[self.frame_index])
 
     def _end_tracking_out_penalty(self):
         super()._end_tracking_out_penalty()
