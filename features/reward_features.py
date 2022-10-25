@@ -145,6 +145,7 @@ class PenaltyAudioMulti(traits.HasTraits):
     delay_penalty_sound = "buzzer.wav"
     timeout_penalty_sound = "incorrect.wav"
     reach_penalty_sound = "incorrect.wav"
+    tracking_out_penalty_sound = "buzzer.wav"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -152,6 +153,7 @@ class PenaltyAudioMulti(traits.HasTraits):
         self.delay_penalty_player = AudioPlayer(self.delay_penalty_sound)
         self.timeout_penalty_player = AudioPlayer(self.timeout_penalty_sound)
         self.reach_penalty_player = AudioPlayer(self.reach_penalty_sound)
+        self.tracking_out_penalty_player = AudioPlayer(self.tracking_out_penalty_sound)
 
     def _start_hold_penalty(self):
         if hasattr(super(), '_start_hold_penalty'):
@@ -172,6 +174,11 @@ class PenaltyAudioMulti(traits.HasTraits):
         if hasattr(super(), '_start_reach_penalty'):
             super()._start_reach_penalty()
         self.reach_penalty_player.play()
+
+    def _start_tracking_out_penalty(self):
+        if hasattr(super(), '_start_tracking_out_penalty'):
+            super()._start_tracking_out_penalty()
+        self.tracking_out_penalty_player.play()
 
 class HoldCompleteRewards(traits.HasTraits):
     '''
