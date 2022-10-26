@@ -69,7 +69,7 @@ class TargetTracking(Sequence):
 
         self.frame_index = 0 # index in the frame in a trial
         self.total_distance_error = 0 # Euclidian distance between cursor and target during each trial
-        self.trial_timed_out = True # check if the trial is finished
+        self.trial_timed_out = False # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
 
@@ -352,7 +352,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
-        self.add_dtype('current_trajectory_coord', 'f8', (3,)) # TODO what is this used for?
+        self.add_dtype('current_trajectory_coord', 'f8', (3,))
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
