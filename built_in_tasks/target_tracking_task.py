@@ -101,7 +101,7 @@ class TargetTracking(Sequence):
             # Update the data sinks with trial information
             self.trial_record['trial'] = self.calc_trial_num()
             self.trial_record['index'] = self.gen_indices
-            self.trial_record['target'] = self.targs[i]
+            self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance_path'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
