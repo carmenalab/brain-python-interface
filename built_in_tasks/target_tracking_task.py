@@ -69,7 +69,7 @@ class TargetTracking(Sequence):
 
         self.frame_index = 0 # index in the frame in a trial
         self.total_distance_error = 0 # Euclidian distance between cursor and target during each trial
-        self.trial_timed_out = False # check if the trial is finished
+        self.trial_timed_out = True # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
 
@@ -84,6 +84,7 @@ class TargetTracking(Sequence):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
         self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        print(self.calc_trial_num(), self.gen_indices)
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -109,6 +110,9 @@ class TargetTracking(Sequence):
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
+
+        # trial is not finished
+        self.trial_timed_out = False
 
         # number of times this trajectory has been attempted
         self.tries = 0
@@ -375,7 +379,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.task_data['trial'] = self.calc_trial_num()
         
         # Save the target position at each cycle. 
-        if self.trial_timed_out or self.trial_length == self.frame_index:
+        if self.trial_timed_out:
              self.task_data['current_trajectory_coord'] = [0,0,0]
         else:
             self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
@@ -458,7 +462,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
-        self.trial_length = np.shape(self.targs[:,2])[0]
         for model in self.trajectory.graphics_models:
                 self.add_model(model)
 
