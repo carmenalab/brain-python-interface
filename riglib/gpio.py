@@ -7,6 +7,7 @@ import numpy as np
 from threading import Thread as Process, Lock
 import time
 import pyfirmata
+from serial.serialutil import SerialException
 
 def convert_masked_data_to_pins(mask, data, bits=64):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''
@@ -113,11 +114,20 @@ class TeensyGPIO(ArduinoGPIO):
 
     def analog_write(self, pin, value):
         '''
-        Write to any pin as a PWM (for digital pins) or analog output (if it supports DAC)
+        Write to any pin as a PWM (for digital pins) or analog output (if it supports DAC).
+        Can fail if no connection to the board.
         '''
         with self.lock:
-            msg = [0xF0, 0x6F, pin, value % 128, value >> 7, 0xF7] # [START_SYSEX, extended analog, pin, lsb, msb, END_SYSEX]
-            self.board.sp.write(msg)
+            sysex_cmd = 0x6F # extended analog
+            data = bytearray([pin, value % 128, value >> 7]) # [pin, lsb, msb]
+            try:
+                self.board.send_sysex(sysex_cmd, data)
+            except ValueError:
+                # This happens in BCI experiment sometimes, not sure why. Ignore ~LRS
+                pass 
+            except SerialException:
+                # This happens if the board becomes unplugged, but crashes the game if uncaught.
+                raise OSError("Teensy board has become unplugged!")
 
 class NIGPIO(GPIO):
 
