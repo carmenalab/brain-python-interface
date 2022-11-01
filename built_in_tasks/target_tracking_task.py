@@ -84,7 +84,6 @@ class TargetTracking(Sequence):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
         self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
-        print(self.calc_trial_num(), self.gen_indices)
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -347,7 +346,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
             # This is the progress bar
             self.bar = VirtualRectangularTarget(target_width=1, target_height=0, target_color=(0., 1., 0., 0.75), starting_pos=[0,0,9])
-            print('INIT TRAJ')
+            # print('INIT TRAJ')
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -443,7 +442,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
-        print('WAIT')
+        # print('WAIT')
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -493,7 +492,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.trajectory.move_to_position(np.array([0,0,0])) # tablet screen x-axis ranges 0,41.33333, center 22ish
             # print(self.target.get_position())
             # print(self.trajectory.get_position())
-            print('SHOW TRAJ')
+            # print('SHOW TRAJ')
 
             self.target.show()
             self.trajectory.show()
@@ -514,7 +513,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_hold(self):
         super()._start_hold()
-        print('START HOLD')
+        # print('START HOLD')
         self.sync_event('TRIAL_START')
         # Cue successful tracking
         self.target.cue_trial_end_success()
@@ -615,7 +614,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             
     def _start_hold_penalty(self):
         super()._start_hold_penalty()
-        print('START HOLD TIMEOUT')
+        # print('START HOLD TIMEOUT')
         self.sync_event('HOLD_PENALTY') 
         # Hide target and trajectory
         self.target.hide()
@@ -643,7 +642,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_tracking_out_penalty(self):
         super()._start_tracking_out_penalty()
-        print('START TRACKING TIMEOUT')
+        # print('START TRACKING TIMEOUT')
         self.sync_event('OTHER_PENALTY')
         # Cue failed trial
         self.target.cue_trial_end_failure()
@@ -858,7 +857,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance = True, boundaries=(-10,10,-10,10)):
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance=True, boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories for debugging
 
