@@ -315,7 +315,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
-    starting_pos = traits.Tuple((5., -8., 5.), desc='Where to initialize the cursor')
+    starting_pos = traits.Tuple((5., 5., -8.), desc='Where to initialize the cursor')
     fps = traits.Float(60, desc="Rate at which the FSM is called in Hz") # originally set by class Experiment
 
     def __init__(self, *args, **kwargs):
@@ -551,6 +551,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
+            
 
     def _start_tracking_out(self):
         super()._start_tracking_out()
@@ -577,6 +578,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
+            cursor_pos = [5., 5., -8.]
             self.trial_timed_out = True
 
     def _start_timeout_penalty(self):
