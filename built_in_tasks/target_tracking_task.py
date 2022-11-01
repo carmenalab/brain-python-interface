@@ -858,7 +858,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, boundaries=(-10,10,-10,10)):
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance = True, boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories for debugging
 
@@ -877,7 +877,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
         '''
         idx = 0
-        disturbance = True
         base_period = 20
         for block_id in range(nblocks):                
             trials, trial_order = ScreenTargetTracking.generate_trajectories(
