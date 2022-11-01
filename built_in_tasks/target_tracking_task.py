@@ -64,7 +64,7 @@ class TargetTracking(Sequence):
     tracking_out_penalty_time = traits.Float(1, desc="Length of penalty time for tracking out error")
     
     def init(self):
-        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance_path', 'f8',(3,)), ('is_disturbance', '?')])
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance', 'f8',(3,)), ('is_disturbance', '?')])
         super().init()
 
         self.frame_index = 0 # index in the frame in a trial
@@ -103,7 +103,7 @@ class TargetTracking(Sequence):
             self.trial_record['trial'] = self.calc_trial_num()
             self.trial_record['index'] = self.gen_indices
             self.trial_record['target'] = self.targs[i+self.lookahead]
-            self.trial_record['disturbance_path'] = self.disturbance_path[i]
+            self.trial_record['disturbance'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
@@ -356,7 +356,9 @@ class ScreenTargetTracking(TargetTracking, Window):
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
-        self.add_dtype('current_trajectory_coord', 'f8', (3,))
+        self.add_dtype('current_target', 'f8', (3,))
+        self.add_dtype('current_disturbance', 'f8', (3,)) # see task_data['manual_input'] for cursor position without added disturbance
+        self.add_dtype('current_target_validate', 'f8', (3,))
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
@@ -371,23 +373,27 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.task_data['plant_visible'] = self.plant_visible
 
         # Save plant status to HDF file
-        plant_data = self.plant.get_data_to_save()
+        plant_data = self.plant.get_data_to_save() # for cursor plant, save cursor position
         for key in plant_data:
-            self.task_data[key] = plant_data[key]
+            self.task_data[key] = plant_data[key] # task_data['cursor']
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
-             self.task_data['current_trajectory_coord'] = [0,0,0]
+             self.task_data['current_target'] = [np.nan,np.nan,np.nan]
+             self.task_data['current_disturbance'] = [np.nan,np.nan,np.nan]
+             self.task_data['current_target_validate'] = self.target.get_position() # default VirtualCircularTarget position is [0,0,0]
         else:
-            self.task_data['current_trajectory_coord'] = self.targs[self.frame_index]
+            self.task_data['current_target'] = self.targs[self.frame_index+self.lookahead]
+            self.task_data['current_disturbance'] = self.disturbance_path[self.frame_index]
+            self.task_data['current_target_validate'] = self.target.get_position()
 
         super()._cycle()
 
     def move_effector(self):
-        '''Move the end effector, if a robot or similar is bself.baseline.show()eing controlled'''
+        '''Move the end effector, if a robot or similar is being controlled'''
         pass
 
     def run(self):
