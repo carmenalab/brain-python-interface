@@ -293,9 +293,10 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
     limit1d = traits.Bool(True, desc="Limit cursor movement to 1D")
+    global_limit1d = limit1d
 
     sequence_generators = [
-        'tracking_target_chain_1D', 'tracking_target_training', 'tracking_target_debug'
+        'tracking_target_chain', 'tracking_target_debug', 'tracking_target_training'
     ]
 
     hidden_traits = ['cursor_color', 'trajectory_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
@@ -329,6 +330,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
         self.lookahead = 30 # number of frames to create a "lookahead" window of 0.5 seconds (half the screen)
+        self.limit1d = False # allow 2d movement before center-hold initiation
         
         # Add graphics models for the plant and targets to the window
         if hasattr(self.plant, 'graphics_models'):
@@ -458,6 +460,9 @@ class ScreenTargetTracking(TargetTracking, Window):
                 self.add_model(model)
                 self.bar.hide()
 
+        # Allow 2d movement
+        self.limit1d = False
+
         # Set up for progress bar
         self.bar_width = 12        
         self.tracking_frame_index = 0
@@ -492,11 +497,10 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.trajectory.move_to_position(np.array([0,0,0])) # tablet screen x-axis ranges 0,41.33333, center 22ish
             # print(self.target.get_position())
             # print(self.trajectory.get_position())
-            # print('SHOW TRAJ')
 
             self.target.show()
             self.trajectory.show()
-
+            # print('SHOW TRAJ')
             self.sync_event('TARGET_ON')
 
     def _while_trajectory(self):
@@ -534,6 +538,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_tracking_in()
         # print('START TRACKING')
         self.sync_event('CURSOR_ENTER_TARGET')
+        # Revert to settable trait
+        self.limit1d = self.global_limit1d
         # Cue successful tracking
         self.target.cue_trial_end_success()
 
@@ -604,7 +610,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             if self.velocity_control:
                 # TODO check manualcontrolmixin for how to implement velocity control
                 self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
-            else: 
+            else:
                 # position control
                 self.pos_offset = self.disturbance_path[self.frame_index]
 
@@ -857,23 +863,56 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance=True, boundaries=(-10,10,-10,10)):
+    def tracking_target_chain(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance=True, boundaries=(-10,10,-10,10)):
         '''
-        Generates a sequence of 1D (z axis) target trajectories for debugging
+        Generates a sequence of 1D (z axis) target trajectories
 
         Parameters
         ----------
         nblocks : int
-            The number of tracking trials in the sequence.
+            The number of blocks in the session
         ntrials : int
-            The number trials in a block
+            The number of trials in a block
         time_length : int
-        boundaries: 4 element Tuple
+            The length of one trial in seconds
+        seed : int
+            The seed for the random generator
+        sample_rate : int
+            The sample rate of the generated trajectories
+        ramp : float
+            The length of ramp up into a trial in seconds
+        disturbance : boolean
+            Whether to add disturbance to the cursor (disturbance is generated regardless)
+        boundaries: 4 element tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
         Returns
         -------
-        [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
+        idx : [nblocks*ntrials x 1] array of trial indices
+        pts : [nblocks*ntrials x 1] array of 3D target coordinates
+        disturbance : boolean
+        dis_trajectory : [nblocks*ntrials x 1] array of 3D disturbance coordinates
+        '''
+        idx = 0
+        base_period = 20
+        for block_id in range(nblocks):                
+            trials, trial_order = ScreenTargetTracking.generate_trajectories(
+                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp
+                )
+            for trial_id in range(ntrials):
+                pts = []
+                ref_trajectory = np.zeros((int((time_length+ramp)*sample_rate),3))
+                dis_trajectory = ref_trajectory.copy()
+                ref_trajectory[:,2] = trials['ref'][trial_id]
+                dis_trajectory[:,2] = trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
+                pts.append(ref_trajectory)
+                yield idx, pts, disturbance, dis_trajectory
+                idx += 1
+
+    @staticmethod
+    def tracking_target_debug(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance=True, boundaries=(-10,10,-10,10)):
+        '''
+        Generates a sequence of 1D (z axis) target trajectories for debugging
         '''
         idx = 0
         base_period = 20
@@ -893,56 +932,6 @@ class ScreenTargetTracking(TargetTracking, Window):
                 dis_trajectory[:,2] = trials['dis'][trial_id] # TODO: scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
                 yield idx, pts, disturbance, dis_trajectory
-                idx += 1
-
-    @staticmethod
-    def tracking_target_chain_1D(nblocks=1, ntrials=2, time_length = 5, boundaries=(-10,10,-10,10)):
-        '''
-        Generates a sequence of 1D (z axis (vertical axis)) target trajectories
-
-        Parameters
-        ----------
-        nblocks : int
-            The number of tracking trials in the sequence.
-        ntrials : int
-            The number trials in a block
-        time_length : int
-            The length of one target tracking trial in seconds 
-        boundaries: 4 element Tuple
-            The limits of the allowed target locations (-x, x, -z, z)
-
-        Returns
-        -------
-        [nblocks*ntrials x 1] array of tuples containing trial indices and [time_length*60 x 3] target coordinates
-        '''
-        idx = 0
-        buffer_space = int(60*1.5) #1.5 seconds of straight line before and after trial
-        full_primes = np.asarray([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199])
-        primes_ind = np.where(full_primes <= time_length)
-        primes = full_primes[primes_ind]
-        frames = int(np.round(time_length*60))
-        disturbance_trials = np.random.randint(0,nblocks*ntrials,round(nblocks*ntrials*0.5))
-        random_start = random.randint(0, 1)
-        for i in range(nblocks):
-            for j in range(ntrials):
-                if idx % 2 == random_start:
-                    y_primes_freq = primes[::2]
-                    disturbance_freq = primes[::2]
-                else:
-                    y_primes_freq = primes[1::2]
-                    disturbance_freq = primes[1::2]
-                disturbance = False
-                disturbance_path = np.zeros((frames+2*buffer_space,1))
-                trajectory = np.zeros((frames+2*buffer_space,3))
-                sum_of_sins_path = ScreenTargetTracking.generate_trajectories(y_primes_freq,time_length)
-                pts = []
-                trajectory[:,2] = 5*np.concatenate((np.zeros(buffer_space),sum_of_sins_path,np.zeros(buffer_space)))
-                if np.any(idx == disturbance_trials):
-                    disterb = ScreenTargetTracking.generate_trajectories(disturbance_freq,time_length,0.75)
-                    disturbance_path = 5*np.concatenate((np.zeros(buffer_space),disterb,np.zeros(buffer_space)))
-                    disturbance = True
-                pts.append(trajectory)
-                yield idx, pts, disturbance, disturbance_path
                 idx += 1
     
     @staticmethod
