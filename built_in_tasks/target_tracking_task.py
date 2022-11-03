@@ -293,7 +293,6 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
     limit1d = traits.Bool(True, desc="Limit cursor movement to 1D")
-    global_limit1d = limit1d
 
     sequence_generators = [
         'tracking_target_chain', 'tracking_target_debug', 'tracking_target_training'
@@ -330,6 +329,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
         self.lookahead = 30 # number of frames to create a "lookahead" window of 0.5 seconds (half the screen)
+        self.original_limit1d = self.limit1d # keep track of original settable trait
         self.limit1d = False # allow 2d movement before center-hold initiation
         
         # Add graphics models for the plant and targets to the window
@@ -539,7 +539,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # print('START TRACKING')
         self.sync_event('CURSOR_ENTER_TARGET')
         # Revert to settable trait
-        self.limit1d = self.global_limit1d
+        self.limit1d = self.original_limit1d
         # Cue successful tracking
         self.target.cue_trial_end_success()
 
