@@ -825,7 +825,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             return trajectory
 
     @staticmethod
-    def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=60, base_period=20, ramp=0):
+    def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=120, base_period=20, ramp=0, num_primes=8):
         '''
         Sets up variables and uses prime numbers to call the above functions and generate then trajectories
         ramp is time length for preparatory lines
@@ -845,8 +845,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         full_primes = np.asarray([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 
             101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199])
-        primes_ind = np.where(full_primes <= T0)
-        primes = full_primes[primes_ind]
+        primes = full_primes[:num_primes]
+        # primes_ind = np.where(full_primes <= T0)
+        # primes = full_primes[primes_ind]
 
         f = primes*w0 # stimulated frequencies
         f_ref = f.copy()
@@ -935,7 +936,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_chain(nblocks=1, ntrials=2, time_length=20, seed=40, sample_rate=60, ramp=0, disturbance=True, boundaries=(-10,10,-10,10)):
+    def tracking_target_chain(nblocks=1, ntrials=2, time_length=20, ramp=0, num_primes=8, seed=40, sample_rate=120, disturbance=True, boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories
 
@@ -969,7 +970,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         base_period = 20
         for block_id in range(nblocks):                
             trials, trial_order = ScreenTargetTracking.generate_trajectories(
-                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp
+                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp, num_primes=num_primes
                 )
             for trial_id in range(ntrials):
                 pts = []
