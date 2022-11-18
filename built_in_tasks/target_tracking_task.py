@@ -64,6 +64,8 @@ class TargetTracking(Sequence):
     tracking_out_time = traits.Float(2.5, desc="Time allowed to be tracking outside the target") # AKA tolerance time
     tracking_out_penalty_time = traits.Float(1, desc="Length of penalty time for tracking out error")
     max_hold_attempts = traits.Int(5, desc='Number of attempts to initiate a trial before skipping to the next one')
+    tracking_reward_time = traits.Float(.15, desc="Length of reward for tracking in")
+    tracking_reward_interval = traits.Float(.5, desc="Length of time between reward for tracking in (must be greater than reward time)")
     
     def init(self):
         self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8',(3,)), ('disturbance', 'f8',(3,)), ('is_disturbance', '?')])
@@ -435,6 +437,15 @@ class ScreenTargetTracking(TargetTracking, Window):
             self.plant.stop()
 
     ##### HELPER AND UPDATE FUNCTIONS ####
+    # def tracking_in_reward(self):
+    #     self.reward.on()
+    #     print('REWARD ON')
+    #     start_manual_reward = time.time()
+    #     while (time.time() - start_manual_reward) <= self.manual_reward_time:
+    #         continue
+    #     self.reward.off()
+    #     print('REWARD OFF')
+
     def update_plant_visibility(self):
         ''' Update plant visibility'''
         if self.plant_visible != self.plant_vis_prev:
@@ -468,7 +479,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
-        print('WAIT')
+        # print('WAIT')
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -516,7 +527,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
-        print('WAIT RETRY')
+        # print('WAIT RETRY')
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -589,7 +600,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_hold(self):
         super()._start_hold()
-        print('START HOLD')
+        # print('START HOLD')
         self.sync_event('TRIAL_START')
         # Cue successful tracking
         self.target.cue_trial_end_success()
@@ -614,6 +625,8 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.limit1d = self.original_limit1d
         # Cue successful tracking
         self.target.cue_trial_end_success()
+        self.trigger_reward = False
+        self.start_time = 0
 
     def _while_tracking_in(self):
         super()._while_tracking_in()
@@ -634,6 +647,18 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Check if the trial is over and there are no more target frames to display
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
+
+        # Give reward for tracking in
+        curr_time = self.frame_index/self.fps
+        if curr_time % self.tracking_reward_interval==0 and self.trigger_reward==False:
+            self.trigger_reward = True
+            self.start_time = curr_time
+            self.reward.on()
+            print('REWARD ON')
+        if curr_time - self.start_time > self.tracking_reward_time and self.trigger_reward==True:        
+            self.trigger_reward = False
+            self.reward.off()
+            print('REWARD OFF')
 
     def _start_tracking_out(self):
         super()._start_tracking_out()
