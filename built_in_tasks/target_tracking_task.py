@@ -459,6 +459,10 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.trajectory.show()
         self.frame_index +=1
 
+    def cleanup(self, database, saveid, **kwargs):
+        self.reward.off()
+        super().cleanup(database, saveid, **kwargs)
+
     #### TEST FUNCTIONS ####
     def _test_enter_target(self, time_in_state):
         '''
@@ -626,6 +630,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Cue successful tracking
         self.target.cue_trial_end_success()
         self.trigger_reward = False
+        self.reward.off()
         self.start_time = 0
 
     def _while_tracking_in(self):
@@ -666,6 +671,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('CURSOR_LEAVE_TARGET')
         # Reset target color
         self.target.reset()
+        self.reward.off()
 
     def _while_tracking_out(self):
         super()._while_tracking_out()
