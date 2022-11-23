@@ -40,11 +40,11 @@ def get_sqlite3_databases():
 DATABASES = get_sqlite3_databases()
 #DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
-if HOSTNAME in ['pagaiisland2', 'aolab', 'aolab2', 'ecube']:
+if HOSTNAME in ['pagaiisland2', 'moor', 'crab-eating', 'ecube']:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'rig1',
-        'HOST': 'aolab.wanprc.washington.edu',
+        'HOST': 'moor.ece.uw.edu',
         'PORT': '3306',
         'USER': 'aolab',
         'PASSWORD': 'Securepassword1@#' # Very secure wow
@@ -191,5 +191,5 @@ LOGGING = {
 APPEND_SLASH=False
 ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]
 
-CELERY_BROKER_URL = 'amqp://bmi3d:verysecurel0l@aolab.wanprc.washington.edu:5672//'
+CELERY_BROKER_URL = 'amqp://bmi3d:verysecurel0l@moor.ece.uw.edu:5672//'
 

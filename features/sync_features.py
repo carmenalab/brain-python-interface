@@ -359,4 +359,5 @@ class CursorAnalogOut(traits.HasTraits):
         self.cursor_output_gpio.analog_write(self.cursor_x_pin, int_values[0])
         # self.cursor_output_gpio.analog_write(self.cursor_y_pin, int_values[1])
         self.cursor_output_gpio.analog_write(self.cursor_z_pin, int_values[2])
+
         super()._cycle()
