@@ -8,7 +8,7 @@ from features.laser_features import QwalorLaser, MultiQwalorLaser
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
-from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward, JackpotRewards, ProgressBar
+from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward, JackpotRewards, ProgressBar, TrackingRewards
 from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
 from .optitrack_features import Optitrack
@@ -67,6 +67,7 @@ built_in_features = dict(
     screen_sync=ScreenSync,
     cursor_sync=CursorAnalogOut,
     progress_bar=ProgressBar,
+    tracking_rewards=TrackingRewards
 )
 
 # >>> features.built_in_features['autostart'].__module__

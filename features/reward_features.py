@@ -253,6 +253,36 @@ class ProgressBar(traits.HasTraits):
         self.bar.show()        
 
 
+class TrackingRewards(traits.HasTraits):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def cleanup(self, database, saveid, **kwargs):
+            self.reward.off()
+            super().cleanup(database, saveid, **kwargs)
+
+        def _start_tracking_in(self):
+            super()._start_tracking_in()
+            self.trigger_reward = False
+            self.reward.off()
+            self.start_time = 0
+
+        def _while_tracking_in(self):
+            super()._while_tracking_in()
+            # Give reward for tracking in
+            curr_time = self.frame_index/self.fps
+            if curr_time % self.tracking_reward_interval==0 and self.trigger_reward==False:
+                self.trigger_reward = True
+                self.start_time = curr_time
+                self.reward.on()
+            if curr_time - self.start_time > self.tracking_reward_time and self.trigger_reward==True:        
+                self.trigger_reward = False
+                self.reward.off()
+
+        def _start_tracking_out(self):
+            super()._start_tracking_out()
+            self.reward.off()
+
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
 
