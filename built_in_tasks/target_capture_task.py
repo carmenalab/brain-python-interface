@@ -268,7 +268,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
 
     sequence_generators = [
-        'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
+        'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'corners_2D',
     ]
 
     hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
@@ -633,6 +633,43 @@ class ScreenTargetCapture(TargetCapture, Window):
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
             yield idx+np.arange(chain_length), pts
             idx += chain_length
+
+    @staticmethod
+    def corners_2D(nblocks=5, chain_length=1, corners=(-8,8,-8,8)):
+        '''
+        Generates a sequence of 2D (x and z) targets at the given 4 corners
+
+        Parameters
+        ----------
+        nblocks : 3-tuple
+            Number of blocks
+        chain_length : int
+            The number of targets in each chain before a reward is given
+        corners : 4-tuple
+            Location of the edges of the screen (-x, x, -y, y)
+
+        Returns
+        -------
+        [nblocks*4 x 1] array of tuples containing trial indices and [1 x 3] target coordinates
+
+        '''
+        ntargets = 4
+        corners = np.array([
+            [corners[0], 0, corners[2]],
+            [corners[0], 0, corners[3]],
+            [corners[1], 0, corners[2]],
+            [corners[1], 0, corners[3]]
+        ])
+        rng = np.random.default_rng()
+        for _ in range(nblocks):
+            order = np.arange(ntargets) + 1 # target indices, starting from 1
+            rng.shuffle(order)
+            t = 0
+            while t < ntargets:
+                idx = order[t]
+                pos = [corners[i-1] for i in idx]
+                yield idx+np.arange(chain_length), pos
+                t += chain_length
 
 class ScreenReachAngle(ScreenTargetCapture):
     '''
