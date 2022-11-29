@@ -14,10 +14,10 @@ from riglib.stereo_opengl.window import WindowDispl2D
 
 
 rotations = dict(
-    yzx = np.array(
-        [[0, 1, 0, 0], 
-        [0, 0, 1, 0], 
-        [1, 0, 0, 0], 
+    yzx = np.array(    # names come from rows (optitrack), but screen coords come from columns:
+        [[0, 1, 0, 0], # x goes into second column (y-coordinate, coming out of screen)
+        [0, 0, 1, 0],  # y goes into third column (z-coordinate, up)
+        [1, 0, 0, 0],  # z goes into first column (x-coordinate, right)
         [0, 0, 0, 1]]
     ),
     zyx = np.array(
