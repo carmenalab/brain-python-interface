@@ -450,10 +450,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.trajectory.show()
         self.frame_index +=1
 
-    # def cleanup(self, database, saveid, **kwargs):
-    #     self.reward.off()
-    #     super().cleanup(database, saveid, **kwargs)
-
     #### TEST FUNCTIONS ####
     def _test_enter_target(self, time_in_state):
         '''
@@ -620,9 +616,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.limit1d = self.original_limit1d
         # Cue successful tracking
         self.target.cue_trial_end_success()
-        # self.trigger_reward = False
-        # self.reward.off()
-        # self.start_time = 0
 
     def _while_tracking_in(self):
         super()._while_tracking_in()
@@ -644,25 +637,12 @@ class ScreenTargetTracking(TargetTracking, Window):
         if self.frame_index+self.lookahead >= np.shape(self.targs)[0]:
             self.trial_timed_out = True
 
-        # # Give reward for tracking in
-        # curr_time = self.frame_index/self.fps
-        # if curr_time % self.tracking_reward_interval==0 and self.trigger_reward==False:
-        #     self.trigger_reward = True
-        #     self.start_time = curr_time
-        #     self.reward.on()
-        #     print('REWARD ON')
-        # if curr_time - self.start_time > self.tracking_reward_time and self.trigger_reward==True:        
-        #     self.trigger_reward = False
-        #     self.reward.off()
-        #     print('REWARD OFF')
-
     def _start_tracking_out(self):
         super()._start_tracking_out()
         # print('STOP TRACKING')
         self.sync_event('CURSOR_LEAVE_TARGET')
         # Reset target color
         self.target.reset()
-        # self.reward.off()
 
     def _while_tracking_out(self):
         super()._while_tracking_out()

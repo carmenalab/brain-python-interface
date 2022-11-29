@@ -275,9 +275,11 @@ class TrackingRewards(traits.HasTraits):
                 self.trigger_reward = True
                 self.start_time = curr_time
                 self.reward.on()
+                # print('REWARD ON')
             if curr_time - self.start_time > self.tracking_reward_time and self.trigger_reward==True:        
                 self.trigger_reward = False
                 self.reward.off()
+                # print('REWARD OFF')
 
         def _start_tracking_out(self):
             super()._start_tracking_out()
