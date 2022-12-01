@@ -93,11 +93,10 @@ class TargetTracking(Sequence):
         self.disturbance_path = np.squeeze(self.disturbance_path)
 
         WIDTH, HEIGHT = self.window_size[0], self.window_size[1]
-        SC = self.cursor_bounds[-1] # y max
         lookahead = np.zeros((self.lookahead,np.shape(self.targs)[1])) # (30,3)
 
-        self.targs = SC*self.targs # y_bound*self.targs
-        self.disturbance_path = SC*self.disturbance_path # y_bound*self.disturbance_path
+        self.targs = self.trajectory_amplitude*self.targs
+        self.disturbance_path = self.disturbance_amplitude*self.disturbance_path
         print(np.amax(self.targs), np.amax(self.disturbance_path))
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
@@ -343,6 +342,8 @@ class ScreenTargetTracking(TargetTracking, Window):
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, z min, z max, y min, y max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor')
     fps = traits.Float(60, desc="Rate at which the FSM is called in Hz") # originally set by class Experiment
+    trajectory_amplitude = traits.Float(1, desc='Scale factor applied to the trajectory')
+    disturbance_amplitude = traits.Float(1, desc='Scale factors applied to the disturbance')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
