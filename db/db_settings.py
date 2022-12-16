@@ -41,8 +41,6 @@ def get_sqlite3_databases():
     return dbs
 
 
-# For testing, comment out one of these
-# DATABASES = get_sqlite3_databases()
 # DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 DATABASES = {}
 
@@ -71,13 +69,15 @@ if HOSTNAME in ['pagaiisland2']:
 elif HOSTNAME in ['siberut-bmi']:
     DATABASES['default'] = get_mysql_database('rig2')
     CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
-elif HOSTNAME in ['booted']:
+elif HOSTNAME in ['booted-server']:
     DATABASES['default'] = get_mysql_database('tablet')
 elif HOSTNAME in ['moor', 'crab-eating', 'ecube']:
     DATABASES['rig1'] = get_mysql_database('rig1')
     DATABASES['rig2'] = get_mysql_database('rig2')
     DATABASES['tablet'] = get_mysql_database('tablet')
     DATABASES['default'] = DATABASES['rig1']
+else:
+    DATABASES = get_sqlite3_databases()
 
 # Django settings for db project.
 DEBUG = True
