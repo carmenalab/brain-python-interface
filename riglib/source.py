@@ -82,6 +82,9 @@ class DataSource(RPCProcess):
         self.bufferlen = bufferlen
         self.max_len = bufferlen * int(self.source.update_freq)
         self.slice_size = self.source.dtype.itemsize
+
+        if (self.slice_size == 0):
+            raise ValueError("Your source is size zero! Why do you want a source system?!")
         
         self.lock = mp.Lock()
         self.idx = shm.RawValue('l', 0)
