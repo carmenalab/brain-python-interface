@@ -200,6 +200,7 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     reset = traits.Int(0, desc='reset the decoder state to the starting configuration')
     cursor_color = traits.OptionsList("orange", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
 
+    static_states = ['reward']
 
     ordered_traits = ['session_length', 'assist_level', 'assist_level_time', 'reward_time','timeout_time','timeout_penalty_time']
     exclude_parent_traits = ['marker_count', 'marker_num', 'goal_cache_block']
