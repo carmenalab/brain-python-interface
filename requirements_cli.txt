@@ -1,4 +1,4 @@
-wheel==0.34.2
+wheel==0.38.1
 numpy==1.19.0
 scipy==1.5.1
 matplotlib==3.2.2
