@@ -1,5 +1,5 @@
 import serial
-import pyfirmata
+from .gpio import CustomBoard
 import time
 import numpy as np
 from . import singleton
@@ -113,7 +113,8 @@ class QwalorLaserSerial:
         self.trigger_pin = arduino_pin
         self.channel = laser_channel
         self._set_config()
-        self.board = pyfirmata.Arduino(arduino_port)
+        self.board = CustomBoard(arduino_port, baudrate=57600, timeout=10)
+        time.sleep(2) # need extra time to make sure the arduino is ready.
 
     def _set_config(self):
         config_packet = get_config_packet(self.channel, self.freq, self.gain, self.mode)
