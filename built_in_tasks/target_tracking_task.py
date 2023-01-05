@@ -97,7 +97,7 @@ class TargetTracking(Sequence):
 
         self.targs = self.trajectory_amplitude*self.targs
         self.disturbance_path = self.disturbance_amplitude*self.disturbance_path
-        print(np.amax(self.targs), np.amax(self.disturbance_path))
+        # print(np.amax(self.targs), np.amax(self.disturbance_path))
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
 
@@ -302,7 +302,7 @@ class TargetTracking(Sequence):
 
     def _test_leave_target(self, time_in_state):
         '''This function is task-specific and not much can be done generically'''
-        return self.pause
+        return self.pause # TODO: have pause wait until end of trial?
     
     def update_report_stats(self):
         '''
