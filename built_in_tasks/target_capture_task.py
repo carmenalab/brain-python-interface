@@ -660,16 +660,19 @@ class ScreenTargetCapture(TargetCapture, Window):
             [corners[1], 0, corners[2]],
             [corners[1], 0, corners[3]]
         ])
+        target_order = []
         rng = np.random.default_rng()
         for _ in range(nblocks):
             order = np.arange(ntargets) + 1 # target indices, starting from 1
             rng.shuffle(order)
-            t = 0
-            while t < ntargets:
-                idx = order[t]
-                pos = [corners[i-1] for i in idx]
-                yield idx+np.arange(chain_length), pos
-                t += chain_length
+            target_order = np.concatenate((target_order, order), axis=0)
+
+        # Spit out trials in groups of chain_length
+        ntrials = nblocks*4//chain_length
+        for t in range(ntrials):
+            idx = target_order[int(t*chain_length):int(t*chain_length+chain_length)]
+            pos = [corners[int(i-1),:] for i in idx]
+            yield idx, pos
 
 class ScreenReachAngle(ScreenTargetCapture):
     '''

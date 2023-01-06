@@ -8,6 +8,7 @@ from threading import Thread as Process, Lock
 import time
 import pyfirmata
 from serial.serialutil import SerialException
+import serial
 
 def convert_masked_data_to_pins(mask, data, bits=64):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''
@@ -59,6 +60,29 @@ class TestGPIO(GPIO):
     def read(self, pin):
         return self.value[pin,-1]
 
+class CustomBoard(pyfirmata.Board):
+
+    default_layout = pyfirmata.boards.BOARDS['arduino']
+    wait_time = 1
+
+    def __init__(self, port, layout=None, baudrate=112500, name=None, timeout=None):
+        self.sp = serial.Serial(port, baudrate, timeout=timeout)
+        self.pass_time(self.wait_time)
+        self.name = name
+        self._layout = layout
+        if not self.name:
+            self.name = port
+
+        if layout:
+            self.setup_layout(layout)
+        else:
+            layout = self.default_layout
+            self.setup_layout(layout)
+
+        # Iterate over the first messages to get firmware data
+        while self.bytes_available():
+            self.iterate()
+
 class ArduinoGPIO(GPIO):
     ''' Pin-addressable arduino serial interface'''
     def __init__(self, port=None, baudrate=57600, timeout=10):
@@ -70,7 +94,7 @@ class ArduinoGPIO(GPIO):
                     port = p.device
             if port is None:
                 raise Exception('No serial device found')
-        self.board = pyfirmata.Arduino(port, baudrate=baudrate, timeout=timeout)
+        self.board = CustomBoard(port, baudrate=baudrate, timeout=timeout)
         self.lock = Lock()
 
     def write(self, pin, value):
@@ -92,6 +116,18 @@ class ArduinoGPIO(GPIO):
         ''' Call this method before destroying the object'''
         self.board.exit()
 
+class TeensyBoard(CustomBoard):
+
+    default_layout = {
+        'digital': tuple(x for x in range(63)),
+        'pwm': tuple(x for x in range(63)),
+        'analog': tuple(x for x in range(43, 69)),
+        'disabled': (0,1),
+    }
+    wait_time = 0.5 # Teensy is much faster than arduino with hardware Serial port, so we 
+                    # don't have to wait so long.
+
+
 class TeensyGPIO(ArduinoGPIO):
 
     def __init__(self, port=None, baudrate=112500, timeout=10):
@@ -103,13 +139,7 @@ class TeensyGPIO(ArduinoGPIO):
                     port = p.device
             if port is None:
                 raise Exception('No serial device found')
-        teensy = {
-            'digital': tuple(x for x in range(63)),
-            'pwm': tuple(x for x in range(63)),
-            'analog': tuple(x for x in range(43, 69)),
-            'disabled': (0,1),
-        }
-        self.board = pyfirmata.Board(port, baudrate=baudrate, timeout=timeout, layout=teensy)
+        self.board = TeensyBoard(port, baudrate=baudrate, timeout=timeout)
         self.lock = Lock()
 
     def analog_write(self, pin, value):
