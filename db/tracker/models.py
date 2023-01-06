@@ -1075,7 +1075,13 @@ class TaskEntry(models.Model):
         params = json_param.Parameters(self.params)
 
         if self.report is not None and len(self.report) > 0:
-            report_data = json.loads(self.report)
+            try:
+                report_data = json.loads(self.report)
+            except:
+                print(self.id)
+                print("THIS TE IS BROKEN <--")
+                report_data = None
+
         else:
             report_data = None
         try:
