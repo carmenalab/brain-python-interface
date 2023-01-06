@@ -18,9 +18,6 @@ from collections import defaultdict
 
 from .tracker import models
 
-# default DB, change this variable from python session to switch to other database
-db_name = 'default'
-
 # configure django
 boot_django()
 
@@ -40,7 +37,7 @@ class TaskEntry(object):
     can be defined for TaskEntry blocks (e.g., for analysis methods for a particular experiment)
     without needing to modfiy the database model.
     '''
-    def __init__(self, task_entry_id, dbname=db_name, **kwargs):
+    def __init__(self, task_entry_id, dbname='default', **kwargs):
         '''
         Constructor for TaskEntry
 
@@ -835,7 +832,7 @@ def get_task_entries_by_id(ids):
     return list(models.TaskEntry.objects.filter(pk__in=ids))
 
 @mysqlreconnect
-def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db_name):
+def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname='default'):
     '''
     Returns list of task entries within date range (inclusive). startdate and enddate
     are date objects. End date is optional- today's date by default.
@@ -843,7 +840,7 @@ def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db
     return list(models.TaskEntry.objects.using(dbname).filter(date__gte=startdate).filter(date__lte=enddate))
 
 @mysqlreconnect
-def get_task_entries(subj=None, date=None, task=None, dbname=db_name, **kwargs):
+def get_task_entries(subj=None, date=None, task=None, dbname='default', **kwargs):
     '''
     Get all the task entries for a particular date
 
@@ -951,7 +948,7 @@ def get_records_of_trained_decoders(task_entry):
     else:
         return records
 
-def lookup_task_entries(*task_entry):
+def lookup_task_entries(*task_entry, dbname='default'):
     '''
     Enable multiple ways to specify a task entry, e.g. by primary key or by
     object
@@ -961,33 +958,33 @@ def lookup_task_entries(*task_entry):
         if isinstance(task_entry, models.TaskEntry):
             pass
         elif isinstance(task_entry, int):
-            task_entry = models.TaskEntry.objects.using(db_name).get(pk=task_entry) #get_task_entry(task_entry)
+            task_entry = models.TaskEntry.objects.using(dbname).get(pk=task_entry) #get_task_entry(task_entry)
         return task_entry
     else:
         return [lookup_task_entries(x) for x in task_entry]
 
-def get_task_id(name):
+def get_task_id(name, dbname='default'):
     '''
     Returns the task ID for the specified task name.
     '''
-    return models.Task.objects.using(db_name).get(name=name).pk
+    return models.Task.objects.using(dbname).get(name=name).pk
 
-def get_decoder_entry(entry):
+def get_decoder_entry(entry, dbname='default'):
     '''Returns the database entry for the decoder used in the session. Argument can be a task entry
     or the ID number of the decoder entry itself.
     '''
     if isinstance(entry, int):
-        return models.Decoder.objects.using(db_name).get(pk=entry)
+        return models.Decoder.objects.using(dbname).get(pk=entry)
     else:
         params = json.loads(entry.params)
         if 'decoder' in params:
-            return models.Decoder.objects.using(db_name).get(pk=params['decoder'])
+            return models.Decoder.objects.using(dbname).get(pk=params['decoder'])
         elif 'bmi' in params:
-            return models.Decoder.objects.using(db_name).get(pk=params['bmi'])
+            return models.Decoder.objects.using(dbname).get(pk=params['bmi'])
         else:
             return None
 
-def get_decoder_name(entry):
+def get_decoder_name(entry, dbname='default'):
     '''
     Returns the filename of the decoder used in the session.
     Takes TaskEntry object.
@@ -997,18 +994,19 @@ def get_decoder_name(entry):
         decid = json.loads(entry.params)['decoder']
     except:
         decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.using(db_name).get(pk=decid).path
+    return models.Decoder.objects.using(dbname).get(pk=decid).path
 
-def get_decoder_name_full(entry):
+def get_decoder_name_full(entry, dbname='default'):
     entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
-    return os.path.join(paths.pathdict[dbname], 'decoders', decoder_basename)
+    sys_path = models.System.objects.using(dbname).get(name='bmi')
+    return os.path.join(sys_path, decoder_basename)
 
-def get_decoder(entry):
+def get_decoder(entry, dbname='default'):
     entry = lookup_task_entries(entry)
     filename = get_decoder_name_full(entry)
     dec = pickle.load(open(filename, 'r'))
-    dec.db_entry = get_decoder_entry(entry)
+    dec.db_entry = get_decoder_entry(entry, dbname=dbname)
     dec.name = dec.db_entry.name
     return dec
 
@@ -1026,12 +1024,12 @@ def get_param(entry,paramname):
     '''
     return json.loads(entry.params)[paramname]
 
-def get_task_name(entry):
+def get_task_name(entry, dbname='default'):
     '''
     Returns name of task used for session.
     Takes TaskEntry object.
     '''
-    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
+    return models.Task.objects.using(dbname).get(pk=entry.task_id).name
 
 def get_date(entry):
     '''
@@ -1047,12 +1045,12 @@ def get_notes(entry):
     '''
     return entry.notes
 
-def get_subject(entry):
+def get_subject(entry, dbname='default'):
     '''
     Returns name of subject for session.
     Takes TaskEntry object.
     '''
-    return models.Subject.objects.using(db_name).get(pk=entry.subject_id).name
+    return models.Subject.objects.using(dbname).get(pk=entry.subject_id).name
 
 def get_length(entry):
     '''
@@ -1152,25 +1150,25 @@ def session_summary(entry):
 ###############
 # Decoder query
 ###############
-def get_decoder_parent(decoder):
+def get_decoder_parent(decoder, dbname='default'):
     '''
     decoder = database record of decoder object
     '''
     entryid = decoder.entry_id
-    te = get_task_entry(entryid)
+    te = get_task_entries_by_id(entryid, dbname=dbname)[0]
     return get_decoder_entry(te)
 
-def get_decoder_sequence(decoder):
+def get_decoder_sequence(decoder, dbname='default'):
     '''
     decoder = database record of decoder object
     '''
-    parent = get_decoder_parent(decoder)
+    parent = get_decoder_parent(decoder, dbname=dbname)
     if parent is None:
         return [decoder]
     else:
-        return [decoder] + get_decoder_sequence(parent)
+        return [decoder] + get_decoder_sequence(parent, dbname=dbname)
 
-def search_by_decoder(decoder):
+def search_by_decoder(decoder, dbname='default'):
     '''
     Returns task entries that used specified decoder. Decoder argument can be
     decoder entry or entry ID.
@@ -1180,10 +1178,10 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid)))
+    blocks = list(models.TaskEntry.objects.using(dbname).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(dbname).filter(params__contains='"decoder": '+str(decid)))
     return blocks
 
-def search_by_units(unitlist, decoderlist = None, exact=False):
+def search_by_units(unitlist, decoderlist=None, exact=False, dbname='default'):
     '''
     Returns decoder entries that contain the specified units. If exact is True,
     returns only decoders whose unit lists match unitlist exactly, otherwise
@@ -1194,12 +1192,12 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     if decoderlist is not None:
         all_decoders = decoderlist
     else:
-        all_decoders = models.Decoder.objects.using(db_name).all()
+        all_decoders = models.Decoder.objects.using(dbname).all()
     subset = set(tuple(unit) for unit in unitlist)
     dec_list = []
     for dec in all_decoders:
         try:
-            decobj = pickle.load(open(paths.data_path+'/decoders/'+dec.path))
+            decobj = dec.get()
             decset = set(tuple(unit) for unit in decobj.units)
             if subset==decset:
                 dec_list = dec_list + [dec]
@@ -1277,14 +1275,14 @@ def get_entry_details(entry):
     date = get_date(entry).date()
     return subject, te, date
 
-def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[], filter_fn=lambda x:True):
+def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[], filter_fn=lambda x:True, dbname='default'):
     '''
     Returns list of subject, date, and id for all sessions on the given date
     '''
     if session_name:
-        entries = get_task_entries(subj=subject, task=task_name, date=date, session=session_name)
+        entries = get_task_entries(subj=subject, task=task_name, date=date, session=session_name, dbname=dbname)
     else:
-        entries = get_task_entries(subj=subject, task=task_name, date=date)
+        entries = get_task_entries(subj=subject, task=task_name, date=date, dbname=dbname)
     if len(entries) == 0:
         import warnings
         warnings.warn("No entries found")
@@ -1292,17 +1290,17 @@ def get_sessions(subject, date, task_name, session_name=None, exclude_ids=[], fi
     subject, te, date = zip(*[get_entry_details(e) for e in entries if filter_fn(e) and e.id not in exclude_ids])
     return subject, te, date
     
-def get_mc_sessions(subject, date, mc_task_name='manual control', **kwargs):
+def get_mc_sessions(subject, date, mc_task_name='manual control', dbname='default', **kwargs):
     '''
     Returns list of subject, date, and id for all bmi control sessions on the given date
     '''
-    return get_sessions(subject, date, task_name=mc_task_name, **kwargs)
+    return get_sessions(subject, date, task_name=mc_task_name, dbname=dbname, **kwargs)
     
-def get_bmi_sessions(subject, date, session_name='training', bmi_task_name='bmi control', **kwargs):
+def get_bmi_sessions(subject, date, session_name='training', bmi_task_name='bmi control', dbname='default', **kwargs):
     '''
     Returns list of subject, date, and id for all bmi control sessions on the given date
     '''
-    return get_sessions(subject, date, session_name=session_name, task_name=bmi_task_name, **kwargs)
+    return get_sessions(subject, date, session_name=session_name, task_name=bmi_task_name, dbname=dbname, **kwargs)
 
 
 def get_preprocessed_sources(entry):
