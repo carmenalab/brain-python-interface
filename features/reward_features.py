@@ -265,22 +265,20 @@ class TrackingRewards(traits.HasTraits):
             super()._start_tracking_in()
             self.trigger_reward = False
             self.reward.off()
-            self.reward_start_time = 0
+            self.reward_start_frame = self.frame_index + self.tracking_reward_interval*self.fps
 
         def _while_tracking_in(self):
             super()._while_tracking_in()
             # Give reward for tracking in
-            curr_time = self.frame_index/self.fps
-            # print(curr_time, self.trigger_reward)
-            if curr_time % self.tracking_reward_interval==0 and self.trigger_reward==False:
+            if self.frame_index == self.reward_start_frame and self.trigger_reward==False:
                 self.trigger_reward = True
-                self.reward_start_time = curr_time
+                self.reward_stop_frame = self.frame_index + self.tracking_reward_time*self.fps
                 self.reward.on()
-                print('REWARD ON', curr_time)
-            if curr_time - self.reward_start_time > self.tracking_reward_time and self.trigger_reward==True:        
+                print('REWARD ON')
+            if self.frame_index > self.reward_stop_frame and self.trigger_reward==True:        
                 self.trigger_reward = False
                 self.reward.off()
-                print('REWARD OFF', curr_time)
+                print('REWARD OFF')
 
         def _start_tracking_out(self):
             super()._start_tracking_out()
