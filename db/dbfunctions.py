@@ -1329,7 +1329,7 @@ def get_rawfiles_for_taskentry(e, system_subfolders=None):
     Returns: 
         files : list of (system, filepath) for each datafile associated with this task entry 
     '''
-    file_list = e.get_data_files()
+    file_list = e.get_data_files(dbname=e._state.db)
     files = {}
     for df in file_list:
         if df.system.name == 'optitrack' or df.system.name == 'e3v':
