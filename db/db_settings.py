@@ -7,6 +7,9 @@ import os, glob, re
 import glob
 import re
 import socket
+import json
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 HOSTNAME = socket.gethostname()
 
@@ -37,18 +40,44 @@ def get_sqlite3_databases():
 
     return dbs
 
-DATABASES = get_sqlite3_databases()
-#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
-if HOSTNAME in ['pagaiisland2', 'moor', 'crab-eating', 'ecube']:
-    DATABASES['default'] = {
+# DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
+DATABASES = {}
+
+def get_secret(setting):
+    """Get secret setting or fail with ImproperlyConfigured"""
+    try:
+        with open(os.path.join(BASE_DIR, 'secrets.json')) as secrets_file:
+            secrets = json.load(secrets_file)
+        return secrets[setting]
+    except KeyError:
+        raise ImproperlyConfigured("Set the {} setting".format(setting))
+
+def get_mysql_database(dbname):
+    return {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'rig1',
-        'HOST': 'moor.ece.uw.edu',
-        'PORT': '3306',
-        'USER': 'aolab',
-        'PASSWORD': 'Securepassword1@#' # Very secure wow
+        'NAME': dbname,
+        'HOST': get_secret("DB_HOST"),
+        'PORT': get_secret("DB_PORT"),
+        'USER': get_secret("DB_USER"),
+        'PASSWORD': get_secret("DB_PASSWORD")
     }
+
+if HOSTNAME in ['pagaiisland2']:
+    DATABASES['default'] = get_mysql_database('rig1')
+    CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
+elif HOSTNAME in ['siberut-bmi']:
+    DATABASES['default'] = get_mysql_database('rig2')
+    CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
+elif HOSTNAME in ['booted-server']:
+    DATABASES['default'] = get_mysql_database('tablet')
+elif HOSTNAME in ['moor', 'crab-eating', 'ecube']:
+    DATABASES['rig1'] = get_mysql_database('rig1')
+    DATABASES['rig2'] = get_mysql_database('rig2')
+    DATABASES['tablet'] = get_mysql_database('tablet')
+    DATABASES['default'] = DATABASES['rig1']
+else:
+    DATABASES = get_sqlite3_databases()
 
 # Django settings for db project.
 DEBUG = True
@@ -191,5 +220,4 @@ LOGGING = {
 APPEND_SLASH=False
 ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]
 
-CELERY_BROKER_URL = 'amqp://bmi3d:verysecurel0l@moor.ece.uw.edu:5672//'
 

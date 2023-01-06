@@ -59,3 +59,4 @@ riglib/plexon/Plexfile_utilities.egg-info/*
 *.dot
 riglib/dio/nidaq/pcidio.py
 db/settings.py
+db/secrets.json
