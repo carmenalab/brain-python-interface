@@ -143,11 +143,14 @@ class MultiQwalorLaser(traits.HasTraits):
 
 class LaserState(traits.HasTraits):
     '''
-    Trigger lasers to stimulate during a single state.
+    Trigger lasers to stimulate at the beginning of a given state. Make sure the state duration is 
+    longer than the total stimulation duration otherwise the stim may extend into other states.
     '''
 
     laser_trigger_state = traits.String("wait", desc="State machine state that triggers laser")
     laser_stims_per_trial = traits.Int(1, desc="Number of stimulations per laser per trial")
+    laser_power = traits.List([1.,], desc="Laser power (between 0 and 1) for each active laser")
+    laser_pulse_width = traits.List([0.005,], desc="List of possible pulse widths in seconds")
     laser_poisson_mu = traits.Float(0.5, desc="Mean duration between laser stimulations (s)")
 
     hidden_traits = ['laser_trigger_state']
@@ -166,32 +169,24 @@ class LaserState(traits.HasTraits):
             self.state = None
         super().run() 
 
-    def _start_trial(self):
-        super()._start_trial()
-        for idx in range(len(self.lasers)):
-            laser = self.lasers[idx]
-            edges = self.laser_edges[idx]
-            # set laser power
-            power = self.laser_powers[idx]
-            laser.set_power(power)
-
-            # Trigger digital wave
-            wave = DigitalWave(laser, mask=1<<laser.port)
-            wave.set_edges(edges, True)
-            wave.start()
-            self.laser_threads.append(wave)
-            self.sync_event("CUE", idx)
-            wait_time = np.random.exponential(self.laser_poisson_mu)
-
-    def _end_trial(self):
-        super()._end_trial()
-        # Turn laser off in between trials in case it ended on a rising edge
-        for idx in range(len(self.lasers)):
-            laser = self.lasers[idx]
-            wave = DigitalWave(laser, mask=1>>laser.port)
-            wave.set_edges([0], False)
-            wave.start()
+    def start_state(self, state):
+        super().start_state(state)
+        if state != self.laser_trigger_state:
+            return
         
-    def _test_end_trial(self, ts):
-        return all([not t.is_alive() for t in self.laser_threads])
+        for n in range(self.laser_stims_per_trial):
+            for idx in range(len(self.lasers)):
+                laser = self.lasers[idx]
 
+                width_idx = np.random.choice(len(self.laser_pulse_width))
+                width = self.laser_pulse_width[width_idx]
+                power = self.laser_power[idx]
+                laser.set_power(power)
+
+                # Trigger digital wave
+                wave = DigitalWave(laser, mask=1<<laser.port)
+                wave.set_edges(edges, True)
+                wave.start()
+                self.laser_threads.append(wave)
+                self.sync_event("CUE", idx)
+                wait_time = np.random.exponential(self.laser_poisson_mu)
