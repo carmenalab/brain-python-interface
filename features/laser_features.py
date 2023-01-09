@@ -170,6 +170,13 @@ class LaserState(traits.HasTraits):
             self.termination_err.write("No laser feature enabled, cannot init LaserState")
             self.termination_err.seek(0)
             self.state = None
+        if len(self.lasers) != len(self.laser_power):
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write("Incorrect length laser power attribute. Please match to number of lasers.")
+            self.termination_err.seek(0)
+            self.state = None
         super().run() 
 
     def start_state(self, state):
