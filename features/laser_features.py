@@ -3,6 +3,7 @@ Laser delivery features
 '''
 
 import time
+import traceback
 from riglib.experiment import traits
 from riglib.gpio import ArduinoGPIO, DigitalWave
 import numpy as np
@@ -56,6 +57,7 @@ class QwalorLaser(traits.HasTraits):
             time.sleep(3) # some extra time to make sure the lasers are initialized
 
         except Exception as e:
+            traceback.print_exc()
             self.qwalor_laser_status = 'Couldn\'t connect to laser modulator, make it is turned on!'
             
         super().init(*args, **kwargs)
@@ -127,6 +129,7 @@ class MultiQwalorLaser(traits.HasTraits):
             self.qwalor_laser_status = 'ok'
             
         except Exception as e:
+            traceback.print_exc()
             self.qwalor_laser_status = 'Couldn\'t connect to laser modulator, make it is turned on!'
             
         super().init(*args, **kwargs)
@@ -174,19 +177,27 @@ class LaserState(traits.HasTraits):
         if state != self.laser_trigger_state:
             return
         
-        for n in range(self.laser_stims_per_trial):
-            for idx in range(len(self.lasers)):
-                laser = self.lasers[idx]
+        wait_time = 0
+        self.laser_waves = []
+        for idx in range(len(self.lasers)):
+            laser = self.lasers[idx]
 
-                width_idx = np.random.choice(len(self.laser_pulse_width))
-                width = self.laser_pulse_width[width_idx]
-                power = self.laser_power[idx]
-                laser.set_power(power)
+            width_idx = np.random.choice(len(self.laser_pulse_width))
+            width = self.laser_pulse_width[width_idx]
+            power = self.laser_power[idx]
+            laser.set_power(power)
+
+            for n in range(self.laser_stims_per_trial):
 
                 # Trigger digital wave
                 wave = DigitalWave(laser, mask=1<<laser.port)
-                wave.set_edges(edges, True)
+                wave.set_edges([wait_time, wait_time+width], True)
                 wave.start()
-                self.laser_threads.append(wave)
-                self.sync_event("CUE", idx)
-                wait_time = np.random.exponential(self.laser_poisson_mu)
+                self.laser_waves.append(wave)
+
+                # Make the next pulse come after a delay
+                delay = max(np.random.exponential(self.laser_poisson_mu), 2*width)
+                wait_time += delay
+                print(wait_time)
+
+        print(self.laser_waves)

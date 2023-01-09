@@ -211,7 +211,7 @@ class DigitalWave(Process):
         state = self.first_edge 
         for edge in self.edges:
             while (time.perf_counter() - t0 < edge):
-                pass
+                time.sleep(0)
             self.gpio.write_many(self.mask, int(state*self.data))
             state = not state
 
@@ -267,7 +267,7 @@ class DigitalWaveMulti(DigitalWave):
         state = self.first_edge 
         for edge in self.edges:
             while (time.perf_counter() - t0 < edge):
-                pass
+                time.sleep(0)
             for idx in range(len(self.gpio)):
                 self.gpio[idx].write_many(self.mask, int(state*self.data))
             state = not state

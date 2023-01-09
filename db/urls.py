@@ -34,7 +34,7 @@ urlpatterns = [
     path('setup/remove/subject', ajax.remove_subject),
     path('setup/remove/experimenter', ajax.remove_experimenter),
     
-    path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
+    path(r'exp_log/', views.list_exp_history, dict(max_entries=400)),
     path(r'exp_log/all/', views.list_exp_history),
     path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
     path("exp_log/link_data_files/<int:task_entry_id>/submit", views.link_data_files_response_handler),
