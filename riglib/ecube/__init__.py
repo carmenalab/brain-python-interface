@@ -256,3 +256,127 @@ class File(DataSourceSystem):
             self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
             return next(self.gen)
 
+class LFP_Plus_Trigger(DataSourceSystem):
+    '''
+    Adds a single analog trigger as channel 0. Compatible with riglib.source.MultiChanDataSource
+    '''
+    # Required by DataSourceSystem: update_freq and dtype (see make() below)
+    update_freq = 1000.
+    dtype = np.dtype('float')
+
+    def __init__(self, headstage=7, trigger_ach=0, channels=[0, 1]):
+        '''
+        Constructor for ecube.Broadband
+        Inputs:
+            headstages int: headstage number (1-indexed)
+            channels [int array]: channel list (1-indexed)
+        '''
+        # Initialize the servernode-control connection
+        self.conn = eCubeStream(debug=False)
+        self.headstage = headstage
+        self.trig_channel = trigger_ach
+        self.channels = channels[1:]
+
+    def start(self):
+        print("Starting ecube streaming datasource...")
+
+        # Remove all existing sources
+        subscribed = self.conn.listadded()
+        if len(subscribed[0]) > 0:
+            self.conn.remove(('Headstages', self.headstage))
+        if len(subscribed[1]) > 0:
+            self.conn.remove(('AnalogPanel',))
+        if len(subscribed[2]) > 0:
+            self.conn.remove(('DigitalPanel',))
+
+        # Add the requested headstage channels if they are available
+        available = self.conn.listavailable()[0][self.headstage-1] # (headstages, analog, digital); hs are 1-indexed
+        for ch in self.channels:
+            if ch > available:
+                raise RuntimeError('requested channel {} is not available ({} connected)'.format(
+                    ch, available))
+            self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
+
+        # Add the digital panel for triggering
+        self.conn.add(('AnalogPanel', (self.trig_channel, self.trig_channel)))
+        subscribed = self.conn.listadded() # in debug mode this prints out the added channels
+
+        # Start streaming
+        self.conn.start()
+
+        # Start with an empty generator for the headstage channels
+        self.gen = iter(())
+
+    
+    def stop(self):
+
+        # Stop streaming
+        if not self.conn.stop():
+            del self.conn # try to force the streaming to end by deleting the ecube connection object
+            self.conn = eCubeStream(debug=True)
+
+        # Remove the added sources
+        self.conn.remove(('Headstages', self.headstage))
+        self.conn.remove(('AnalogPanel',))
+        
+    def get(self):
+        '''data
+        Retrieve a packet from the server
+        '''
+        try:
+            return next(self.gen)
+        except StopIteration:
+            data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+            if data_block[1] == "Headstages":
+                self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+                return next(self.gen)
+            else:
+                return 0, data_block[2][::25] # The trigger data
+    
+    
+
+class LFP_Plus_Trigger_File(DataSourceSystem):
+    '''
+    Adds a single analog trigger as channel 0, but reading from file. Compatible with riglib.source.MultiChanDataSource
+    '''
+    # Required by DataSourceSystem: update_freq and dtype (see make() below)
+    update_freq = 1000.
+    chunksize = 728
+    dtype = np.dtype('float')
+
+    def __init__(self, channels, ecube_bmi_filename=None, trig_channel=0):
+        
+        if not ecube_bmi_filename:
+            ecube_bmi_filename = "/data/raw/ecube/2022-08-19_BMI3D_te6569"
+
+        # Open the file
+        self.trig_channel = trig_channel
+        self.channels = channels[1:]
+        zero_idx_channels = [ch-1 for ch in self.channels]
+        self.file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "Headstages", channels=zero_idx_channels, chunksize=self.chunksize)
+        self.trig_file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "AnalogPanel", channels=[self.trig_channel], chunksize=self.chunksize)
+        self.trig_flag = True
+        
+    def get(self):
+        '''data
+        Read a "packet" worth of data from the file
+        '''
+        try:
+            return next(self.gen)
+        except (StopIteration, AttributeError):
+            time.sleep(1./(25000/self.chunksize))
+            if self.trig_flag:
+                try:
+                    trig_chunk = next(self.trig_file)[::25]
+                except StopIteration:
+                    trig_chunk = np.zeros((int(728/25),1))
+                self.trig_flag = False
+                return 0, np.squeeze(trig_chunk)
+            try:
+                data_block = next(self.file)
+                self.trig_flag = True
+            except StopIteration:
+                data_block = np.zeros((int(728/25),len(self.channels)))
+            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            return next(self.gen)
+    
