@@ -30,6 +30,7 @@ class LaserTests(unittest.TestCase):
         self.assertEqual(packet[2], 0xff)
         self.assertEqual(packet[3], 0x7f)
 
+    @unittest.skip("only run if needed")
     def test_run(self):
 
         laser = qwalor_laser.QwalorLaserSerial(channel)
@@ -46,6 +47,47 @@ class LaserTests(unittest.TestCase):
                     pass
                 laser.off()
                 time.sleep(0.5)
+
+    def test_dual_channel(self):
+        n_trials = 10
+        iti = 0.1
+        width = 0.1
+
+        laser1 = qwalor_laser.QwalorLaserSerial(2)
+        laser1.port = laser1.trigger_pin
+        laser1.name = 'qwalor_laser_ch2'
+        laser1.set_mode(mode)
+        laser1.set_freq(freq)
+        laser1.set_power(1)
+        print("laser 1 configured")
+
+        laser2 = qwalor_laser.QwalorLaserSerial(4)
+        laser2.port = laser2.trigger_pin
+        laser2.name = 'qwalor_laser_ch4'
+        laser2.set_mode(mode)
+        laser2.set_freq(freq)
+        laser2.set_power(1)
+        print("laser 2 configured")
+
+        for n in range(n_trials):
+            t0 = time.perf_counter()
+            laser1.on()
+            while (time.perf_counter() - t0 < width):
+                pass
+            laser1.off()
+            t1 = time.perf_counter()
+            while (time.perf_counter() - t1 < iti):
+                pass
+        
+            t0 = time.perf_counter()
+            laser2.on()
+            while (time.perf_counter() - t0 < width):
+                pass
+            laser2.off()
+            t1 = time.perf_counter()
+            while (time.perf_counter() - t1 < iti):
+                pass
+
 
     @unittest.skip("only run if needed")
     def test_speed(self):

@@ -93,11 +93,11 @@ class TargetTracking(Sequence):
         self.disturbance_path = np.squeeze(self.disturbance_path)
 
         WIDTH, HEIGHT = self.window_size[0], self.window_size[1]
-        SC = self.cursor_bounds[-1] # z max
         lookahead = np.zeros((self.lookahead,np.shape(self.targs)[1])) # (30,3)
 
-        self.targs = SC*self.targs # height/2-width*self.targs
-        self.disturbance_path = SC*self.disturbance_path # height/2-width*self.disturbance_path
+        self.targs = self.trajectory_amplitude*self.targs
+        self.disturbance_path = self.disturbance_amplitude*self.disturbance_path
+        # print(np.amax(self.targs), np.amax(self.disturbance_path))
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
 
@@ -302,7 +302,7 @@ class TargetTracking(Sequence):
 
     def _test_leave_target(self, time_in_state):
         '''This function is task-specific and not much can be done generically'''
-        return self.pause
+        return self.pause # TODO: have pause wait until end of trial?
     
     def update_report_stats(self):
         '''
@@ -339,9 +339,11 @@ class ScreenTargetTracking(TargetTracking, Window):
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
     cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
-    cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
+    cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, z min, z max, y min, y max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor')
     fps = traits.Float(60, desc="Rate at which the FSM is called in Hz") # originally set by class Experiment
+    trajectory_amplitude = traits.Float(1, desc='Scale factor applied to the trajectory')
+    disturbance_amplitude = traits.Float(1, desc='Scale factors applied to the disturbance')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -805,8 +807,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         o = np.ones(t.shape)
         trajectory = np.sum(np.dot(o,a) * np.sin(2*np.pi*(np.dot(t,f) + np.dot(o,p))),axis=1)
+        A = np.sum(np.dot(o,a)[0])
         
-        return trajectory
+        return trajectory, A
 
     @staticmethod
     def calc_sum_of_sines_ramp(times, ramp, frequencies, amplitudes, phase_shifts):
@@ -818,13 +821,13 @@ class ScreenTargetTracking(TargetTracking, Window):
 
             r = ramp
 
-            trajectory = ScreenTargetTracking.calc_sum_of_sines(t, frequencies, amplitudes, phase_shifts)
+            trajectory, A = ScreenTargetTracking.calc_sum_of_sines(t, frequencies, amplitudes, phase_shifts)
 
             if r > 0:
                 trajectory *= ((t*(t <= r)/r + (t > r)).flatten())**2
                 #(((t*(t <= r)/r) + ((t > r) & (t < (t[-1]-r))) + ((t[-1]-t)*(t >= (t[-1]-r))/r)).flatten())**2
 
-            return trajectory
+            return trajectory, A
 
     @staticmethod
     def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=120, base_period=20, ramp=0, num_primes=8):
@@ -895,12 +898,12 @@ class ScreenTargetTracking(TargetTracking, Window):
             else:
                 sines_d = np.arange(len(primes))
             
-            ref_trajectory = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_ref[sines_r], a_ref[sines_r], o_ref[trial_id][sines_r])
-            dis_trajectory = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_dis[sines_d], a_dis[sines_d], o_dis[trial_id][sines_d])
+            ref_trajectory, ref_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_ref[sines_r], a_ref[sines_r], o_ref[trial_id][sines_r])
+            dis_trajectory, dis_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_dis[sines_d], a_dis[sines_d], o_dis[trial_id][sines_d])
             
             # normalized trajectories
-            trials['ref'][trial_id] = ref_trajectory/np.sum(a_ref)
-            trials['dis'][trial_id] = dis_trajectory/np.sum(a_dis)
+            trials['ref'][trial_id] = ref_trajectory/ref_A   # previously, denominator was np.sum(a_ref)
+            trials['dis'][trial_id] = dis_trajectory/dis_A   # previously, denominator was np.sum(a_dis)
         
         return trials, trial_order
 
