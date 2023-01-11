@@ -380,3 +380,107 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
             self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
             return next(self.gen)
     
+class LFP_Blanking(LFP_Plus_Trigger):
+    '''
+    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource
+    '''
+
+    blanking = False
+    analog_buffer = np.nan*np.zeros((1000*30,1))
+        
+    def get(self):
+        '''data
+        Retrieve a packet from the server
+        '''
+        try:
+            if self.blanking:
+                chan, data = next(self.gen)
+                blank = np.nan*np.zeros(data.shape)
+                return (chan, blank)
+            else:
+                return next(self.gen)        
+        except StopIteration:
+            data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+            if data_block[1] == "Headstages":
+                self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+                if self.blanking:
+                    chan, data = next(self.gen)
+                    blank = np.nan*np.zeros(data.shape)
+                    return (chan, blank)
+                else:
+                    return next(self.gen)
+            else: # new packet of trigger data
+                trig = data_block[2][::25]
+                n_trig = len(trig)
+                self.analog_buffer[:-n_trig] = self.obs[n_trig:, :]
+                self.analog_buffer[-n_trig:] = trig
+                median = np.nanmedian(self.analog_buffer)
+                std = np.nanstd(self.analog_buffer)
+                thr = median + 3*std
+                if np.max(trig) > thr:
+                    self.blanking = True
+                else:
+                    self.blanking = False
+                return 0, trig
+
+class LFP_Blanking_File(LFP_Plus_Trigger_File):
+    '''
+    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource
+    '''
+
+    blanking = False
+    analog_buffer = np.nan*np.zeros((1000*30,1))
+        
+    def get(self):
+        '''data
+        Read a "packet" worth of data from the file
+        '''
+        try:
+            if self.blanking:
+                chan, data = next(self.gen)
+                blank = np.nan*np.zeros(data.shape)
+                return (chan, blank)
+            else:
+                return next(self.gen)        
+        except (StopIteration, AttributeError):
+            time.sleep(1./(25000/self.chunksize))
+            if self.trig_flag:
+                try:
+                    trig_chunk = next(self.trig_file)[::25]
+                except StopIteration:
+                    trig_chunk = np.zeros((int(728/25),1))
+                self.trig_flag = False
+                
+                n_trig = trig_chunk.size
+                self.analog_buffer[:-n_trig] = self.obs[n_trig:, :]
+                self.analog_buffer[-n_trig:] = np.squeeze(trig_chunk)
+                median = np.nanmedian(self.analog_buffer)
+                std = np.nanstd(self.analog_buffer)
+                thr = median + 3*std
+                if np.max(trig_chunk) > thr:
+                    self.blanking = True
+                else:
+                    self.blanking = False
+                return 0, np.squeeze(trig_chunk)
+            try:
+                data_block = next(self.file)
+                self.trig_flag = True
+            except StopIteration:
+                data_block = np.zeros((int(728/25),len(self.channels)))
+            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            if self.blanking:
+                chan, data = next(self.gen)
+                blank = np.nan*np.zeros(data.shape)
+                return (chan, blank)
+            else:
+                return next(self.gen)
+    
+def make_source_class(cls, trigger_ach):
+    
+    def init(self, **kwargs):
+        super(self.__class__, self).__init__(trigger_ach=trigger_ach, **kwargs)
+        
+    return type(cls.__name__, (cls,), dict(__init__=init))
+
+# e.g.
+# cls = make_source_class(LFP_Plus_Trigger, 17) # laser ch 2
