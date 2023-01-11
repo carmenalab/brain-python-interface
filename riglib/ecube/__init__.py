@@ -387,6 +387,7 @@ class LFP_Blanking(LFP_Plus_Trigger):
 
     blanking = False
     analog_buffer = np.nan*np.zeros((1000*30,))
+    headstage_buffer = []
         
     def get(self):
         '''data
@@ -395,7 +396,7 @@ class LFP_Blanking(LFP_Plus_Trigger):
         try:
             if self.blanking:
                 chan, data = next(self.gen)
-                blank = np.nan*np.zeros(data.shape)
+                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
                 return (chan, blank)
             else:
                 return next(self.gen)        
@@ -418,9 +419,10 @@ class LFP_Blanking(LFP_Plus_Trigger):
             self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
             if self.blanking:
                 chan, data = next(self.gen)
-                blank = np.nan*np.zeros(data.shape)
+                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
                 return (chan, blank)
             else:
+                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
                 return next(self.gen)
 
 
@@ -431,7 +433,8 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
 
     blanking = False
     analog_buffer = np.nan*np.zeros((1000*30,))
-        
+    headstage_buffer = []
+
     def get(self):
         '''data
         Read a "packet" worth of data from the file
@@ -439,7 +442,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
         try:
             if self.blanking:
                 chan, data = next(self.gen)
-                blank = np.nan*np.zeros(data.shape)
+                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
                 return (chan, blank)
             else:
                 return next(self.gen)        
@@ -471,9 +474,10 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
             self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
             if self.blanking:
                 chan, data = next(self.gen)
-                blank = np.nan*np.zeros(data.shape)
+                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
                 return (chan, blank)
             else:
+                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
                 return next(self.gen)
     
 def make_source_class(cls, trigger_ach):
