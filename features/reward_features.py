@@ -265,20 +265,20 @@ class TrackingRewards(traits.HasTraits):
             super()._start_tracking_in()
             self.trigger_reward = False
             self.reward.off()
-            self.reward_start_frame = self.frame_index + self.tracking_reward_interval*self.fps
-            self.reward_stop_frame = self.reward_start_frame + self.tracking_reward_time*self.fps
+            self.reward_start_frame = self.frame_index + self.tracking_reward_interval*self.fps # frame to start first reward
+            self.reward_stop_frame = self.reward_start_frame + self.tracking_reward_time*self.fps # frame to stop first reward
             print('START TRACKING', self.reward_start_frame, self.reward_stop_frame)
 
         def _while_tracking_in(self):
             super()._while_tracking_in()
             # Give reward for tracking in
-            if self.frame_index > self.reward_start_frame and self.trigger_reward==False:
+            if self.frame_index >= self.reward_start_frame and self.trigger_reward==False:
                 self.trigger_reward = True
                 self.reward_stop_frame = self.frame_index + self.tracking_reward_time*self.fps # frame to stop current reward
                 self.reward_start_frame = self.frame_index + self.tracking_reward_interval*self.fps # frame to start next reward
                 self.reward.on()
                 print('REWARD ON', self.frame_index/self.fps)
-            if self.frame_index > self.reward_stop_frame and self.trigger_reward==True:        
+            if self.frame_index >= self.reward_stop_frame and self.trigger_reward==True:        
                 self.trigger_reward = False
                 self.reward.off()
                 print('REWARD OFF', self.frame_index/self.fps)
