@@ -281,7 +281,7 @@ class EcubeFileBMI(EcubeFileData, CorticalBMI):
             send_data_to_sink_manager=self.send_data_to_sink_manager, 
             channels=self.cortical_channels,
             ecube_bmi_filename=self.ecube_bmi_filename)
-        self._neural_src_system_type = ecube.File
+        self._neural_src_system_type = ecube.LFP_Blanking_File
 
 class EcubeBMI(CorticalBMI):
     '''
@@ -289,6 +289,10 @@ class EcubeBMI(CorticalBMI):
     '''
 
     bmi_ecube_headstage = traits.Int(7, desc="Which headstage to use for BMI data")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._neural_src_system_type = ecube.LFP_Blanking
 
     def init(self):
         self.neural_src_kwargs = dict(headstage=self.bmi_ecube_headstage)

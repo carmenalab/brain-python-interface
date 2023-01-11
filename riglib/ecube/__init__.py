@@ -264,7 +264,7 @@ class LFP_Plus_Trigger(DataSourceSystem):
     update_freq = 1000.
     dtype = np.dtype('float')
 
-    def __init__(self, headstage=7, trigger_ach=0, channels=[0, 1]):
+    def __init__(self, headstage=7, trigger_ach=0, channels=[1]):
         '''
         Constructor for ecube.Broadband
         Inputs:
@@ -275,7 +275,7 @@ class LFP_Plus_Trigger(DataSourceSystem):
         self.conn = eCubeStream(debug=False)
         self.headstage = headstage
         self.trig_channel = trigger_ach
-        self.channels = channels[1:]
+        self.channels = channels
 
     def start(self):
         print("Starting ecube streaming datasource...")
@@ -351,7 +351,7 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
 
         # Open the file
         self.trig_channel = trig_channel
-        self.channels = channels[1:]
+        self.channels = channels
         zero_idx_channels = [ch-1 for ch in self.channels]
         self.file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "Headstages", channels=zero_idx_channels, chunksize=self.chunksize)
         self.trig_file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "AnalogPanel", channels=[self.trig_channel], chunksize=self.chunksize)
@@ -386,7 +386,7 @@ class LFP_Blanking(LFP_Plus_Trigger):
     '''
 
     blanking = False
-    analog_buffer = np.nan*np.zeros((1000*30,1))
+    analog_buffer = np.nan*np.zeros((1000*30,))
         
     def get(self):
         '''data
@@ -401,18 +401,10 @@ class LFP_Blanking(LFP_Plus_Trigger):
                 return next(self.gen)        
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
-            if data_block[1] == "Headstages":
-                self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
-                if self.blanking:
-                    chan, data = next(self.gen)
-                    blank = np.nan*np.zeros(data.shape)
-                    return (chan, blank)
-                else:
-                    return next(self.gen)
-            else: # new packet of trigger data
+            while data_block[1] != "Headstages": # new packet of trigger data
                 trig = data_block[2][::25]
                 n_trig = len(trig)
-                self.analog_buffer[:-n_trig] = self.obs[n_trig:, :]
+                self.analog_buffer[:-n_trig] = self.analog_buffer[n_trig:]
                 self.analog_buffer[-n_trig:] = trig
                 median = np.nanmedian(self.analog_buffer)
                 std = np.nanstd(self.analog_buffer)
@@ -421,7 +413,16 @@ class LFP_Blanking(LFP_Plus_Trigger):
                     self.blanking = True
                 else:
                     self.blanking = False
-                return 0, trig
+                data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+
+            self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+            if self.blanking:
+                chan, data = next(self.gen)
+                blank = np.nan*np.zeros(data.shape)
+                return (chan, blank)
+            else:
+                return next(self.gen)
+
 
 class LFP_Blanking_File(LFP_Plus_Trigger_File):
     '''
@@ -429,7 +430,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
     '''
 
     blanking = False
-    analog_buffer = np.nan*np.zeros((1000*30,1))
+    analog_buffer = np.nan*np.zeros((1000*30,))
         
     def get(self):
         '''data
@@ -452,7 +453,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
                 self.trig_flag = False
                 
                 n_trig = trig_chunk.size
-                self.analog_buffer[:-n_trig] = self.obs[n_trig:, :]
+                self.analog_buffer[:-n_trig] = self.analog_buffer[n_trig:]
                 self.analog_buffer[-n_trig:] = np.squeeze(trig_chunk)
                 median = np.nanmedian(self.analog_buffer)
                 std = np.nanstd(self.analog_buffer)
@@ -461,7 +462,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
                     self.blanking = True
                 else:
                     self.blanking = False
-                return 0, np.squeeze(trig_chunk)
+
             try:
                 data_block = next(self.file)
                 self.trig_flag = True
