@@ -382,7 +382,9 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
     
 class LFP_Blanking(LFP_Plus_Trigger):
     '''
-    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource
+    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource.
+
+    Limitation: only blanks one chunk at a time, so smaller chunks are better!
     '''
 
     blanking = False
@@ -394,12 +396,7 @@ class LFP_Blanking(LFP_Plus_Trigger):
         Retrieve a packet from the server
         '''
         try:
-            if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
-            else:
-                return next(self.gen)        
+            return next(self.gen)        
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             while data_block[1] != "Headstages": # new packet of trigger data
@@ -416,14 +413,12 @@ class LFP_Blanking(LFP_Plus_Trigger):
                     self.blanking = False
                 data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
 
-            self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
             if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
+                self.gen = multi_chan_generator(self.headstage_buffer, self.channels, downsample=25)
             else:
-                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
-                return next(self.gen)
+                self.headstage_buffer = data_block[2].copy() # save this good hs data for later if blanking is needed
+                self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+            return next(self.gen)
 
 
 class LFP_Blanking_File(LFP_Plus_Trigger_File):
@@ -440,12 +435,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
         Read a "packet" worth of data from the file
         '''
         try:
-            if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
-            else:
-                return next(self.gen)        
+            return next(self.gen)        
         except (StopIteration, AttributeError):
             time.sleep(1./(25000/self.chunksize))
             if self.trig_flag:
@@ -471,14 +461,13 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
                 self.trig_flag = True
             except StopIteration:
                 data_block = np.zeros((int(728/25),len(self.channels)))
-            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+
             if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
+                self.gen = multi_chan_generator(self.headstage_buffer, self.channels, downsample=25)
             else:
-                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
-                return next(self.gen)
+                self.headstage_buffer = data_block.copy() # save this good hs data for later if blanking is needed
+                self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            return next(self.gen)
     
 def make_source_class(cls, trigger_ach):
     
