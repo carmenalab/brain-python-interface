@@ -298,16 +298,16 @@ class TargetTracking(Sequence):
         return time_in_state > self.tracking_out_time
 
     def _test_timeout_penalty_end(self, time_in_state):
-        return time_in_state > self.timeout_penalty_time or self.pause
+        return time_in_state > self.timeout_penalty_time #or self.pause
 
     def _test_hold_penalty_end(self, time_in_state):
-        return (time_in_state > self.hold_penalty_time) and (self.tries==self.max_hold_attempts) or self.pause
+        return (time_in_state > self.hold_penalty_time) and (self.tries==self.max_hold_attempts) #or self.pause
 
     def _test_hold_penalty_end_retry(self, time_in_state):
-        return (time_in_state > self.hold_penalty_time) and (self.tries<self.max_hold_attempts) or self.pause
+        return (time_in_state > self.hold_penalty_time) and (self.tries<self.max_hold_attempts) #or self.pause
 
     def _test_tracking_out_penalty_end(self, time_in_state):
-        return time_in_state > self.tracking_out_penalty_time or self.pause
+        return time_in_state > self.tracking_out_penalty_time #or self.pause
 
     def _test_reward_end(self, time_in_state):
         return time_in_state > self.reward_time
@@ -742,6 +742,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _end_hold_penalty(self):
         super()._end_hold_penalty()
+        # print('TRIAL END')
         self.sync_event('TRIAL_END')
 
     def _start_tracking_out_penalty(self):
@@ -765,7 +766,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _end_tracking_out_penalty(self):
         super()._end_tracking_out_penalty()
-        print('END TRACKING TIMEOUT')
+        # print('TRIAL END')
         self.sync_event('TRIAL_END')
         # Hide target and trajectory
         self.target.hide()
@@ -808,8 +809,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_pause(self):
         super()._start_pause()
-        print('START PAUSE')
-        self.sync_event('PAUSE_START')
+        # print('START PAUSE')
+        self.sync_event('TRIAL_END')
         # Hide target and trajectory
         self.target.hide()
         self.target.reset()
@@ -824,7 +825,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _end_pause(self):
         super()._end_pause()
         # print('END PAUSE')
-        self.sync_event('PAUSE_END')
+        # self.sync_event('PAUSE_END')
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
