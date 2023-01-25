@@ -49,7 +49,7 @@ class TargetTracking(Sequence):
         timeout_penalty = dict(timeout_penalty_end="wait", start_pause="pause", end_state=True),
         hold_penalty = dict(hold_penalty_end="wait", hold_penalty_end_retry="wait_retry", start_pause="pause", end_state=True),
         tracking_out_penalty = dict(tracking_out_penalty_end="wait", start_pause="pause", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True), # when pausing during reward, it doesn't trigger until wait state so there are 2 'TRIAL_END' codes on back to back cycles
         pause = dict(end_pause="wait", end_state=True)
         # all end_states will result in trial counter +1, so if you start pause during a penalty state, 
         # the next trial after unpausing will be current trial +2
@@ -494,7 +494,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
-        # print('WAIT')
+        print('WAIT')
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -778,7 +778,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_reward(self):
         super()._start_reward()
-        # print('REWARD')
+        print('REWARD')
         self.sync_event('REWARD')
         # Cue successful trial
         self.target.cue_trial_end_success()
@@ -809,7 +809,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_pause(self):
         super()._start_pause()
-        # print('START PAUSE')
+        print('START PAUSE')
         self.sync_event('TRIAL_END')
         # Hide target and trajectory
         self.target.hide()
@@ -824,8 +824,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _end_pause(self):
         super()._end_pause()
-        # print('END PAUSE')
-        # self.sync_event('PAUSE_END')
+        print('END PAUSE')
+        self.sync_event('PAUSE_END')
 
     @staticmethod
     def calc_sum_of_sines(times, frequencies, amplitudes, phase_shifts):
