@@ -49,12 +49,11 @@ class TargetTracking(Sequence):
         timeout_penalty = dict(timeout_penalty_end="wait", start_pause="pause", end_state=True),
         hold_penalty = dict(hold_penalty_end="wait", hold_penalty_end_retry="wait_retry", start_pause="pause", end_state=True),
         tracking_out_penalty = dict(tracking_out_penalty_end="wait", start_pause="pause", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True), # when pausing during reward, it doesn't trigger until wait state so there are 2 'TRIAL_END' codes on back to back cycles
+        reward = dict(reward_end="wait", start_pause="pause", stoppable=False, end_state=True),
         pause = dict(end_pause="wait", end_state=True)
         # all end_states will result in trial counter +1, so if you start pause during a penalty state, 
         # the next trial after unpausing will be current trial +2
 
-        # TODO: pausing during reward produces 2 back-to-back TRIAL_END codes
     )
 
     # initial state
@@ -497,7 +496,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_wait(self):
         super()._start_wait()
         print('WAIT')
-        self.in_end_state = False
+        # self.in_end_state = False
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -546,7 +545,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_wait_retry(self):
         super()._start_wait_retry()
         # print('WAIT RETRY')
-        self.in_end_state = False
+        # self.in_end_state = False
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -696,7 +695,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_timeout_penalty()
         # print('START TIMEOUT')
         self.sync_event('TIMEOUT_PENALTY')
-        self.in_end_state = True
+        # self.in_end_state = True
         # Hide target and trajectory
         self.target.hide()
         self.target.reset()
@@ -725,7 +724,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_hold_penalty()
         # print('START HOLD TIMEOUT')
         self.sync_event('HOLD_PENALTY')
-        self.in_end_state = True
+        # self.in_end_state = True
         # Hide target and trajectory
         self.target.hide()
         self.target.reset()
@@ -755,7 +754,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_tracking_out_penalty()
         # print('START TRACKING TIMEOUT')
         self.sync_event('OTHER_PENALTY')
-        self.in_end_state = True
+        # self.in_end_state = True
         # Cue failed trial
         self.target.cue_trial_end_failure()
 
@@ -785,9 +784,9 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_reward(self):
         super()._start_reward()
-        print('REWARD')
+        # print('REWARD')
         self.sync_event('REWARD')
-        self.in_end_state = True
+        # self.in_end_state = True
         # Cue successful trial
         self.target.cue_trial_end_success()
         self.reward_frame_index = 0
@@ -806,7 +805,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _end_reward(self):
         super()._end_reward()
-        print('TRIAL END')
+        # print('TRIAL END')
         self.sync_event('TRIAL_END')
         # Hide target and trajectory
         self.target.hide()
@@ -819,9 +818,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _start_pause(self):
         super()._start_pause()
         print('START PAUSE')
-        if not self.in_end_state:
-            print('TRIAL END - PAUSE')
-            self.sync_event('TRIAL_END')
+        self.sync_event('PAUSE_START') # self.sync_event('PAUSE_START') - this will overwrite TRIAL_END whenever you pause during an end state
         # Hide target and trajectory
         self.target.hide()
         self.target.reset()
