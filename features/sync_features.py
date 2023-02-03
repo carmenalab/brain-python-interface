@@ -130,8 +130,11 @@ class HDFSync(traits.HasTraits):
         Send a sync event on the next cycle, unless 'immediate' flag is set
         '''
         if self.has_sync_event:
-            print("Warning: Cannot sync more than 1 event per cycle")
-            print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
+            if self.sync_event_record['code'] == self.sync_params['event_sync_dict']['TRIAL_END'] and event_name == 'PAUSE_START':
+                pass
+            else:
+                print("Warning: Cannot sync more than 1 event per cycle")
+                print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
 
         # digital output
         code = encode_event(self.sync_params['event_sync_dict'], event_name, min(event_data, self.sync_params['event_sync_max_data']))
