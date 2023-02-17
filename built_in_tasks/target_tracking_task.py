@@ -88,6 +88,7 @@ class TargetTracking(Sequence):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
         self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        print(self.gen_indices)
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -384,6 +385,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
+        self.add_dtype('gen_idx', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         self.add_dtype('current_target', 'f8', (3,))
         self.add_dtype('current_disturbance', 'f8', (3,)) # see task_data['manual_input'] for cursor position without added disturbance
@@ -408,6 +410,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
+        self.task_data['gen_idx'] = self.gen_indices[self.frame_index]
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
