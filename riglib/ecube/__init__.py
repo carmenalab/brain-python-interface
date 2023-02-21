@@ -11,7 +11,7 @@ eCube streaming sources
 
 analog_voltsperbit = 3.0517578125e-4
 headstage_voltsperbit = 1.907348633e-7
-REWARD_TRIG_THRESHOLD_VOLTS = 3
+TRIG_THRESH = 2.5
 
 def multi_chan_generator(data_block, channels, downsample=1):
     for idx in range(len(channels)):
@@ -388,11 +388,14 @@ class LFP_Blanking(LFP_Plus_Trigger):
     '''
     Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource.
 
-    Limitation: only blanks one chunk at a time, so smaller chunks are better!
+    Limitation: only blanks one chunk at a time, so smaller chunks are better! But -- the analog panel stream
+    arrives in more frequent 22-sample packets; once the headstage packets are that size then there is no 
+    benefit to making the hs packets any smaller! 
     '''
 
     blanking = 0
     headstage_buffer = []
+    trig_buffer = []
         
     def get(self):
         '''data
@@ -403,14 +406,17 @@ class LFP_Blanking(LFP_Plus_Trigger):
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             while data_block[1] != "Headstages": # new packet of trigger data
-                trig = data_block[2][::25]
-                n_trig = len(trig)
-                trig_chunk_volts = analog_voltsperbit*trig
-                if self.blanking:
-                    self.blanking -= 1
-                elif np.max(trig_chunk_volts) > REWARD_TRIG_THRESHOLD_VOLTS:
-                    self.blanking = int(200/n_trig) # how many packets to get to 200ms
+                trig_buffer = np.concatenate((trig_buffer, np.squeeze(data_block[2])), axis=0)
                 data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
+
+            trig_chunk_volts = analog_voltsperbit*trig_buffer
+            if self.blanking:
+                self.blanking -= 1
+            elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
+                self.blanking = 1
+            elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
+                self.blanking = 1
+            trig_buffer = [] # reset the trigger accumulation
 
             if self.blanking:
                 self.gen = multi_chan_generator(self.headstage_buffer, self.channels, downsample=25)
@@ -427,48 +433,42 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
 
     blanking = 0
     headstage_buffer = []
-
+    
     def get(self):
         '''data
         Read a "packet" worth of data from the file
         '''
         try:
-            if self.blanking:
-                chan, data = next(self.gen)
-                idx = np.where(np.array(self.channels) == chan)[0][0]
-                blank = self.headstage_buffer[:,idx] # copy the last good headstage data for this channel
-                return (chan, blank)
-            else:
-                return next(self.gen)        
+            return next(self.gen)        
         except (StopIteration, AttributeError):
             time.sleep(1./(25000/self.chunksize))
-            if self.trig_flag:
-                try:
-                    trig_chunk = next(self.trig_file)[::25]
-                except StopIteration:
-                    trig_chunk = np.zeros((int(728/25),1))
-                self.trig_flag = False
-                n_trig = trig_chunk.size
-                trig_chunk_volts = analog_voltsperbit*trig_chunk
-                if self.blanking:
-                    self.blanking -= 1
-                elif np.max(trig_chunk_volts) > REWARD_TRIG_THRESHOLD_VOLTS:
-                    self.blanking = int(200/n_trig) # how many packets to get to 200ms
-                    print("Blanking!")
+            
+            # Get a chunk of trigger data
+            try:
+                trig_chunk = next(self.trig_file)
+            except StopIteration:
+                trig_chunk = np.zeros((self.chunksize,))
+            trig_chunk_volts = analog_voltsperbit*trig_chunk
+            if self.blanking:
+                self.blanking -= 1
+            elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
+                self.blanking = 1
+            elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
+                self.blanking = 2
+                  
+            # Get a chunk of hs data
             try:
                 data_block = next(self.file)
-                self.trig_flag = True
             except StopIteration:
-                data_block = np.zeros((int(728/25),len(self.channels)))
-            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+                data_block = np.zeros((self.chunksize,len(self.channels)))
+                
+            # Make the new generator and return the first channel
             if self.blanking:
-                chan, data = next(self.gen)
-                idx = np.where(np.array(self.channels) == chan)[0][0]
-                blank = self.headstage_buffer[:,idx] # copy the last good headstage data for this channel
-                return (chan, blank)
+                data_block = self.headstage_buffer.copy() # copy the last good headstage data for this channel
             else:
-                self.headstage_buffer = data_block[::25,:] # save this good hs data for later if blanking is needed
-                return next(self.gen)
+                self.headstage_buffer = data_block.copy() # save this good hs data for later if blanking is needed
+            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            return next(self.gen)
     
 def make_source_class(cls, trigger_ach):
     
