@@ -77,6 +77,7 @@ class TargetTracking(Sequence):
         self.plant_position = []
         self.disturbance_trial = False
         self.repeat_freq_set = False
+        self.gen_index = -1
 
         if self.velocity_control:
             print('VELOCITY CONTROL')
@@ -88,8 +89,7 @@ class TargetTracking(Sequence):
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
-        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
-        print(self.gen_indices)
+        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -110,10 +110,12 @@ class TargetTracking(Sequence):
             self.next_trial = next(self.gen)
             self._parse_next_trial()
 
+        print(self.gen_index)
+
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information --> bmi3d_trials
             self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_indices
+            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
@@ -140,10 +142,12 @@ class TargetTracking(Sequence):
         pass
 
     def _start_wait_retry(self):
+        print(self.gen_index)
+
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information --> bmi3d_trials
             self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_indices
+            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
@@ -423,7 +427,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
-        self.task_data['gen_idx'] = self.gen_indices[self.frame_index]
+        self.task_data['gen_idx'] = self.gen_index
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
