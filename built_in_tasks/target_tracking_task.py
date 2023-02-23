@@ -402,7 +402,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
-        self.add_dtype('gen_idx', 'u4', (1,))
+        self.add_dtype('gen_idx', 'int', (1,)) # dtype needs to be able to represent -1
         self.add_dtype('plant_visible', '?', (1,))
         self.add_dtype('current_target', 'f8', (3,))
         self.add_dtype('current_disturbance', 'f8', (3,)) # see task_data['manual_input'] for cursor position without added disturbance
@@ -428,6 +428,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
         self.task_data['gen_idx'] = self.gen_index
+        # print(self.task_data['gen_idx'])
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
