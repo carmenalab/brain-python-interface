@@ -909,6 +909,7 @@ class ScreenTargetTracking(TargetTracking, Window):
             # normalized trajectories
             trials['ref'][trial_id] = ref_trajectory/ref_A   # previously, denominator was np.sum(a_ref)
             trials['dis'][trial_id] = dis_trajectory/dis_A   # previously, denominator was np.sum(a_dis)
+            # print(trial_order, ref_A, dis_A)
         
         return trials, trial_order
 
