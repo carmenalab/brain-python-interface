@@ -76,6 +76,8 @@ class TargetTracking(Sequence):
         self.trial_timed_out = True # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
+        self.repeat_freq_set = False
+        self.gen_index = -1
 
         if self.velocity_control:
             print('VELOCITY CONTROL')
@@ -87,7 +89,7 @@ class TargetTracking(Sequence):
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
-        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -101,18 +103,23 @@ class TargetTracking(Sequence):
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
 
+    def _start_wait(self):
+        # Call parent method to draw the next target capture sequence from the generator
+        super()._start_wait()
+        if self.repeat_freq_set:
+            self.next_trial = next(self.gen)
+            self._parse_next_trial()
+
+        print(self.gen_index)
+
         for i in range(len(self.disturbance_path)):
-            # Update the data sinks with trial information
+            # Update the data sinks with trial information --> bmi3d_trials
             self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_indices
+            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
-
-    def _start_wait(self):
-        # Call parent method to draw the next target capture sequence from the generator
-        super()._start_wait()
 
         # trial is not finished
         self.trial_timed_out = False
@@ -135,6 +142,17 @@ class TargetTracking(Sequence):
         pass
 
     def _start_wait_retry(self):
+        print(self.gen_index)
+
+        for i in range(len(self.disturbance_path)):
+            # Update the data sinks with trial information --> bmi3d_trials
+            self.trial_record['trial'] = self.calc_trial_num()
+            self.trial_record['index'] = self.gen_index
+            self.trial_record['target'] = self.targs[i+self.lookahead]
+            self.trial_record['disturbance'] = self.disturbance_path[i]
+            self.trial_record['is_disturbance'] = self.disturbance_trial
+            self.sinks.send("trials", self.trial_record)
+
          # trial is not finished
         self.trial_timed_out = False
 
@@ -384,6 +402,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
+        self.add_dtype('gen_idx', 'int', (1,)) # dtype needs to be able to represent -1
         self.add_dtype('plant_visible', '?', (1,))
         self.add_dtype('current_target', 'f8', (3,))
         self.add_dtype('current_disturbance', 'f8', (3,)) # see task_data['manual_input'] for cursor position without added disturbance
@@ -408,6 +427,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
+        self.task_data['gen_idx'] = self.gen_index
+        # print(self.task_data['gen_idx'])
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
@@ -678,6 +699,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.hide()
         self.bar.reset()
 
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
+
     def _while_timeout_penalty(self):
         super()._while_timeout_penalty()
         # # Add disturbance
@@ -706,6 +730,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.hide()
         self.bar.reset()
 
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
+
     def _while_hold_penalty(self):
         super()._while_hold_penalty()
         # # Add disturbance
@@ -728,6 +755,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('OTHER_PENALTY')
         # Cue failed trial
         self.target.cue_trial_end_failure()
+
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
 
     def _while_tracking_out_penalty(self):
         super()._while_tracking_out_penalty()
@@ -759,6 +789,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Cue successful trial
         self.target.cue_trial_end_success()
         self.reward_frame_index = 0
+
+        # use next generated trial using other freq set
+        self.repeat_freq_set = False
 
     def _while_reward(self):
         super()._while_reward()
