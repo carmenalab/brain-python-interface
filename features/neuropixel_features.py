@@ -6,7 +6,7 @@ import os
 import numpy as np
 from open_ephys.control import OpenEphysHTTPServer
 
-gui = OpenEphysHTTPServer('10.155.205.108')
+IP_neuropixel = '10.155.205.108'
+gui = OpenEphysHTTPServer(IP_neuropixel)
 
-gui.idle()
-print(12)
+gui.acquire(10)
