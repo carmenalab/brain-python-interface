@@ -1,6 +1,6 @@
 import time
 from riglib import source
-from riglib.ecube import Broadband, LFP
+from riglib.ecube import Broadband, LFP, LFP_Blanking_File, LFP_Blanking, make_source_class
 from riglib.ecube.file import parse_file
 from riglib.bmi import state_space_models, train, extractor
 import numpy as np
@@ -51,7 +51,7 @@ class TestStreaming(unittest.TestCase):
         self.assertEqual(data.shape[0], len(channels))
         self.assertEqual(data.shape[1], n_samples)
     
-    #@unittest.skip('works')
+    @unittest.skip('works')
     def test_ds_with_extractor(self):
         # Create the datasource
         channels = [1, 62]
@@ -76,6 +76,24 @@ class TestStreaming(unittest.TestCase):
         print(data.shape)
         self.assertEqual(data.shape[1], len(channels))
         self.assertEqual(data.shape[0], STREAMING_DURATION/extract_rate)
+
+    def test_lfp_blanking(self):
+        channels = [1, 3]
+        file = "/media/server/raw/ecube/2022-12-23_BMI3D_te7797"
+        bb = LFP_Blanking_File(channels=channels, ecube_bmi_filename=file, trig_channel=0) # Note: this is not how this is normally used, just testing
+        bb.start()
+        ch_data = []
+        chs = []
+        for d in range(100):
+            for i in range(len(channels)):
+                ch, data = bb.get()
+                ch_data.append(data)
+                chs.append(ch)
+                if np.count_nonzero(np.isnan(data)):
+                    print(f"Got some nans in ch {ch}")
+        print(np.unique(chs))
+        bb.stop()
+
 
 class TestFileLoadin(unittest.TestCase):
 

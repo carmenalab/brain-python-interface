@@ -4,7 +4,7 @@ task/experiment by multiple inheritance.
 '''
 
 from features.debug_features import Profiler
-from features.laser_features import QwalorLaser, MultiQwalorLaser
+from features.laser_features import QwalorLaser, MultiQwalorLaser, LaserState
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
@@ -61,6 +61,7 @@ built_in_features = dict(
     ecube_bmi = EcubeBMI,
     qwalor_laser = QwalorLaser,
     multi_qwalor_laser = MultiQwalorLaser,
+    laser_state = LaserState,
     e3video = E3Video,
     debug = Profiler,
     arduino_sync=ArduinoSync,

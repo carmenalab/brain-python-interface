@@ -412,8 +412,8 @@ class Subject(models.Model):
         return self.__str__()
 
     @staticmethod
-    def get_all_subjects():
-        subjects = Subject.objects.all().order_by("name")
+    def get_all_subjects(dbname=None):
+        subjects = Subject.objects.using(dbname).all().order_by("name")
         return [s.name for s in subjects]
 
 class Experimenter(models.Model):
@@ -424,8 +424,8 @@ class Experimenter(models.Model):
         return self.__str__()
 
     @staticmethod
-    def get_all_experimenters():
-        experimenters = Experimenter.objects.all().order_by("name")
+    def get_all_experimenters(dbname=None):
+        experimenters = Experimenter.objects.using(dbname).all().order_by("name")
         return [s.name for s in experimenters]
 
 class Generator(models.Model):
@@ -441,10 +441,10 @@ class Generator(models.Model):
         return self.__str__()
 
     @staticmethod
-    def get_all_generators():
+    def get_all_generators(dbname=None):
         generator_names = []
         generator_functions = []
-        tasks = Task.objects.all()
+        tasks = Task.objects.using(dbname).all()
         for task in tasks:
             try:
                 task_cls = task.get()
@@ -934,13 +934,16 @@ class TaskEntry(models.Model):
                 from riglib.ecube import parse_file
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    info = parse_file(str(df.get_path()))
-                    path, name = os.path.split(df.get_path())
-                    name, ext = os.path.splitext(name)
+                    try:
+                        info = parse_file(str(df.get_path()))
+                        path, name = os.path.split(df.get_path())
+                        name, ext = os.path.splitext(name)
 
-                    _neuralinfo['length'] = info.length
-                    _neuralinfo['units'] = info.units
-                    _neuralinfo['name'] = name
+                        _neuralinfo['length'] = info.length
+                        _neuralinfo['units'] = info.units
+                        _neuralinfo['name'] = name
+                    except:
+                        _neuralinfo['is_seed'] = False
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except ModuleNotFoundError:
@@ -1059,13 +1062,13 @@ class TaskEntry(models.Model):
     def from_json(cls, js):
         pass
 
-    def get_decoder(self):
+    def get_decoder(self, dbname=None):
         """
         Get the Decoder instance associated with this task entry
         """
         params = eval(self.params)
         decoder_id = params['bmi']
-        return Decoder.objects.get(id=decoder_id)
+        return Decoder.objects.using(dbname).get(id=decoder_id)
 
     @property
     def desc(self):
@@ -1090,29 +1093,29 @@ class TaskEntry(models.Model):
         except:
             return "Error generating description"
 
-    def get_data_files(self):
-        return list(DataFile.objects.filter(entry_id=self.id))
+    def get_data_files(self, dbname=None):
+        return list(DataFile.objects.using(dbname).filter(entry_id=self.id))
 
-    def get_data_files_dict(self, data_dir=""):
-        file_list = self.get_data_files()
+    def get_data_files_dict(self, data_dir="", dbname=None):
+        file_list = self.get_data_files(dbname=dbname)
         files = {}
         for df in file_list:
             files[df.system.name] = os.path.join(data_dir, df.system.name, os.path.basename(df.path))
         return files
 
-    def get_data_files_dict_absolute(self):
-        file_list = self.get_data_files()
+    def get_data_files_dict_absolute(self, dbname=None):
+        file_list = self.get_data_files(dbname=dbname)
         files = {}
         for df in file_list:
             files[df.system.name] = os.path.join(df.system.path, os.path.basename(df.path))
         return files
 
-    def make_hdf_self_contained(self):
+    def make_hdf_self_contained(self, dbname=None):
         '''
         If the entry has an hdf file associated with it, dump the entry metadata into it
         '''
         try:
-            df = DataFile.objects.get(entry__id=self.id, system__name="hdf")
+            df = DataFile.objects.using(dbname).get(entry__id=self.id, system__name="hdf")
             h5file = df.get_path()
         except:
             print("No HDF file to make self contained")
@@ -1141,7 +1144,7 @@ class TaskEntry(models.Model):
 
         # Link any data files
         data_files = []
-        for df in DataFile.objects.filter(entry__id=self.id):
+        for df in DataFile.objects.using(dbname).filter(entry__id=self.id):
             data_files.append(df.get_path())
         hdf['/'].attrs["data_files"] = data_files
         hdf.close()
