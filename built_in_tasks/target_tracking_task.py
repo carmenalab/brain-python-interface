@@ -817,7 +817,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _start_pause(self):
         super()._start_pause()
-        print('START PAUSE')
+        # print('START PAUSE')
         self.sync_event('PAUSE_START') # self.sync_event('PAUSE_START') - this will overwrite TRIAL_END whenever you pause during an end state
         # Hide target and trajectory
         self.target.hide()
@@ -832,7 +832,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def _end_pause(self):
         super()._end_pause()
-        print('END PAUSE')
+        # print('END PAUSE')
         self.sync_event('PAUSE_END')
 
     @staticmethod

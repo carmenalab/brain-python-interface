@@ -602,7 +602,6 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
 
         if 'pause' not in self.status.states:
             self.sync_event("PAUSE", immediate=True)
-            print('PAUSE')
 
         if self.pause:
             print("Paused!")
