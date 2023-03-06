@@ -396,7 +396,7 @@ class LFP_Blanking(LFP_Plus_Trigger):
     blanking = 0
     headstage_buffer = []
     trig_buffer = []
-        
+    
     def get(self):
         '''data
         Retrieve a packet from the server
@@ -406,17 +406,20 @@ class LFP_Blanking(LFP_Plus_Trigger):
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             while data_block[1] != "Headstages": # new packet of trigger data
-                trig_buffer = np.concatenate((trig_buffer, np.squeeze(data_block[2])), axis=0)
+                self.trig_buffer = np.concatenate((self.trig_buffer, np.squeeze(data_block[2])), axis=0)
                 data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
 
-            trig_chunk_volts = analog_voltsperbit*trig_buffer
+            if len(self.trig_buffer) == 0:
+                self.blanking = 1
+            else:
+                trig_chunk_volts = analog_voltsperbit*np.array(self.trig_buffer)
             if self.blanking:
                 self.blanking -= 1
             elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
                 self.blanking = 1
             elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
                 self.blanking = 1
-            trig_buffer = [] # reset the trigger accumulation
+            self.trig_buffer = [] # reset the trigger accumulation
 
             if self.blanking:
                 self.gen = multi_chan_generator(self.headstage_buffer, self.channels, downsample=25)
