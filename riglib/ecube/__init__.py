@@ -268,7 +268,7 @@ class LFP_Plus_Trigger(DataSourceSystem):
     update_freq = 1000.
     dtype = np.dtype('float')
 
-    def __init__(self, headstage=7, trigger_ach=0, channels=[1]):
+    def __init__(self, headstage=7, trigger_ach=0, channels=[1], trig_included_in_channels=False):
         '''
         Constructor for ecube.Broadband
         Inputs:
@@ -279,7 +279,10 @@ class LFP_Plus_Trigger(DataSourceSystem):
         self.conn = eCubeStream(debug=False)
         self.headstage = headstage
         self.trig_channel = trigger_ach
-        self.channels = channels
+        if trig_included_in_channels:
+            self.channels = channels[1:]
+        else:
+            self.channels = channels
 
     def start(self):
         print("Starting ecube streaming datasource...")
@@ -348,14 +351,17 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
     chunksize = 728
     dtype = np.dtype('float')
 
-    def __init__(self, channels, ecube_bmi_filename=None, trig_channel=0):
+    def __init__(self, channels, ecube_bmi_filename=None, trig_channel=0, trig_included_in_channels=False):
         
         if not ecube_bmi_filename:
             ecube_bmi_filename = "/data/raw/ecube/2022-08-19_BMI3D_te6569"
 
         # Open the file
         self.trig_channel = trig_channel
-        self.channels = channels
+        if trig_included_in_channels:
+            self.channels = channels[1:]
+        else:
+            self.channels = channels
         zero_idx_channels = [ch-1 for ch in self.channels]
         self.file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "Headstages", channels=zero_idx_channels, chunksize=self.chunksize)
         self.trig_file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "AnalogPanel", channels=[self.trig_channel], chunksize=self.chunksize)
