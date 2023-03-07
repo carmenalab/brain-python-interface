@@ -25,6 +25,8 @@ rig1_sync_events = dict(
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
     CUE                     = 0x70,
+    PAUSE_START             = 0x80,
+    PAUSE_END               = 0x81,
     TIME_ZERO               = 0xee,
     TRIAL_END               = 0xef,
     PAUSE                   = 0xfe,
@@ -128,8 +130,11 @@ class HDFSync(traits.HasTraits):
         Send a sync event on the next cycle, unless 'immediate' flag is set
         '''
         if self.has_sync_event:
-            print("Warning: Cannot sync more than 1 event per cycle")
-            print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
+            if self.sync_event_record['code'] == self.sync_params['event_sync_dict']['TRIAL_END'] and event_name == 'PAUSE_START':
+                pass
+            else:
+                print("Warning: Cannot sync more than 1 event per cycle")
+                print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
 
         # digital output
         code = encode_event(self.sync_params['event_sync_dict'], event_name, min(event_data, self.sync_params['event_sync_max_data']))
