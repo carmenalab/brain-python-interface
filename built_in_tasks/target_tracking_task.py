@@ -56,6 +56,7 @@ class TargetTracking(Sequence):
     state = "wait"
     tries = 0 # Helper variable to keep track of the number of failed attempts at initiating a given trial
 
+    wait_time = traits.Float(1., desc="Length of time in wait state (inter-trial interval)")
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between trajectories")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for initiation timeout error")
@@ -274,7 +275,7 @@ class TargetTracking(Sequence):
             - a random delay
             - require some initiation action
         '''
-        return True
+        return time_in_state > self.wait_time
 
     def _test_timeout(self, time_in_state):
         return time_in_state > self.timeout_time or self.pause
