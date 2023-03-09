@@ -13,7 +13,7 @@ class RecordNeuropixels(traits.HasTraits):
     gui = OpenEphysHTTPServer(IP_neuropixel)
 
     def cleanup(self,database, saveid, gui=gui, **kwargs):
-        #super().cleanup(database, saveid, gui=gui, **kwargs)
+        super().cleanup(database, saveid, gui=gui, **kwargs)
         try:
             gui.acquire()
         except Exception as e:
@@ -36,8 +36,8 @@ class RecordNeuropixels(traits.HasTraits):
                 print('\n\ncould not start OpenEphys acquisition\n\n')
         print(f'Open Ephys status : {gui.status()}')
   
-        #if hasattr(super(), 'pre_init'):
-        #    super().pre_init(saveid=saveid,gui=gui,**kwargs)
+        if hasattr(super(), 'pre_init'):
+            super().pre_init(saveid=saveid,gui=gui,**kwargs)
 
     # def run(self):
     #     super().run()
