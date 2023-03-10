@@ -494,7 +494,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
-        # print('WAIT')
+        print('WAIT')
 
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
@@ -520,6 +520,12 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
+
+        if hasattr(self, 'trajectory'):
+            for model in self.trajectory.graphics_models:
+                self.remove_model(model)
+            del self.trajectory
+
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
         for model in self.trajectory.graphics_models:
@@ -568,6 +574,12 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
+
+        if hasattr(self, 'trajectory'):
+            for model in self.trajectory.graphics_models:
+                self.remove_model(model)
+            del self.trajectory
+
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
         for model in self.trajectory.graphics_models:
