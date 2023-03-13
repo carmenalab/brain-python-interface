@@ -23,7 +23,7 @@ class RecordNeuropixels(traits.HasTraits):
         
     @classmethod
     def pre_init(cls, saveid=None, gui=gui,**kwargs):
-        prepend_text = datetime.date.today()
+        prepend_text = str(datetime.date.today())
         filename = '_Neuropixel_'
         if saveid is not None:
             try:

@@ -5,9 +5,9 @@ from open_ephys.control import OpenEphysHTTPServer
 
 IP_neuropixel = '10.155.205.108'
 gui = OpenEphysHTTPServer(IP_neuropixel)
-
-print(datetime.date.today())
-prepend_text = datetime.date.today()
+parent_dir = 'E://Neuropixel_data'
+print(type(str(datetime.date.today())))
+prepend_text = str(datetime.date.today())
 filename = '_Neuropixel_'
 append_text = 'test6'
 gui.set_prepend_text(prepend_text)
