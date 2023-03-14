@@ -88,7 +88,7 @@ class ManualControlMixin(traits.HasTraits):
     rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
     scale = traits.Float(1.0, desc="Control scale factor")
     exp_rotation = traits.OptionsList(*exp_rotations, desc="Experimental rotation matrix", bmi3d_input_options=list(exp_rotations.keys()))
-    perturbation_rotation_y = traits.Float(0.0, desc="rotation about bmi3d y-axis in degrees")
+    pertubation_rotation = traits.Float(0.0, desc="rotation about bmi3d y-axis in degrees") # this is perturbation_rotation_y
     perturbation_rotation_z = traits.Float(0.0, desc="rotation about bmi3d z-axis in degrees")
     perturbation_rotation_x = traits.Float(0.0, desc="rotation about bmi3d x-axis in degrees")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
@@ -146,11 +146,10 @@ class ManualControlMixin(traits.HasTraits):
         )
         old = np.concatenate((np.reshape(coords, -1), [1])) # manual input (3,) plus offset term
         new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation], exp_rotations[self.exp_rotation])) # screen coords (3,) plus offset term
-        perturb_rot_y = R.from_euler('y', self.perturbation_rotation_y, degrees=True)
+        pertubation_rot = R.from_euler('y', self.pertubation_rotation, degrees=True) # this is perturb_rot_y
         perturb_rot_z = R.from_euler('z', self.perturbation_rotation_z, degrees=True)
         perturb_rot_x = R.from_euler('x', self.perturbation_rotation_x, degrees=True)
-        return np.linalg.multi_dot((new[0:3], perturb_rot_y.as_matrix(), perturb_rot_z.as_matrix(), perturb_rot_x.as_matrix()))
-        #return np.matmul(perturb_rot_y.as_matrix(), new[0:3])
+        return np.linalg.multi_dot((new[0:3], pertubation_rot.as_matrix(), perturb_rot_z.as_matrix(), perturb_rot_x.as_matrix()))
 
     def _get_manual_position(self):
         '''
