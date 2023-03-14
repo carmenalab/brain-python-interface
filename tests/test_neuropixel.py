@@ -16,8 +16,9 @@ gui.set_append_text(append_text)
 #gui.set_start_new_dir() # This isn't necessary because saved directory changes when file name changes
 #gui.record(10)
 
+gui.set_parent_dir(parent_dir)
 print(gui.get_recording_info())
-print(gui.get_processors('Neuropix-PXI'))
-A = gui.get_parameters(105,0)
-print(A)
+#print(gui.get_processors('Neuropix-PXI'))
+#A = gui.get_parameters(105,0)
+#print(A)
 #print(gui.get_parameters(103,1))
