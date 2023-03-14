@@ -72,6 +72,17 @@ rig1_sync_params_arduino.update(dict(
 
 ))
 
+rig2_sync_params = copy.copy(rig1_sync_params_arduino)
+rig2_sync_params.update(dict(
+    sync_protocol = 'rig2',
+    sync_protocol_version = 13,
+    event_sync_dch = [41,42,43,44,45,48,49,50],
+    screen_sync_pin = 11,
+    screen_sync_dch = 51,
+    recording_pin = 12,
+    recording_dch = 52,
+
+))
 
 def encode_event(dictionary, event_name, event_data):
     value = int(dictionary[event_name] + event_data)

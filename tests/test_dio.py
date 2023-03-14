@@ -3,11 +3,12 @@ import time
 from riglib.gpio import ArduinoGPIO, DigitalWave, TeensyGPIO
 from riglib import source
 from riglib.ecube import Digital, LFP
-from features.sync_features import rig1_sync_params_arduino, ArduinoSync
+from features.sync_features import rig1_sync_params_arduino, rig2_sync_params, ArduinoSync
 import aopy
 
 import unittest
 
+sync_params = rig2_sync_params # rig1_sync_params_arduino
 
 class TestDIO(unittest.TestCase):
 
@@ -16,13 +17,14 @@ class TestDIO(unittest.TestCase):
         print("Testing direct connection to DIO")
 
         # Connect to the DIO
-        mask = rig1_sync_params_arduino['event_sync_mask']
-        shift = rig1_sync_params_arduino['event_sync_data_shift']
-        dio = TeensyGPIO('/dev/teensydio')
+        mask = sync_params['event_sync_mask']
+        print(f'using mask: {mask}')
+        shift = sync_params['event_sync_data_shift']
+        dio = TeensyGPIO('/dev/ttyACM0', baudrate=115200)
         dio.write_many(mask, 0)
 
         # Record data from the digital sync channels
-        channels = rig1_sync_params_arduino['event_sync_dch']
+        channels = [ch+1 for ch in sync_params['event_sync_dch']]
         ds = source.MultiChanDataSource(Digital, channels=channels, bufferlen=10)
         ds.start()
         time.sleep(1)
@@ -47,14 +49,14 @@ class TestDIO(unittest.TestCase):
         time.sleep(1)
         data = ds.get_new(channels)
         ds.stop()
-        ecube_dig_channels = np.array(data).T
+        ecube_dig_channels = np.squeeze(data).T
         nch = len(channels)
         digital_samplerate = 25000
 
         # Make sure all the pulses have the right data
         digital_data = np.squeeze(np.packbits(ecube_dig_channels, bitorder='little').view(np.dtype('<u8')))
-        event_bit_mask = aopy.utils.convert_channels_to_mask(channels)
-        ecube_sync_data = aopy.utils.mask_and_shift(digital_data, event_bit_mask)
+        # event_bit_mask = aopy.utils.convert_channels_to_mask(channels)
+        ecube_sync_data = aopy.utils.mask_and_shift(digital_data, 0xff)
         raw_times, raw_events = aopy.utils.detect_edges(ecube_sync_data, digital_samplerate, rising=True, falling=False)
         print(f"Recorded {len(raw_times)} events\n---------------------------")
         np.testing.assert_allclose(raw_events, pulse_data)
