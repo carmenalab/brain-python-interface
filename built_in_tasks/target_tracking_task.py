@@ -10,7 +10,6 @@ import math
 import traceback
 import random
 from collections import OrderedDict
-import datetime
 
 from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
@@ -118,8 +117,6 @@ class TargetTracking(Sequence):
 
         print(self.gen_index)
 
-        # now = datetime.datetime.now()
-        # print(now)
         self.trial_record['trial'] = self.calc_trial_num()
         self.trial_record['index'] = self.gen_index
         self.trial_record['is_disturbance'] = self.disturbance_trial
@@ -128,7 +125,6 @@ class TargetTracking(Sequence):
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
             self.sinks.send("trials", self.trial_record)
-        # print(datetime.datetime.now()-now)
 
         # trial is not finished
         self.trial_timed_out = False
@@ -153,13 +149,13 @@ class TargetTracking(Sequence):
     def _start_wait_retry(self):
         print(self.gen_index)
 
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.trial_record['index'] = self.gen_index
+        self.trial_record['is_disturbance'] = self.disturbance_trial
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information --> bmi3d_trials
-            self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
-            self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
          # trial is not finished
@@ -520,10 +516,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     #### STATE FUNCTIONS ####
     def _start_wait(self):
-        now = datetime.datetime.now()
-        # print(now)
         super()._start_wait()
-        # print(datetime.datetime.now()-now) # get longer
         print('WAIT')
         # self.in_end_state = False
 
@@ -564,7 +557,6 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         self.target.hide()
         self.trajectory.hide()
-        print(datetime.datetime.now()-now) # gets longer
 
     def _while_wait(self):
         super()._while_wait()
