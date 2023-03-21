@@ -112,7 +112,7 @@ class TargetTracking(Sequence):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
         if self.sample_rate != self.fps:
-            raise ValueError('generator sample rate must equal FSM fps!')
+            print('WARNING: generator sample rate should equal FSM fps!')
 
         if self.repeat_freq_set:
             self.next_trial = next(self.gen)
