@@ -60,6 +60,7 @@ class TargetTracking(Sequence):
     state = "wait"
     tries = 0 # Helper variable to keep track of the number of failed attempts at initiating a given trial
 
+    wait_time = traits.Float(1., desc="Length of time in wait state (inter-trial interval)")
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
     timeout_time = traits.Float(10, desc="Time allowed to go between trajectories")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for initiation timeout error")
@@ -92,8 +93,8 @@ class TargetTracking(Sequence):
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
-        # yield idx, pts, disturbance, dis_trajectory :
-        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        # yield idx, pts, disturbance, dis_trajectory, sample_rate :
+        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path, self.sample_rate = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -110,19 +111,22 @@ class TargetTracking(Sequence):
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
+        if self.sample_rate != self.fps:
+            print('WARNING: generator sample rate should equal FSM fps!')
+
         if self.repeat_freq_set:
             self.next_trial = next(self.gen)
             self._parse_next_trial()
 
         print(self.gen_index)
 
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.trial_record['index'] = self.gen_index
+        self.trial_record['is_disturbance'] = self.disturbance_trial
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information --> bmi3d_trials
-            self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
-            self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
         # trial is not finished
@@ -148,13 +152,13 @@ class TargetTracking(Sequence):
     def _start_wait_retry(self):
         print(self.gen_index)
 
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.trial_record['index'] = self.gen_index
+        self.trial_record['is_disturbance'] = self.disturbance_trial
         for i in range(len(self.disturbance_path)):
             # Update the data sinks with trial information --> bmi3d_trials
-            self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
-            self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
 
          # trial is not finished
@@ -291,7 +295,7 @@ class TargetTracking(Sequence):
             - a random delay
             - require some initiation action
         '''
-        return True
+        return time_in_state > self.wait_time
 
     def _test_timeout(self, time_in_state):
         return time_in_state > self.timeout_time
@@ -543,6 +547,12 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
+
+        if hasattr(self, 'trajectory'):
+            for model in self.trajectory.graphics_models:
+                self.remove_model(model)
+            del self.trajectory
+
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
         for model in self.trajectory.graphics_models:
@@ -592,6 +602,12 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Set up the next trajectory
         next_trajectory = np.array(np.squeeze(self.targs)[:,2])
         next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
+
+        if hasattr(self, 'trajectory'):
+            for model in self.trajectory.graphics_models:
+                self.remove_model(model)
+            del self.trajectory
+
         self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
 
         for model in self.trajectory.graphics_models:
@@ -1074,7 +1090,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
-                yield idx, pts, disturbance, dis_trajectory
+                yield idx, pts, disturbance, dis_trajectory, sample_rate
                 idx += 1
 
     @staticmethod
@@ -1099,7 +1115,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
-                yield idx, pts, disturbance, dis_trajectory
+                yield idx, pts, disturbance, dis_trajectory, sample_rate
                 idx += 1
     
     @staticmethod
@@ -1139,5 +1155,5 @@ class ScreenTargetTracking(TargetTracking, Window):
                 pts = []
                 trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
                 pts.append(trajectory)
-                yield idx, pts, disturbance, disturbance_path
+                yield idx, pts, disturbance, disturbance_path, None
                 idx += 1
