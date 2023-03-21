@@ -155,6 +155,7 @@ class IncrementalRotation(traits.HasTraits):
     '''
     Gradually change the perturbation rotation over trials
     '''
+    exclude_parent_traits = ['pertubation_rotation', 'perturbation_rotation_z', 'perturbation_rotation_x']
 
     init_rotation_y  = traits.Float(0.0, desc="initial rotation about bmi3d y-axis in degrees")
     final_rotation_y = traits.Float(0.0, desc="final rotation about bmi3d y-axis in degrees")
@@ -171,138 +172,50 @@ class IncrementalRotation(traits.HasTraits):
 
     trials_per_increment = traits.Int(1, desc="number of successful trials per rotation step")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
-        self.rotations = dict(
-            yzx = np.array(    # names come from rows (optitrack), but screen coords come from columns:
-                [[0, 1, 0, 0], # x goes into second column (y-coordinate, coming out of screen)
-                [0, 0, 1, 0],  # y goes into third column (z-coordinate, up)
-                [1, 0, 0, 0],  # z goes into first column (x-coordinate, right)
-                [0, 0, 0, 1]]
-            ),
-            zyx = np.array(
-                [[0, 0, 1, 0], 
-                [0, 1, 0, 0], 
-                [1, 0, 0, 0], 
-                [0, 0, 0, 1]]
-            ),
-            xzy = np.array(
-                [[1, 0, 0, 0],
-                [0, 0, 1, 0], 
-                [0, 1, 0, 0], 
-                [0, 0, 0, 1]]
-            ),
-            xyz = np.identity(4),
-        )
-
-        self.exp_rotations = dict(
-            none = np.identity(4),
-            about_x_90 = np.array(
-                [[1, 0, 0, 0], 
-                [0, 0, 1, 0], 
-                [0, 1, 0, 0], 
-                [0, 0, 0, 1]]
-            ),
-            about_x_minus_90 = np.array(
-                [[1, 0, 0, 0], 
-                [0, 0, -1, 0], 
-                [0, 1, 0, 0], 
-                [0, 0, 0, 1]]
-            ),
-            oop_xy_45 = np.array(
-                [[ 0.707,  0.5  ,  0.5  , 0.],
-                [ 0.   ,  0.707, -0.707, 0.],
-                [-0.707,  0.5  ,  0.5  , 0.],
-                [ 0.,     0.   ,  0.,    1.]]
-            ),
-            oop_xy_minus_45 = np.array(
-                [[ 0.707,  0.5  , -0.5  , 0.],
-                [ 0.   ,  0.707,  0.707, 0.],
-                [ 0.707, -0.5  ,  0.5  , 0.],
-                [ 0.,     0.   ,  0.,    1.]]
-            ),
-            oop_xy_20 = np.array(
-                [[ 0.94 ,  0.117,  0.321, 0.],
-                [-0.   ,  0.94 , -0.342, 0.],
-                [-0.342,  0.321,  0.883, 0.],
-                [ 0.,     0.   ,  0.,    1.]]
-            ),
-            oop_xy_minus_20 = np.array(
-                [[ 0.94 ,  0.117, -0.321, 0.],
-                [-0.   ,  0.94 ,  0.342, 0.],
-                [ 0.342, -0.321,  0.883, 0.],
-                [ 0.,     0.   ,  0.,    1.]]
-            )
-        )
-
     def init(self):    
         super().init()
         self.num_trials_success = 0
+        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        self.pertubation_rotation = self.init_rotation_y
+        self.perturbation_rotation_z = self.init_rotation_z
+        self.perturbation_rotation_x = self.init_rotation_x
 
     def _start_wait(self):
         super()._start_wait()
-        num_deltas = int(self.num_trials_success / self.trials_per_increment)
-        perturbation_rotation_y = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
-            perturbation_rotation_y = self.final_rotation_y
-            perturbation_rotation_z = self.final_rotation_z
-            perturbation_rotation_x = self.final_rotation_x
-        print(perturbation_rotation_y)
-
-    def _start_wait_retry(self):
-        super()._start_wait_retry()
-        num_deltas = int(self.num_trials_success / self.trials_per_increment)
-        perturbation_rotation_y = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
-            perturbation_rotation_y = self.final_rotation_y
-            perturbation_rotation_z = self.final_rotation_z
-            perturbation_rotation_x = self.final_rotation_x
-        print(perturbation_rotation_y)
-
-    def _start_reward(self):
-        super()._start_reward()
-        self.num_trials_success += 1
-         
-    def _transform_coords(self, coords):
-        ''' 
-        Returns transformed coordinates based on rotation, offset, and scale traits
-        '''
-        offset = np.array(
-            [[1, 0, 0, 0], 
-            [0, 1, 0, 0], 
-            [0, 0, 1, 0], 
-            [self.offset[0], self.offset[1], self.offset[2], 1]]
-        )
-        scale = np.array(
-            [[self.scale, 0, 0, 0], 
-            [0, self.scale, 0, 0], 
-            [0, 0, self.scale, 0], 
-            [0, 0, 0, 1]]
-        )
-        
-        # transform raw input coords into screen coords
-        old = np.concatenate((np.reshape(coords, -1), [1])) # manual input (3,) plus offset term
-        new = np.linalg.multi_dot((old, offset, scale, self.rotations[self.rotation], self.exp_rotations[self.exp_rotation])) # screen coords (3,) plus offset term
-
         # determine the current rotation step
         num_deltas = int(self.num_trials_success / self.trials_per_increment)
 
         # increment the current perturbation rotation by delta
-        perturbation_rotation_y = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
-        perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
+        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
+        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
+        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
         # stop incrementing once final perturbation rotation reached
         if self.num_trials_success >= self.num_increments * self.trials_per_increment:
-            perturbation_rotation_y = self.final_rotation_y
-            perturbation_rotation_z = self.final_rotation_z
-            perturbation_rotation_x = self.final_rotation_x
+            self.pertubation_rotation = self.final_rotation_y
+            self.perturbation_rotation_z = self.final_rotation_z
+            self.perturbation_rotation_x = self.final_rotation_x
+        
+        print(self.pertubation_rotation)
 
-        # calculate the 3D rotation matrices
-        perturb_rot_y = R.from_euler('y', perturbation_rotation_y, degrees=True)
-        perturb_rot_z = R.from_euler('z', perturbation_rotation_z, degrees=True)
-        perturb_rot_x = R.from_euler('x', perturbation_rotation_x, degrees=True)
+    def _start_wait_retry(self):
+        super()._start_wait_retry()
+        # determine the current rotation step
+        num_deltas = int(self.num_trials_success / self.trials_per_increment)
 
-        # apply the 3D rotation matrices one-by-one to the screen coords
-        return np.linalg.multi_dot((new[0:3], perturb_rot_y.as_matrix(), perturb_rot_z.as_matrix(), perturb_rot_x.as_matrix()))
+        # increment the current perturbation rotation by delta
+        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
+        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
+        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
+
+        # stop incrementing once final perturbation rotation reached
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
+            self.pertubation_rotation = self.final_rotation_y
+            self.perturbation_rotation_z = self.final_rotation_z
+            self.perturbation_rotation_x = self.final_rotation_x
+        
+        print(self.pertubation_rotation)
+
+    def _start_reward(self):
+        super()._start_reward()
+        self.num_trials_success += 1
