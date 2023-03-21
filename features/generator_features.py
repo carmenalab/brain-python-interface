@@ -173,6 +173,7 @@ class IncrementalRotation(traits.HasTraits):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
         self.rotations = dict(
             yzx = np.array(    # names come from rows (optitrack), but screen coords come from columns:
                 [[0, 1, 0, 0], # x goes into second column (y-coordinate, coming out of screen)
@@ -243,16 +244,20 @@ class IncrementalRotation(traits.HasTraits):
         super()._start_wait()
         num_deltas = int(self.num_trials_success / self.trials_per_increment)
         perturbation_rotation_y = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        if perturbation_rotation_y > self.final_rotation_y:
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
             perturbation_rotation_y = self.final_rotation_y
+            perturbation_rotation_z = self.final_rotation_z
+            perturbation_rotation_x = self.final_rotation_x
         print(perturbation_rotation_y)
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
         num_deltas = int(self.num_trials_success / self.trials_per_increment)
         perturbation_rotation_y = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        if perturbation_rotation_y > self.final_rotation_y:
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
             perturbation_rotation_y = self.final_rotation_y
+            perturbation_rotation_z = self.final_rotation_z
+            perturbation_rotation_x = self.final_rotation_x
         print(perturbation_rotation_y)
 
     def _start_reward(self):
@@ -289,13 +294,9 @@ class IncrementalRotation(traits.HasTraits):
         perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
         # stop incrementing once final perturbation rotation reached
-        if perturbation_rotation_y > self.final_rotation_y:
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
             perturbation_rotation_y = self.final_rotation_y
-
-        if perturbation_rotation_z > self.final_rotation_z:
             perturbation_rotation_z = self.final_rotation_z
-
-        if perturbation_rotation_x > self.final_rotation_x:
             perturbation_rotation_x = self.final_rotation_x
 
         # calculate the 3D rotation matrices
