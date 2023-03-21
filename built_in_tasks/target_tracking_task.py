@@ -93,8 +93,8 @@ class TargetTracking(Sequence):
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
-        # yield idx, pts, disturbance, dis_trajectory :
-        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        # yield idx, pts, disturbance, dis_trajectory, sample_rate :
+        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path, self.sample_rate = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -111,6 +111,9 @@ class TargetTracking(Sequence):
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
+        if self.sample_rate != self.fps:
+            raise ValueError('generator sample rate must equal FSM fps!')
+
         if self.repeat_freq_set:
             self.next_trial = next(self.gen)
             self._parse_next_trial()
@@ -1087,7 +1090,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
-                yield idx, pts, disturbance, dis_trajectory
+                yield idx, pts, disturbance, dis_trajectory, sample_rate
                 idx += 1
 
     @staticmethod
@@ -1112,7 +1115,7 @@ class ScreenTargetTracking(TargetTracking, Window):
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # scale will determine lower limit of target size for perfect tracking
                 pts.append(ref_trajectory)
-                yield idx, pts, disturbance, dis_trajectory
+                yield idx, pts, disturbance, dis_trajectory, sample_rate
                 idx += 1
     
     @staticmethod
@@ -1152,5 +1155,5 @@ class ScreenTargetTracking(TargetTracking, Window):
                 pts = []
                 trajectory[:,2] = 5*np.concatenate((sum_of_sins_path[0]*np.ones(buffer_space_bef),sum_of_sins_path,sum_of_sins_path[-1]*np.ones(buffer_space_aft)))
                 pts.append(trajectory)
-                yield idx, pts, disturbance, disturbance_path
+                yield idx, pts, disturbance, disturbance_path, None
                 idx += 1
