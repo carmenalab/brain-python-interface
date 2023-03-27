@@ -36,6 +36,7 @@ class QwalorLaser(traits.HasTraits):
     qwalor_channel = traits.Int(1, desc="Laser channel (1-red, 2-blue, 3-green, 4-blue)")
     qwalor_trigger_dch = traits.Int(9, desc="Digital channel (0-index) recording laser trigger")
     qwalor_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser power")
+    stimulation_site = traits.String("", desc="Where was the laser stimulation?")
 
     hidden_traits = ['qwalor_sensor_ach']
 
@@ -89,7 +90,11 @@ class MultiQwalorLaser(traits.HasTraits):
     qwalor_ch2_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser ch2 power")
     qwalor_ch3_sensor_ach = traits.Int(17, desc="Analog channel (0-index) recording laser ch3 power")
     qwalor_ch4_sensor_ach = traits.Int(18, desc="Analog channel (0-index) recording laser ch4 power")
-    
+    stimulation_site_ch1 = traits.String("", desc="Where was the ch1 laser stimulation?")
+    stimulation_site_ch2 = traits.String("", desc="Where was the ch2 laser stimulation?")
+    stimulation_site_ch3 = traits.String("", desc="Where was the ch3 laser stimulation?")
+    stimulation_site_ch4 = traits.String("", desc="Where was the ch4 laser stimulation?")
+
     hidden_traits = ['qwalor_ch1_sensor_ach', 'qwalor_ch2_sensor_ach', 'qwalor_ch3_sensor_ach', 'qwalor_ch4_sensor_ach',
                      'qwalor_ch1_trigger_dch', 'qwalor_ch2_trigger_dch', 'qwalor_ch3_trigger_dch', 'qwalor_ch4_trigger_dch']
 
@@ -155,6 +160,11 @@ class LaserState(traits.HasTraits):
     laser_power = traits.List([1.,], desc="Laser power (between 0 and 1) for each active laser")
     laser_pulse_width = traits.List([0.005,], desc="List of possible pulse widths in seconds")
     laser_poisson_mu = traits.Float(0.5, desc="Mean duration between laser stimulations (s)")
+    laser_min_isi = traits.Float(0.01, desc="Minimum duration between laser stimulation pulses (s)")
+    laser_max_stim_time = traits.Float(0., desc="Maximum time after state begins after which no more "
+        "pulses are generated (s). Time of 0. is unlimited.")
+    laser_rand_start = traits.Bool(True, desc="Randomize the timing of the first laser pulse")
+    laser_rand_order = traits.Bool(True, desc="Randomize the order of the laser channels")
 
     hidden_traits = ['laser_trigger_state']
 
@@ -162,6 +172,14 @@ class LaserState(traits.HasTraits):
         self.laser_threads = []
         super().__init__(*args, **kwargs)
     
+    def init(self, *args, **kwargs):            
+        super().init(*args, **kwargs)            
+        
+        for idx in range(len(self.lasers)):
+            laser = self.lasers[idx]
+            power = self.laser_power[idx]
+            laser.set_power(power)
+
     def run(self):
         if not (hasattr(self, 'lasers') and len(self.lasers) > 0):
             import io
@@ -184,17 +202,26 @@ class LaserState(traits.HasTraits):
         if state != self.laser_trigger_state:
             return
         
-        wait_time = 0
+        if self.laser_rand_start:
+            wait_time = np.random.exponential(self.laser_poisson_mu)
+        else:
+            wait_time = 0
+        order = np.arange(len(self.lasers)).astype(int)
+        if self.laser_rand_order:
+            np.random.shuffle(order)
         self.laser_waves = []
-        for idx in range(len(self.lasers)):
+        for idx in order:
             laser = self.lasers[idx]
 
             width_idx = np.random.choice(len(self.laser_pulse_width))
             width = self.laser_pulse_width[width_idx]
-            power = self.laser_power[idx]
-            laser.set_power(power)
 
             for n in range(self.laser_stims_per_trial):
+
+                # Skip the pulses if we've reached the stim time limit
+                if (self.laser_max_stim_time > 0. and 
+                    wait_time+width > self.laser_max_stim_time):
+                    continue
 
                 # Trigger digital wave
                 wave = DigitalWave(laser, mask=1<<laser.port)
@@ -203,8 +230,5 @@ class LaserState(traits.HasTraits):
                 self.laser_waves.append(wave)
 
                 # Make the next pulse come after a delay
-                delay = max(np.random.exponential(self.laser_poisson_mu), 2*width)
+                delay = max(np.random.exponential(self.laser_poisson_mu), self.laser_min_isi)
                 wait_time += delay
-                print(wait_time)
-
-        print(self.laser_waves)
