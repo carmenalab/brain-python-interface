@@ -700,6 +700,12 @@ class TaskEntry(models.Model):
         data = Parameters(self.metadata).params
         return data
 
+    @property
+    def sequence_params(self):
+        from .json_param import Parameters
+        data = Parameters(self.sequence.params).params
+        return data
+
     @staticmethod
     def get_default_metadata():
         subject = {
