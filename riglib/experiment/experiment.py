@@ -599,7 +599,9 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     @control_decorator
     def play_pause(self):
         self.pause = not self.pause
-        self.sync_event("PAUSE", immediate=True)
+
+        if 'pause' not in self.status.states:
+            self.sync_event("PAUSE", immediate=True)
 
         if self.pause:
             print("Paused!")
