@@ -1132,7 +1132,10 @@ class TaskEntry(models.Model):
         hdf['/'].attrs["rig_name"] = KeyValueStore.get('rig_name', 'unknown')
         hdf['/'].attrs["block_number"] = self.id
         hdf['/'].attrs["subject"] = self.subject.name
+        hdf['/'].attrs["experimenter"] = self.experimenter.name
         hdf['/'].attrs["date"] = str(self.date)
+        hdf['/'].attrs["project"] = self.project
+        hdf['/'].attrs["session"] = self.session
         if self.sequence is not None:
             hdf['/'].attrs["sequence"] = self.sequence.name
             hdf['/'].attrs["sequence_params"] = self.sequence_params
