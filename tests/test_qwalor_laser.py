@@ -56,21 +56,18 @@ class LaserTests(unittest.TestCase):
         laser1 = qwalor_laser.QwalorLaserSerial(2)
         laser1.port = laser1.trigger_pin
         laser1.name = 'qwalor_laser_ch2'
-        laser1.set_mode(mode)
-        laser1.set_freq(freq)
-        laser1.set_power(1)
         print("laser 1 configured")
 
         laser2 = qwalor_laser.QwalorLaserSerial(4)
         laser2.port = laser2.trigger_pin
         laser2.name = 'qwalor_laser_ch4'
-        laser2.set_mode(mode)
-        laser2.set_freq(freq)
-        laser2.set_power(1)
         print("laser 2 configured")
 
         for n in range(n_trials):
             t0 = time.perf_counter()
+            laser1.set_mode(mode)
+            laser1.set_freq(freq)
+            laser1.set_power(1)
             laser1.on()
             while (time.perf_counter() - t0 < width):
                 pass
@@ -80,6 +77,9 @@ class LaserTests(unittest.TestCase):
                 pass
         
             t0 = time.perf_counter()
+            laser2.set_mode(mode)
+            laser2.set_freq(freq)
+            laser2.set_power(1)
             laser2.on()
             while (time.perf_counter() - t0 < width):
                 pass
