@@ -37,6 +37,9 @@ class QwalorLaser(traits.HasTraits):
     qwalor_trigger_dch = traits.Int(9, desc="Digital channel (0-index) recording laser trigger")
     qwalor_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser power")
     stimulation_site = traits.String("", desc="Where was the laser stimulation?")
+    stimulation_channel_mapping_file = traits.String("", desc="Name of channel mapping excel file")
+    stimulation_chamber = traits.String("", desc="Name of the stimulation chamber (e.g. LM1)")
+    stimulation_drive_type = traits.String("", desc="Type of stimulation drive (e.g. Opto32)")
 
     hidden_traits = ['qwalor_sensor_ach']
 
@@ -94,6 +97,9 @@ class MultiQwalorLaser(traits.HasTraits):
     stimulation_site_ch2 = traits.String("", desc="Where was the ch2 laser stimulation?")
     stimulation_site_ch3 = traits.String("", desc="Where was the ch3 laser stimulation?")
     stimulation_site_ch4 = traits.String("", desc="Where was the ch4 laser stimulation?")
+    stimulation_channel_mapping_file = traits.String("", desc="Name of channel mapping excel file")
+    stimulation_chamber = traits.String("", desc="Name of the stimulation chamber (e.g. LM1)")
+    stimulation_drive_type = traits.String("", desc="Type of stimulation drive (e.g. Opto32)")
 
     hidden_traits = ['qwalor_ch1_sensor_ach', 'qwalor_ch2_sensor_ach', 'qwalor_ch3_sensor_ach', 'qwalor_ch4_sensor_ach',
                      'qwalor_ch1_trigger_dch', 'qwalor_ch2_trigger_dch', 'qwalor_ch3_trigger_dch', 'qwalor_ch4_trigger_dch']
