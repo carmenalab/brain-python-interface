@@ -36,8 +36,10 @@ class QwalorLaser(traits.HasTraits):
     qwalor_channel = traits.Int(1, desc="Laser channel (1-red, 2-blue, 3-green, 4-blue)")
     qwalor_trigger_dch = traits.Int(9, desc="Digital channel (0-index) recording laser trigger")
     qwalor_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser power")
+    qwalor_peak_power = traits.Float(1.0, desc="Maximum power (in watts) measured at the fiber output")
+    qwalor_laser_version = traits.Int(1, desc="Laser protocol version number")
 
-    hidden_traits = ['qwalor_sensor_ach']
+    hidden_traits = ['qwalor_laser_version']
 
     def __init__(self, *args, **kwargs):
         self.lasers = []
@@ -89,9 +91,15 @@ class MultiQwalorLaser(traits.HasTraits):
     qwalor_ch2_sensor_ach = traits.Int(16, desc="Analog channel (0-index) recording laser ch2 power")
     qwalor_ch3_sensor_ach = traits.Int(17, desc="Analog channel (0-index) recording laser ch3 power")
     qwalor_ch4_sensor_ach = traits.Int(18, desc="Analog channel (0-index) recording laser ch4 power")
-    
+    qwalor_ch1_peak_power = traits.Float(1.0, desc="Maximum power (in watts) measured at the fiber output from ch1")
+    qwalor_ch2_peak_power = traits.Float(1.0, desc="Maximum power (in watts) measured at the fiber output from ch2")
+    qwalor_ch3_peak_power = traits.Float(1.0, desc="Maximum power (in watts) measured at the fiber output from ch3")
+    qwalor_ch4_peak_power = traits.Float(1.0, desc="Maximum power (in watts) measured at the fiber output from ch4")
+    qwalor_laser_version = traits.Int(1, desc="Laser protocol version number")
+
     hidden_traits = ['qwalor_ch1_sensor_ach', 'qwalor_ch2_sensor_ach', 'qwalor_ch3_sensor_ach', 'qwalor_ch4_sensor_ach',
-                     'qwalor_ch1_trigger_dch', 'qwalor_ch2_trigger_dch', 'qwalor_ch3_trigger_dch', 'qwalor_ch4_trigger_dch']
+                     'qwalor_ch1_trigger_dch', 'qwalor_ch2_trigger_dch', 'qwalor_ch3_trigger_dch', 'qwalor_ch4_trigger_dch',
+                     'qwalor_laser_version']
 
     def __init__(self, *args, **kwargs):
         self.lasers = []
