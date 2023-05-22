@@ -93,9 +93,6 @@ class TargetTracking(Sequence):
 
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
-        if self.state is None:
-            return
-        
         # yield idx, pts, disturbance, dis_trajectory, sample_rate :
         self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path, self.sample_rate = self.next_trial # targs and disturbance are same length
 
