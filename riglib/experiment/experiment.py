@@ -802,11 +802,11 @@ class Sequence(LogExperiment):
 
         try:
             self.next_trial = next(self.gen)
-            self._parse_next_trial() # KP changed 10/26/22
+            # self._parse_next_trial() # KP changed 10/26/22
         except StopIteration:
             self.end_task()
 
-        # self._parse_next_trial()
+        self._parse_next_trial()
 
     def _parse_next_trial(self):
         '''
