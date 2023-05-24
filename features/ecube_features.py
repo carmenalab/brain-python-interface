@@ -36,12 +36,19 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
+    headstage_module_id = traits.String("", desc="Unique identifier for the tether module being used")
+    headstage_stacking_id = traits.String("", desc="Unique identifier for the stacking cable being used")
     channel_mapping_file = traits.String("", desc="Name of channel mapping excel file")
     drmap_chamber = traits.String("", desc="Name of the recording chamber (e.g. LM1)")
     drmap_drive_type = traits.String("", desc="Type of recording drive (e.g. ECoG244)")
+    drmap_drive_id = traits.String("", desc="Unique identifier for the drive being used")
+    drmap_drive_orientation = traits.String("", desc="Orientation (in degrees) of the drive inside the chamber")
     drmap_implant_date = traits.String("", desc="Date recording drive was implanted (YYMMDD)")
     drmap_config_date = traits.String("", desc="Date channel mapping was configured (YYMMDD)")
+    ecube_feature_version = traits.Int(1, desc="Version number of the BMI3D feature used to record ecube data")
+    
     ecube_status = "Not initialized"
+    hidden_traits = ['ecube_feature_version']
 
     def cleanup(self, database, saveid, **kwargs):
         '''
