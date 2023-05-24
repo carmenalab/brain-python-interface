@@ -1138,7 +1138,7 @@ class TaskEntry(models.Model):
         hdf['/'].attrs["session"] = self.session
         if self.sequence is not None:
             hdf['/'].attrs["sequence"] = self.sequence.name
-            hdf['/'].attrs["sequence_params"] = self.sequence_params
+            hdf['/'].attrs["sequence_params"] = self.sequence.params
             hdf['/'].attrs["generator"] = self.sequence.generator.name
             hdf['/'].attrs["generator_params"] = self.sequence.generator.params
         hdf['/'].attrs["report"] = self.report
