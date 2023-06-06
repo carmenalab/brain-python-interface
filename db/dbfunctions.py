@@ -1335,7 +1335,8 @@ def get_rawfiles_for_taskentry(e, system_subfolders=None):
         if df.system.name == 'optitrack' or df.system.name == 'e3v':
             path = os.path.normpath(df.path)
             parts = path.split(os.sep)
-            filepath = os.path.join(*parts[1:])
+            if len(parts) > 1:
+                filepath = os.path.join(*parts[1:])
             filepath = filepath.replace(':', '_')
         else:
             filepath = os.path.basename(df.path)
