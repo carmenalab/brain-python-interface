@@ -115,8 +115,11 @@ class TargetTracking(Sequence):
             print('WARNING: generator sample rate should equal FSM fps!')
 
         if self.repeat_freq_set:
-            self.next_trial = next(self.gen)
-            self._parse_next_trial()
+            try:
+                self.next_trial = next(self.gen)
+                self._parse_next_trial()
+            except StopIteration:
+                self.end_task()
 
         print(self.gen_index)
 
