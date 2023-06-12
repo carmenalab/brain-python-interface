@@ -175,10 +175,21 @@ class IncrementalRotation(traits.HasTraits):
     def init(self):    
         super().init()
         self.num_trials_success = 0
-        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        if self.final_rotation_y != self.init_rotation_y:
+            rotation_info = [self.init_rotation_y, self.final_rotation_y, self.delta_rotation_y]
+        elif self.final_rotation_z != self.init_rotation_z:
+            rotation_info = [self.init_rotation_z, self.final_rotation_z, self.delta_rotation_z]
+        elif self.final_rotation_x != self.init_rotation_x:
+            rotation_info = [self.init_rotation_x, self.final_rotation_x, self.delta_rotation_x]
+        else:
+            print('Warning! Please specify an initial and final rotation.')
+
+        self.num_increments = int( (rotation_info[1]-rotation_info[0]) / rotation_info[2]+1 )
         self.pertubation_rotation = self.init_rotation_y
         self.perturbation_rotation_z = self.init_rotation_z
         self.perturbation_rotation_x = self.init_rotation_x
+
+        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
 
     def _start_wait(self):
         super()._start_wait()
@@ -196,7 +207,7 @@ class IncrementalRotation(traits.HasTraits):
             self.perturbation_rotation_z = self.final_rotation_z
             self.perturbation_rotation_x = self.final_rotation_x
         
-        print(self.pertubation_rotation)
+        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
@@ -214,7 +225,7 @@ class IncrementalRotation(traits.HasTraits):
             self.perturbation_rotation_z = self.final_rotation_z
             self.perturbation_rotation_x = self.final_rotation_x
         
-        print(self.pertubation_rotation)
+        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
 
     def _start_reward(self):
         super()._start_reward()
