@@ -171,6 +171,7 @@ class IncrementalRotation(traits.HasTraits):
     delta_rotation_x = traits.Float(0.0, desc="rotation step size about bmi3d x-axis in degrees")
 
     trials_per_increment = traits.Int(1, desc="number of successful trials per rotation step")
+    final_tracking_out_time = traits.Float(1.6, desc="Time allowed to be tracking outside the target for final rotation") # AKA tolerance time
 
     def init(self):    
         super().init()
@@ -189,7 +190,7 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_z = self.init_rotation_z
         self.perturbation_rotation_x = self.init_rotation_x
 
-        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
+        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
 
     def _start_wait(self):
         super()._start_wait()
@@ -201,13 +202,18 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
         self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
+        # change tracking out time of final rotation
+        if num_deltas+1 == self.num_increments:
+            self.tracking_out_time = self.final_tracking_out_time
+
         # stop incrementing once final perturbation rotation reached
         if self.num_trials_success >= self.num_increments * self.trials_per_increment:
             self.pertubation_rotation = self.final_rotation_y
             self.perturbation_rotation_z = self.final_rotation_z
             self.perturbation_rotation_x = self.final_rotation_x
         
-        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
+        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
+        print(self.tracking_out_time, "tracking out")
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
@@ -219,13 +225,18 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
         self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
+        # change tracking out time of final rotation
+        if num_deltas+1 == self.num_increments:
+            self.tracking_out_time = self.final_tracking_out_time
+
         # stop incrementing once final perturbation rotation reached
         if self.num_trials_success >= self.num_increments * self.trials_per_increment:
             self.pertubation_rotation = self.final_rotation_y
             self.perturbation_rotation_z = self.final_rotation_z
             self.perturbation_rotation_x = self.final_rotation_x
         
-        print(self.pertubation_rotation, self.perturbation_rotation_z, self.perturbation_rotation_x)
+        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
+        print(self.tracking_out_time, "tracking out")
 
     def _start_reward(self):
         super()._start_reward()
