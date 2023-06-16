@@ -11,7 +11,7 @@ import json
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-CONFIG_DIR = os.path.join('~', '.config', 'bmi3d')
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), '.config', 'bmi3d')
 HOSTNAME = socket.gethostname()
 
 def get_sqlite3_databases():
