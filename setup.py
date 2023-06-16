@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="bmi3d",
-    version="0.3.0",
+    version="0.9.1",
     author="Lots of people",
     description="electrophysiology experimental rig library",
     packages=setuptools.find_packages(),
@@ -19,8 +19,8 @@ setuptools.setup(
         "pandas",
         "patsy",
         "statsmodels",
+        "pygame",
         "PyOpenGL",
-        "Django",
         "pylibftdi",
         "sphinx",
         "numpydoc",

@@ -29,6 +29,8 @@ riglib/plexon/Plexfile_utilities.egg-info/*
 
 */build/*
 */dist/*
+build/
+dist/
 _build
 docs/_build/*
 log/*

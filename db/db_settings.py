@@ -11,6 +11,7 @@ import json
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+CONFIG_DIR = os.path.join('~', '.config', 'bmi3d')
 HOSTNAME = socket.gethostname()
 
 def get_sqlite3_databases():
@@ -47,7 +48,7 @@ DATABASES = {}
 def get_secret(setting):
     """Get secret setting or fail with ImproperlyConfigured"""
     try:
-        with open(os.path.join(BASE_DIR, 'secrets.json')) as secrets_file:
+        with open(os.path.join(CONFIG_DIR, 'secrets.json')) as secrets_file:
             secrets = json.load(secrets_file)
         return secrets[setting]
     except KeyError:
