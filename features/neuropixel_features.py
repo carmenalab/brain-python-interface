@@ -7,6 +7,7 @@ import numpy as np
 from riglib.experiment import traits
 import requests
 import json
+from riglib import experiment
 
 # This class is almost same as open ephys python tool other than timeout option
 class OpenEphysHTTPServer:
@@ -80,6 +81,10 @@ class OpenEphysHTTPServer:
 
 class RecordNeuropixels(traits.HasTraits):
 
+    neuropixel_port1 = traits.Int(0, desc="Channel number you used for recoding with port 1 probe")
+    neuropxiel_port2 = traits.Int(0, desc="Channel number hole you used for recoding with port 2 probe")
+    neuropixel_mapping_file = traits.String("", desc="Name of channel mapping file")
+
     IP_neuropixel = '10.155.205.108'
     gui = OpenEphysHTTPServer(IP_neuropixel, timeout=0.5)
     parent_dir = 'E://Neuropixel_data'
@@ -95,11 +100,12 @@ class RecordNeuropixels(traits.HasTraits):
             print('\n\ncould not stop OpenEphys recording. Please manually stop the recording\n\n')
         
     @classmethod
-    def pre_init(cls, saveid=None, gui=gui,**kwargs):
+    def pre_init(cls, saveid=None, subject_name=None, gui=gui,**kwargs):
         cls.openephys_status = 'IDLE'
         prepend_text = str(datetime.date.today())
-        filename = '_Neuropixel_te'
+        filename = f'_Neuropixel_{subject_name}_te'
         append_text = str(saveid) if saveid else 'Test'
+
         gui.set_prepend_text(prepend_text)
         gui.set_base_text(filename)
         gui.set_append_text(append_text)
