@@ -90,7 +90,6 @@ class RecordNeuropixels(traits.HasTraits):
     parent_dir = 'E://Neuropixel_data'
     gui.set_parent_dir(parent_dir)
     
-
     def cleanup(self,database, saveid, gui=gui, **kwargs):
         super().cleanup(database, saveid, gui=gui, **kwargs)
         try:
