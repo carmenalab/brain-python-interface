@@ -39,6 +39,9 @@ def get_sqlite3_databases():
             'PORT': '',                      # Set to empty string for default. Not used with sqlite3.        
         }
 
+    if len(dbs.keys()) == 1 and 'test_aopy' in dbs.keys():
+        dbs = {'default': dbs['test_aopy']}
+
     return dbs
 
 
