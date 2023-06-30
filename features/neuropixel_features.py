@@ -10,14 +10,14 @@ from riglib.open_ephys import OpenEphysHTTPServer
 
 class RecordNeuropixels(traits.HasTraits):
 
-    neuropixel_port1_chamber = traits.String("", desc="the channel position")
+    neuropixel_port1_chamber = traits.String("", desc="the channel position (e.g. LM1)")
     neuropixel_port1_drive_type = traits.String("", desc="the name of the hole layout")
     neuropixel_port1_site = traits.Int(0, desc="the hole number of the penetration")
-    neuropixel_port1_depth = traits.Int(0, desc="the recording depth")
-    neuropxiel_port2_chamber = traits.String("", desc="the channel position")
+    neuropixel_port1_depth = traits.Float(0, desc="the recording depth in um")
+    neuropxiel_port2_chamber = traits.String("", desc="the channel position (e.g. LM1)")
     neuropixel_port2_drive_type = traits.String("", desc="the name of the hole layout")
     neuropixel_port2_site = traits.Int(0, desc="the hole number of the penetration")
-    neuropixel_port2_depth = traits.Int(0, desc="the recording depth")
+    neuropixel_port2_depth = traits.Float(0, desc="the recording depth in um")
     gui = OpenEphysHTTPServer('10.155.205.108', timeout=0.5)
     
     def cleanup(self,database, saveid, gui=gui, **kwargs):
