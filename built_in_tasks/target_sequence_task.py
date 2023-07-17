@@ -24,7 +24,7 @@ plantlist = dict(
     chain_20_20=chain_20_20,
     chain_20_20_endpt=chain_20_20_endpt)
 
-class TargetCapture(Sequence):
+class TargetCapture_Sequence(Sequence):
     '''
     This is a generic cued target capture skeleton, to form as a common ancestor to the most
     common type of motor control task.
@@ -56,8 +56,7 @@ class TargetCapture(Sequence):
     delay_penalty_time = traits.Float(1, desc="Length of penalty time for delay error")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
-    max_attempts = traits.Int(10, desc='The number of attempts of a target chain before\
-        skipping to the next one')
+    max_attempts = traits.Int(10, desc='The number of attempts of a target chain before skipping to the next one')
     num_targets_per_attempt = traits.Int(2, desc="Minimum number of target acquisitions to be counted as an attempt")
 
     def init(self):
@@ -261,7 +260,7 @@ class TargetCapture(Sequence):
         self.reportstats['Trial #'] = self.calc_trial_num()
         self.reportstats['Reward/min'] = np.round(self.calc_events_per_min('reward', 120.), decimals=2)
 
-class ScreenTargetCapture(TargetCapture, Window):
+class ScreenTargetCapture_Sequence(TargetCapture_Sequence, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
@@ -307,11 +306,12 @@ class ScreenTargetCapture(TargetCapture, Window):
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
 
-            # Need two targets to have the ability for delayed holds
-            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            # 3 targets
+            targetA = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            targetB = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            targetC = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
-            self.targets = [target1, target2]
+            self.targets = [targetA, targetB, targetC]
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -401,7 +401,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_target()
 
         # Show target if it is hidden (this is the first target, or previous state was a penalty)
-        target = self.targets[self.target_index % 2]
+        target = self.targets[self.target_index % 3]
         if self.target_index == 0:
             target.move_to_position(self.targs[self.target_index])
             target.show()
@@ -417,7 +417,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
         if next_idx < self.chain_length:
-            target = self.targets[next_idx % 2]
+            target = self.targets[next_idx % 3]
             target.move_to_position(self.targs[next_idx])
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[next_idx])
@@ -434,7 +434,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         elif self.target_index + 1 < self.chain_length:
 
             # Hide the current target if there are more
-            self.targets[self.target_index % 2].hide()
+            self.targets[self.target_index % 3].hide()
             self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
@@ -474,7 +474,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.sync_event('TRIAL_END')
 
     def _start_reward(self):
-        self.targets[self.target_index % 2].cue_trial_end_success()
+        self.targets[self.target_index % 3].cue_trial_end_success()
         self.sync_event('REWARD')
         
     
@@ -496,18 +496,9 @@ class ScreenTargetCapture(TargetCapture, Window):
     Ideally someone should take the time to reimplement generators as their own classes
     rather than static methods that belong to a task.
     '''
-    @staticmethod
-    def static(pos=(0,0,0), ntrials=0):
-        '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
-        if ntrials == 0:
-            while True:
-                yield [0], np.array(pos)
-        else:
-            for _ in range(ntrials):
-                yield [0], np.array(pos)
 
     @staticmethod
-    def out_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
+    def out_2D(nblocks=100, distance=10):
         '''
         Generates a sequence of 2D (x and z) targets at a given distance from the origin
 
@@ -515,12 +506,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         ----------
         nblocks : int
             The number of ntarget pairs in the sequence.
-        ntargets : int
-            The number of equally spaced targets
         distance : float
             The distance in cm between the center and peripheral targets.
-        origin : 3-tuple
-            Location of the central targets around which the peripheral targets span
 
         Returns
         -------
@@ -528,265 +515,61 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         '''
         rng = np.random.default_rng()
+        ntargets = 8
         for _ in range(nblocks):
             order = np.arange(ntargets) + 1 # target indices, starting from 1
             rng.shuffle(order)
             for t in range(ntargets):
                 idx = order[t]
-                theta = 2*np.pi*(3-idx)/ntargets # put idx 1 at 12 o'clock
-                pos = np.array([
-                    distance*np.cos(theta),
-                    0,
-                    distance*np.sin(theta)
-                ]).T
-                yield [idx], [pos + origin]
+                theta = 2*np.pi*(-idx)/4 + np.pi # put idx 1 at 12 o'clock
+                if idx <= 4:
+                    pos = np.array([distance*np.cos(theta)+1/2*distance, 0, distance*np.sin(theta)]).T
+                elif idx >= 5:
+                    pos = np.array([distance*np.cos(theta)-1/2*distance, 0, distance*np.sin(theta)]).T
+                yield idx, pos
 
     @staticmethod
-    def centerout_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
+    def sequence_2D(nblocks=100, distance=10):
         '''
-        Pairs of central targets at the origin and peripheral targets centered around the origin
+        Pairs of the 1st, 2nd, and 3rd target.
 
         Returns
         -------
         [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
         '''
-        gen = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
+        ntargets = 8
+        gen = ScreenTargetCapture_Sequence.out_2D(nblocks=nblocks, distance=distance)
         for _ in range(nblocks*ntargets):
             idx, pos = next(gen)
-            targs = np.zeros([2, 3]) + origin
-            targs[1,:] = pos[0]
-            indices = np.zeros([2,1])
-            indices[1] = idx
-            yield indices, targs
-
-    @staticmethod
-    def centeroutback_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
-        '''
-        Triplets of central targets, peripheral targets, and central targets
-
-        Returns
-        -------
-        [nblocks*ntargets x 1] array of tuples containing trial indices and [3 x 3] target coordinates
-        '''
-        gen = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
-        for _ in range(nblocks*ntargets):
-            idx, pos = next(gen)
-            targs = np.zeros([3, 3]) + origin
-            targs[1,:] = pos[0]
+            targs = np.zeros([3, 3])
             indices = np.zeros([3,1])
-            indices[1] = idx
+
+            if idx <= 4:
+                i_theta = 4
+                theta = 2*np.pi*(-i_theta)/4 + np.pi
+                targs[0,:] = np.array([distance*np.cos(theta)+1/2*distance, 0, distance*np.sin(theta)]).T
+                indices[0] = i_theta
+
+                i_theta = 6
+                theta = 2*np.pi*(-i_theta)/4 + np.pi
+                targs[1,:] = np.array([distance*np.cos(theta)-1/2*distance, 0, distance*np.sin(theta)]).T
+                indices[1] = i_theta
+
+                targs[2,:] = pos
+                indices[2] = idx
+            
+            elif idx >= 5:
+                i_theta = 6
+                theta = 2*np.pi*(-i_theta)/4 + np.pi
+                targs[0,:] = np.array([distance*np.cos(theta)-1/2*distance, 0, distance*np.sin(theta)]).T
+                indices[0] = i_theta
+
+                i_theta = 4
+                theta = 2*np.pi*(-i_theta)/4 + np.pi
+                targs[1,:] = np.array([distance*np.cos(theta)+1/2*distance, 0, distance*np.sin(theta)]).T
+                indices[1] = i_theta
+
+                targs[2,:] = pos                
+                indices[2] = idx
+
             yield indices, targs
-    
-    @staticmethod
-    def rand_target_chain_2D(ntrials=100, chain_length=1, boundaries=(-12,12,-12,12)):
-        '''
-        Generates a sequence of 2D (x and z) target pairs.
-
-        Parameters
-        ----------
-        ntrials : int
-            The number of target chains in the sequence.
-        chain_length : int
-            The number of targets in each chain
-        boundaries: 4 element Tuple
-            The limits of the allowed target locations (-x, x, -z, z)
-
-        Returns
-        -------
-        [ntrials x chain_length x 3] array of target coordinates
-        '''
-        rng = np.random.default_rng()
-        idx = 0
-        for t in range(ntrials):
-
-            # Choose a random sequence of points within the boundaries
-            pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
-                0, (boundaries[3]-boundaries[2]))
-            pts = pts+(boundaries[0], 0, boundaries[2])
-            yield idx+np.arange(chain_length), pts
-            idx += chain_length
-    
-    @staticmethod
-    def rand_target_chain_3D(ntrials=100, chain_length=1, boundaries=(-12,12,-10,10,-12,12)):
-        '''
-        Generates a sequence of 3D target pairs.
-        Parameters
-        ----------
-        ntrials : int
-            The number of target chains in the sequence.
-        chain_length : int
-            The number of targets in each chain
-        boundaries: 6 element Tuple
-            The limits of the allowed target locations (-x, x, -y, y, -z, z)
-
-        Returns
-        -------
-        [ntrials x chain_length x 3] array of target coordinates
-        '''
-        rng = np.random.default_rng()
-        idx = 0
-        for t in range(ntrials):
-
-            # Choose a random sequence of points within the boundaries
-            pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
-                (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
-            pts = pts+(boundaries[0], boundaries[2], boundaries[4])
-            yield idx+np.arange(chain_length), pts
-            idx += chain_length
-
-    @staticmethod
-    def corners_2D(nblocks=5, chain_length=1, corners=(-8,8,-8,8)):
-        '''
-        Generates a sequence of 2D (x and z) targets at the given 4 corners
-
-        Parameters
-        ----------
-        nblocks : 3-tuple
-            Number of blocks
-        chain_length : int
-            The number of targets in each chain before a reward is given
-        corners : 4-tuple
-            Location of the edges of the screen (-x, x, -y, y)
-
-        Returns
-        -------
-        [nblocks*4 x 1] array of tuples containing trial indices and [1 x 3] target coordinates
-
-        '''
-        ntargets = 4
-        corners = np.array([
-            [corners[0], 0, corners[2]],
-            [corners[0], 0, corners[3]],
-            [corners[1], 0, corners[2]],
-            [corners[1], 0, corners[3]]
-        ])
-        target_order = []
-        rng = np.random.default_rng()
-        for _ in range(nblocks):
-            order = np.arange(ntargets) + 1 # target indices, starting from 1
-            rng.shuffle(order)
-            target_order = np.concatenate((target_order, order), axis=0)
-
-        # Spit out trials in groups of chain_length
-        ntrials = nblocks*4//chain_length
-        for t in range(ntrials):
-            idx = target_order[int(t*chain_length):int(t*chain_length+chain_length)]
-            pos = [corners[int(i-1),:] for i in idx]
-            yield idx, pos
-
-class ScreenReachAngle(ScreenTargetCapture):
-    '''
-    A modified task that requires the cursor to move in the right direction towards the target, 
-    without actually needing to arrive at the target. If the maximum angle is exceeded, a reach 
-    penalty is applied. No hold or delay period.
-
-    Only works for sequences with 1 target in a chain. 
-    '''
-
-    status = dict(
-        wait = dict(start_trial="target"),
-        target = dict(reach_success="targ_transition", timeout="timeout_penalty", leave_bounds="reach_penalty"),
-        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
-        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
-        reach_penalty = dict(reach_penalty_end="targ_transition", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True)
-    )
-
-    sequence_generators = [
-        'out_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'discrete_targets_2D',
-    ]
-
-    max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between the starting position of the cursor and the target")
-    reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
-    reach_fraction = traits.Float(0.5, desc="Fraction of the distance between the reach start and the target before a reward")
-    start_radius = traits.Float(1., desc="Buffer around reach start allowed in bounds (cm)")
-
-    exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time']
-
-    def _start_target(self):
-        super()._start_target()
-
-        # Define a reach start and reach target position whenever the target appears
-        self.reach_start = self.plant.get_endpoint_pos().copy()
-        self.reach_target = self.targs[self.target_index]
-
-    def _test_leave_bounds(self, ts):
-        '''
-        Check whether the cursor is in the boundary defined by reach_start, target_pos,
-        and max_reach_angle.
-        '''
-
-        # Calculate the angle between the vectors from the start pos to the current cursor and target
-        a = self.plant.get_endpoint_pos() - self.reach_start
-        b = self.reach_target - self.reach_start
-        cursor_target_angle = np.arccos(np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b))
-
-        # If that angle is more than half the maximum, we are outside the bounds
-        out_of_bounds = np.degrees(cursor_target_angle) > self.max_reach_angle / 2
-
-        # But also allow a target radius around the reach_start 
-        away_from_start = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start) > self.start_radius
-
-        return away_from_start and out_of_bounds
-
-    def _test_reach_success(self, ts):
-        dist_traveled = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start)
-        dist_total = np.linalg.norm(self.reach_target - self.reach_start)
-        dist_total -= (self.target_radius - self.cursor_radius)
-        return dist_traveled/dist_total > self.reach_fraction
-
-    def _start_reach_penalty(self):
-        self.sync_event('OTHER_PENALTY')
-        self._increment_tries()
-        
-        # Hide targets
-        for target in self.targets:
-            target.hide()
-            target.reset()
-
-    def _end_reach_penalty(self):
-        self.sync_event('TRIAL_END')
-
-    def _test_reach_penalty_end(self, ts):
-        return ts > self.reach_penalty_time
-
-    @staticmethod
-    def discrete_targets_2D(nblocks=100, ntargets=3, boundaries=(-6,6,-3,3)):
-        '''
-        Generates a sequence of 2D (x and z) target pairs that don't overlap
-
-        Parameters
-        ----------
-        nblocks : int
-            The number of ntarget pairs in the sequence.
-        ntargets : int
-            The number of unique targets (up to 9 maximum)
-        boundaries: 4 element Tuple
-            The limits of the allowed target locations (-x, x, -z, z)
-
-        Returns
-        -------
-        [ntrials x ntargets x 3] array of target coordinates
-        '''
-        targets = np.array([
-            [0, 0.5],
-            [1, 0.5],
-            [1, 0],
-            [0, 0],
-            [0.25, 0.25],
-            [0.75, 0.25],
-            [0.25, 0.75],
-            [0.75, 0.75],
-            [0.5, 1],
-        ])
-        rng = np.random.default_rng()
-        for _ in range(nblocks):
-            order = np.arange(ntargets) # target indices
-            rng.shuffle(order)
-            for t in range(ntargets):
-                idx = order[t]
-                pts = targets[idx]*((boundaries[1]-boundaries[0]),
-                    (boundaries[3]-boundaries[2]))
-                pts = pts+(boundaries[0], boundaries[2])
-                pos = np.array([pts[0], 0, pts[1]])
-                yield [idx], [pos]
