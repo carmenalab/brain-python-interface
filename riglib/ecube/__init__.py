@@ -385,6 +385,8 @@ class LFP_Blanking(LFP_Plus_Trigger):
     Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource.
 
     Limitation: only blanks one chunk at a time, so smaller chunks are better!
+
+    Warning: untested! Use at your own risk.
     '''
 
     blanking = False
