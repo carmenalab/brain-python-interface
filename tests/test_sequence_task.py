@@ -1,10 +1,11 @@
-from built_in_tasks.target_sequence_task import ScreenTargetCapture_Sequence
+from built_in_tasks.target_capture_task import ScreenTargetCapture
 import matplotlib.pyplot as plt
 import numpy as np
 
-seq = ScreenTargetCapture_Sequence.sequence_2D(nblocks=1, distance=5)
+seq = ScreenTargetCapture.sequence_2D(nblocks=1, distance=5)
+#seq = ScreenTargetCapture.centerout_2D_different_center(nblocks=100, distance=5, origin=(0,0,0))
 #seq = list(seq)
-for _ in range(4):
+for _ in range(8):
     idx, pos = next(seq)
     print(idx, idx.shape)
     print(pos, pos.shape)

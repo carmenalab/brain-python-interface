@@ -10,6 +10,7 @@ from riglib import plants
 
 from riglib.stereo_opengl.window import Window
 from .target_graphics import *
+import time
 
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
@@ -31,7 +32,8 @@ class TargetCapture(Sequence):
     '''
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(enter_target="hold", timeout="timeout_penalty"),
+        target = dict(enter_target="hold", timeout="timeout_penalty", show_additional_target='additional_target'),
+        additional_target = dict(enter_target="hold", timeout="timeout_penalty"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
         targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
@@ -94,6 +96,12 @@ class TargetCapture(Sequence):
 
     def _end_target(self):
         '''Nothing generic to do.'''
+        pass
+
+    def _start_additional_target(self):
+        pass
+
+    def _end_additional_target(self):
         pass
 
     def _start_hold(self):
@@ -278,7 +286,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
 
     sequence_generators = [
-        'out_2D', 'centerout_2D', 'sequence_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'corners_2D',
+        'out_2D', 'centerout_2D', 'sequence_2D', 'centerout_2D_different_center', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'corners_2D',
     ]
 
     hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
@@ -396,6 +404,19 @@ class ScreenTargetCapture(TargetCapture, Window):
         rad = self.target_radius - self.cursor_radius
         return d > rad or super()._test_leave_target(ts)
 
+    def _test_show_additional_target(self,ts):
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.targs[self.target_index-1])
+        rad = self.target_radius - self.cursor_radius
+
+        if self.chain_length < 3:
+            additional_target_state = False
+        elif self.target_index == 1 and d > rad:
+            additional_target_state = ts > 0.1
+        else:
+            additional_target_state = False
+        return additional_target_state
+
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
@@ -418,6 +439,15 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[self.target_index])
 
+    def _start_additional_target(self):
+        super()._start_additional_target()
+
+        next_idx = (self.target_index + 1)
+        target = self.targets[next_idx % self.chain_length]
+        target.move_to_position(self.targs[next_idx])
+        target.show()
+        self.sync_event('TARGET_ON', self.gen_indices[next_idx])             
+            
     def _start_hold(self):
         super()._start_hold()
         self.sync_event('CURSOR_ENTER_TARGET', self.gen_indices[self.target_index])
@@ -427,11 +457,12 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
-        if next_idx < self.chain_length:
-            target = self.targets[next_idx % 2]
+        #if next_idx < self.chain_length:
+        if next_idx == 1:
+            target = self.targets[next_idx % self.chain_length]
             target.move_to_position(self.targs[next_idx])
             target.show()
-            self.sync_event('TARGET_ON', self.gen_indices[next_idx])
+            self.sync_event('TARGET_ON', self.gen_indices[next_idx])       
         else:
             # This delay state should only last 1 cycle, don't sync anything
             pass
@@ -571,6 +602,65 @@ class ScreenTargetCapture(TargetCapture, Window):
             yield indices, targs
 
     @staticmethod
+    def out_2D_sequence(nblocks=100, distance=10, origin=(0,0,0)):
+        '''
+        Generates a sequence of 2D (x and z) targets at a given distance from the origin
+
+        Parameters
+        ----------
+        nblocks : int
+            The number of ntarget pairs in the sequence.
+        ntargets : int
+            The number of equally spaced targets
+        distance : float
+            The distance in cm between the center and peripheral targets.
+        origin : 3-tuple
+            Location of the central targets around which the peripheral targets span
+
+        Returns
+        -------
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [1 x 3] target coordinates
+
+        '''
+        ntargets = 8
+        rng = np.random.default_rng()
+        for _ in range(nblocks):
+            order = np.arange(ntargets) + 1 # target indices, starting from 1
+            rng.shuffle(order)
+            for t in range(ntargets):
+                idx = order[t]
+                theta = 2*np.pi*(1-idx)/4 + np.pi/2 # put idx 1 at 12 o'clock
+                print(theta)
+                if idx <= 4:
+                    pos = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
+                elif idx >=5:
+                    pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
+                yield [idx], [pos + origin]
+
+    @staticmethod
+    def centerout_2D_different_center(nblocks=100, distance=10, origin=(0,0,0)):
+        '''
+        Pairs of central targets at the origin and peripheral targets centered around the origin
+
+        Returns
+        -------
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
+        '''
+        ntargets = 8
+        gen = ScreenTargetCapture.out_2D_sequence(nblocks=nblocks, distance=distance)
+        for _ in range(nblocks*ntargets):
+            idx, pos = next(gen)
+            targs = np.zeros([2, 3]) + origin
+            if idx[0] <= 4:
+                targs[0,:] = np.array([distance/2,0,0])
+            else:
+                targs[0,:] = np.array([-distance/2,0,0])
+            targs[1,:] = pos[0]
+            indices = np.zeros([2,1])
+            indices[1] = idx
+            yield indices, targs
+
+    @staticmethod
     def sequence_2D(nblocks=100, distance=10):
         '''
         Pairs of the 1st, 2nd, and 3rd target.
@@ -580,7 +670,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
         '''
         ntargets = 8
-        gen = ScreenTargetCapture.out_2D(nblocks=nblocks, distance=distance)
+        gen = ScreenTargetCapture.out_2D_sequence(nblocks=nblocks, distance=distance)
         for _ in range(nblocks*ntargets):
             idx, pos = next(gen)
             targs = np.zeros([3, 3])
@@ -588,32 +678,36 @@ class ScreenTargetCapture(TargetCapture, Window):
             idx = idx[0]
             pos = pos[0]
 
-            if idx <= 4:
-                i_theta = 4
-                theta = 2*np.pi*(-i_theta)/4 + np.pi
-                targs[0,:] = np.array([distance*np.cos(theta)+1/2*distance, 0, distance*np.sin(theta)]).T
-                indices[0] = i_theta
+            if idx >= 5:
+                itheta = 6
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[0,:] = pos = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
+                targs[0,:] = np.array([distance/2,0,0]).T
+                indices[0] = itheta
 
-                i_theta = 6
-                theta = 2*np.pi*(-i_theta)/4 + np.pi
-                targs[1,:] = np.array([distance*np.cos(theta)-1/2*distance, 0, distance*np.sin(theta)]).T
-                indices[1] = i_theta
+                itheta = 4
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[1,:] = pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
+                targs[1,:] = np.array([-distance/2,0,0]).T
+                indices[1] = itheta
 
                 targs[2,:] = pos
                 indices[2] = idx
             
-            elif idx >= 5:
-                i_theta = 6
-                theta = 2*np.pi*(-i_theta)/4 + np.pi
-                targs[0,:] = np.array([distance*np.cos(theta)-1/2*distance, 0, distance*np.sin(theta)]).T
-                indices[0] = i_theta
+            elif idx <= 4:
+                itheta = 4
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[0,:] = pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
+                targs[0,:] = np.array([-distance/2,0,0]).T
+                indices[0] = itheta
 
-                i_theta = 4
-                theta = 2*np.pi*(-i_theta)/4 + np.pi
-                targs[1,:] = np.array([distance*np.cos(theta)+1/2*distance, 0, distance*np.sin(theta)]).T
-                indices[1] = i_theta
+                itheta = 6
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[1,:] = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
+                targs[1,:] = np.array([distance/2,0,0]).T
+                indices[1] = itheta
 
-                targs[2,:] = pos                
+                targs[2,:] = pos            
                 indices[2] = idx
 
             yield indices, targs
