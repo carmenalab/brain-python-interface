@@ -76,6 +76,8 @@ class TargetTracking(Sequence):
         self.trial_timed_out = True # check if the trial is finished
         self.plant_position = []
         self.disturbance_trial = False
+        self.repeat_freq_set = False
+        self.gen_index = -1
 
         if self.velocity_control:
             print('VELOCITY CONTROL')
@@ -87,7 +89,7 @@ class TargetTracking(Sequence):
     def _parse_next_trial(self):
         '''Get the required data from the generator'''
         # yield idx, pts, disturbance, dis_trajectory :
-        self.gen_indices, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
+        self.gen_index, self.targs, self.disturbance_trial, self.disturbance_path = self.next_trial # targs and disturbance are same length
 
         self.targs = np.squeeze(self.targs,axis=0)
         self.disturbance_path = np.squeeze(self.disturbance_path)
@@ -101,18 +103,23 @@ class TargetTracking(Sequence):
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
 
+    def _start_wait(self):
+        # Call parent method to draw the next target capture sequence from the generator
+        super()._start_wait()
+        if self.repeat_freq_set:
+            self.next_trial = next(self.gen)
+            self._parse_next_trial()
+
+        print(self.gen_index)
+
         for i in range(len(self.disturbance_path)):
-            # Update the data sinks with trial information
+            # Update the data sinks with trial information --> bmi3d_trials
             self.trial_record['trial'] = self.calc_trial_num()
-            self.trial_record['index'] = self.gen_indices
+            self.trial_record['index'] = self.gen_index
             self.trial_record['target'] = self.targs[i+self.lookahead]
             self.trial_record['disturbance'] = self.disturbance_path[i]
             self.trial_record['is_disturbance'] = self.disturbance_trial
             self.sinks.send("trials", self.trial_record)
-
-    def _start_wait(self):
-        # Call parent method to draw the next target capture sequence from the generator
-        super()._start_wait()
 
         # trial is not finished
         self.trial_timed_out = False
@@ -135,6 +142,17 @@ class TargetTracking(Sequence):
         pass
 
     def _start_wait_retry(self):
+        print(self.gen_index)
+
+        for i in range(len(self.disturbance_path)):
+            # Update the data sinks with trial information --> bmi3d_trials
+            self.trial_record['trial'] = self.calc_trial_num()
+            self.trial_record['index'] = self.gen_index
+            self.trial_record['target'] = self.targs[i+self.lookahead]
+            self.trial_record['disturbance'] = self.disturbance_path[i]
+            self.trial_record['is_disturbance'] = self.disturbance_trial
+            self.sinks.send("trials", self.trial_record)
+
          # trial is not finished
         self.trial_timed_out = False
 
@@ -384,6 +402,7 @@ class ScreenTargetTracking(TargetTracking, Window):
 
     def init(self):
         self.add_dtype('trial', 'u4', (1,))
+        self.add_dtype('gen_idx', 'int', (1,)) # dtype needs to be able to represent -1
         self.add_dtype('plant_visible', '?', (1,))
         self.add_dtype('current_target', 'f8', (3,))
         self.add_dtype('current_disturbance', 'f8', (3,)) # see task_data['manual_input'] for cursor position without added disturbance
@@ -408,6 +427,8 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         # Update the trial index
         self.task_data['trial'] = self.calc_trial_num()
+        self.task_data['gen_idx'] = self.gen_index
+        # print(self.task_data['gen_idx'])
         
         # Save the target position at each cycle. 
         if self.trial_timed_out:
@@ -678,6 +699,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.hide()
         self.bar.reset()
 
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
+
     def _while_timeout_penalty(self):
         super()._while_timeout_penalty()
         # # Add disturbance
@@ -706,6 +730,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.bar.hide()
         self.bar.reset()
 
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
+
     def _while_hold_penalty(self):
         super()._while_hold_penalty()
         # # Add disturbance
@@ -728,6 +755,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.sync_event('OTHER_PENALTY')
         # Cue failed trial
         self.target.cue_trial_end_failure()
+
+        # skip to next generated trial using same freq set
+        self.repeat_freq_set = True
 
     def _while_tracking_out_penalty(self):
         super()._while_tracking_out_penalty()
@@ -759,6 +789,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         # Cue successful trial
         self.target.cue_trial_end_success()
         self.reward_frame_index = 0
+
+        # use next generated trial using other freq set
+        self.repeat_freq_set = False
 
     def _while_reward(self):
         super()._while_reward()
@@ -812,7 +845,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         return trajectory, A
 
     @staticmethod
-    def calc_sum_of_sines_ramp(times, ramp, frequencies, amplitudes, phase_shifts):
+    def calc_sum_of_sines_ramp(times, ramp, ramp_down, frequencies, amplitudes, phase_shifts):
             '''
             Adds a 1/t ramp up and ramp down at the start and end so the trajectories start and end at zero.
             '''
@@ -820,17 +853,21 @@ class ScreenTargetTracking(TargetTracking, Window):
             t = np.asarray(t).copy(); t.shape = (t.size,1)
 
             r = ramp
+            rd = ramp_down
 
             trajectory, A = ScreenTargetTracking.calc_sum_of_sines(t, frequencies, amplitudes, phase_shifts)
 
             if r > 0:
-                trajectory *= ((t*(t <= r)/r + (t > r)).flatten())**2
-                #(((t*(t <= r)/r) + ((t > r) & (t < (t[-1]-r))) + ((t[-1]-t)*(t >= (t[-1]-r))/r)).flatten())**2
+                trajectory *= (( t*(t <= r)/r + (t > r) ).flatten())**2
+                # trajectory *= (((t*(t <= r)/r) + ((t > r) & (t < (t[-1]-r))) + ((t[-1]-t)*(t >= (t[-1]-r))/r)).flatten())**2
+
+            if rd > 0:
+                trajectory *= (( (t < (t[-1]-rd)) + ((t[-1]-t)*(t >= (t[-1]-rd))/rd) ).flatten())**2
 
             return trajectory, A
 
     @staticmethod
-    def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=120, base_period=20, ramp=0, num_primes=8):
+    def generate_trajectories(num_trials=2, time_length=20, seed=40, sample_rate=120, base_period=20, ramp=0, ramp_down=0, num_primes=8):
         '''
         Sets up variables and uses prime numbers to call the above functions and generate then trajectories
         ramp is time length for preparatory lines
@@ -842,9 +879,10 @@ class ScreenTargetTracking(TargetTracking, Window):
         T0 = base_period # sec -- base period
         w0 = 1./T0 # Hz -- base frequency
 
-        r = ramp # "ramp" duration (see sum_of_sines_ramp)
+        r = ramp # "ramp up" duration (see sum_of_sines_ramp)
+        rd = ramp_down # "ramp down" duration (see sum_of_sines_ramp)
         P = time_length/T0 # number of periods in signal
-        T = P*T0+r # sec -- signal duration
+        T = P*T0+r+rd # sec -- signal duration
         dw = 1./T # Hz -- frequency resolution
         W = 1./dt/2 # Hz -- signal bandwidth
 
@@ -898,8 +936,8 @@ class ScreenTargetTracking(TargetTracking, Window):
             else:
                 sines_d = np.arange(len(primes))
             
-            ref_trajectory, ref_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_ref[sines_r], a_ref[sines_r], o_ref[trial_id][sines_r])
-            dis_trajectory, dis_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, f_dis[sines_d], a_dis[sines_d], o_dis[trial_id][sines_d])
+            ref_trajectory, ref_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, rd, f_ref[sines_r], a_ref[sines_r], o_ref[trial_id][sines_r])
+            dis_trajectory, dis_A = ScreenTargetTracking.calc_sum_of_sines_ramp(t, r, rd, f_dis[sines_d], a_dis[sines_d], o_dis[trial_id][sines_d])
             
             # normalized trajectories
             trials['ref'][trial_id] = ref_trajectory/ref_A   # previously, denominator was np.sum(a_ref)
@@ -941,7 +979,7 @@ class ScreenTargetTracking(TargetTracking, Window):
     
     ### Generator functions ####
     @staticmethod
-    def tracking_target_chain(nblocks=1, ntrials=2, time_length=20, ramp=0, num_primes=8, seed=40, sample_rate=120, disturbance=True, boundaries=(-10,10,-10,10)):
+    def tracking_target_chain(nblocks=1, ntrials=2, time_length=20, ramp=0, ramp_down=0, num_primes=8, seed=40, sample_rate=120, disturbance=True, boundaries=(-10,10,-10,10)):
         '''
         Generates a sequence of 1D (z axis) target trajectories
 
@@ -975,11 +1013,11 @@ class ScreenTargetTracking(TargetTracking, Window):
         base_period = 20
         for block_id in range(nblocks):                
             trials, trial_order = ScreenTargetTracking.generate_trajectories(
-                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp, num_primes=num_primes
+                num_trials=ntrials, time_length=time_length, seed=seed, sample_rate=sample_rate, base_period=base_period, ramp=ramp, ramp_down=ramp_down, num_primes=num_primes
                 )
             for trial_id in range(ntrials):
                 pts = []
-                ref_trajectory = np.zeros((int((time_length+ramp)*sample_rate),3))
+                ref_trajectory = np.zeros((int((time_length+ramp+ramp_down)*sample_rate),3))
                 dis_trajectory = ref_trajectory.copy()
                 ref_trajectory[:,2] = trials['ref'][trial_id]
                 dis_trajectory[:,2] = trials['dis'][trial_id] # scale will determine lower limit of target size for perfect tracking

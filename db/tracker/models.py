@@ -934,13 +934,16 @@ class TaskEntry(models.Model):
                 from riglib.ecube import parse_file
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    info = parse_file(str(df.get_path()))
-                    path, name = os.path.split(df.get_path())
-                    name, ext = os.path.splitext(name)
+                    try:
+                        info = parse_file(str(df.get_path()))
+                        path, name = os.path.split(df.get_path())
+                        name, ext = os.path.splitext(name)
 
-                    _neuralinfo['length'] = info.length
-                    _neuralinfo['units'] = info.units
-                    _neuralinfo['name'] = name
+                        _neuralinfo['length'] = info.length
+                        _neuralinfo['units'] = info.units
+                        _neuralinfo['name'] = name
+                    except:
+                        _neuralinfo['is_seed'] = False
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except ModuleNotFoundError:
