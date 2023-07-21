@@ -943,3 +943,10 @@ class ScreenReachAngle(ScreenTargetCapture):
                 pts = pts+(boundaries[0], boundaries[2])
                 pos = np.array([pts[0], 0, pts[1]])
                 yield [idx], [pos]
+
+
+class SequenceCapture(ScreenTargetCapture):
+
+    #state =
+
+    pass

@@ -251,8 +251,8 @@ class TrackingTask(ManualControlMixin, ScreenTargetTracking):
     '''
     pass
 
-class SequenceTask(ManualControlMixin, ScreenTargetCapture_Sequence):
-    '''
-    Track moving target task
-    '''
-    pass
+# class SequenceTask(ManualControlMixin, ScreenCapture):
+#     '''
+#     Track moving target task
+#     '''
+#     pass
