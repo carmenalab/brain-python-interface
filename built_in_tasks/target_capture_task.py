@@ -33,13 +33,14 @@ class TargetCapture(Sequence):
     status = dict(
         wait = dict(start_trial="target"),
         target = dict(enter_target="hold", timeout="timeout_penalty", show_additional_target='additional_target'),
-        additional_target = dict(enter_target="hold", timeout="timeout_penalty"),
+        additional_target = dict(enter_target="hold", timeout="timeout_penalty", enter_different_target="different_target_penalty"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
         targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
         timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
         hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
         delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        different_target_penalty = dict(different_target_penalty_end="targ_transition", end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
@@ -58,6 +59,7 @@ class TargetCapture(Sequence):
     delay_penalty_time = traits.Float(1, desc="Length of penalty time for delay error")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
+    different_target_penalty_time = traits.Float(1, desc="Length of penalty time for acquiring different targets")
     max_attempts = traits.Int(10, desc='The number of attempts of a target chain before\
         skipping to the next one')
     num_targets_per_attempt = traits.Int(2, desc="Minimum number of target acquisitions to be counted as an attempt")
@@ -185,6 +187,17 @@ class TargetCapture(Sequence):
         '''Nothing generic to do.'''
         pass
 
+    def _start_different_target_penalty(self):
+        self._increment_tries()
+
+    def _while_different_target_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _end_different_target_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
     def _start_reward(self):
         '''Nothing generic to do.'''
         pass
@@ -259,6 +272,9 @@ class TargetCapture(Sequence):
 
     def _test_delay_penalty_end(self, time_in_state):
         return time_in_state > self.delay_penalty_time
+
+    def _test_different_target_penalty_end(self, time_in_state):
+        return time_in_state > self.different_target_penalty_time
 
     def _test_reward_end(self, time_in_state):
         return time_in_state > self.reward_time
@@ -404,6 +420,13 @@ class ScreenTargetCapture(TargetCapture, Window):
         rad = self.target_radius - self.cursor_radius
         return d > rad or super()._test_leave_target(ts)
 
+    def _test_enter_different_target(self, ts):
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.targs[self.target_index+1])
+        rad = self.target_radius - self.cursor_radius
+
+        return d < rad
+
     def _test_show_additional_target(self,ts):
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index-1])
@@ -458,7 +481,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
         #if next_idx < self.chain_length:
-        if next_idx == 1:
+        if next_idx == 1 and next_idx < self.chain_length:
             target = self.targets[next_idx % self.chain_length]
             target.move_to_position(self.targs[next_idx])
             target.show()
@@ -502,7 +525,20 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _end_delay_penalty(self):
         super()._end_delay_penalty()
         self.sync_event('TRIAL_END')
-        
+
+    def _start_different_target_penalty(self):
+        self.sync_event('OTHER_PENALTY') 
+        super()._start_delay_penalty()
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
+    def _end_different_target_penalty(self):
+        super()._end_different_target_penalty()
+        self.sync_event('TRIAL_END')   
+
+
     def _start_timeout_penalty(self):
         self.sync_event('TIMEOUT_PENALTY')
         super()._start_timeout_penalty()
@@ -947,6 +983,154 @@ class ScreenReachAngle(ScreenTargetCapture):
 
 class SequenceCapture(ScreenTargetCapture):
 
-    #state =
+    '''
+    This is a generic cued target capture skeleton, to form as a common ancestor to the most
+    common type of motor control task.
+    '''
+    status = dict(
+        wait = dict(start_trial="target"),
+        target = dict(enter_target="hold", timeout="timeout_penalty", show_additional_target='additional_target'),
+        additional_target = dict(enter_target="hold", timeout="timeout_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
+        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+    )
+
+    def _test_hold_complete(self, time_in_state):
+        '''
+        Test whether the target is held long enough to declare the
+        trial a success
+
+        Possible options
+            - Target held for the minimum requred time (implemented here)
+            - Sensorized object moved by a certain amount
+            - Sensorized object moved to the required location
+            - Manually triggered by experimenter
+        '''
+        if self.target_index == 0:
+            hold_state = time_in_state > self.hold_time
+        elif self.target_index == self.chain_length-1:
+            hold_state = time_in_state > self.hold_time
+        else:
+            hold_state = True
+        return hold_state
+
+    def _test_delay_complete(self, time_in_state):
+        '''
+        Test whether the delay period, when the cursor must stay in place
+        while another target is being presented, is over. There should be 
+        no delay on the last target in a chain.
+        '''
+        if self.target_index == 0:
+            delay_state = time_in_state > self.delay_time
+        else:
+            delay_state = True
+        return delay_state
+
+    def _test_show_additional_target(self,ts):
+        cursor_pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(cursor_pos - self.targs[self.target_index-1])
+        rad = self.target_radius - self.cursor_radius
+
+        if self.chain_length < 3:
+            additional_target_state = False
+        elif self.target_index == 1 and d > rad:
+            additional_target_state = ts > 0.1
+        else:
+            additional_target_state = False
+        return additional_target_state
+
+    def _start_additional_target(self):
+        super()._start_additional_target()
+
+        next_idx = (self.target_index + 1)
+        target = self.targets[next_idx % self.chain_length]
+        target.move_to_position(self.targs[next_idx])
+        target.show()
+        self.sync_event('TARGET_ON', self.gen_indices[next_idx])   
+
+    sequence_generators = [
+        'out_2D', 'centerout_2D', 'sequence_2D', 'centerout_2D_different_center', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'corners_2D',
+    ]
+
+    @staticmethod
+    def centerout_2D_different_center(nblocks=100, distance=10, origin=(0,0,0)):
+        '''
+        Pairs of central targets at the origin and peripheral targets centered around the origin
+
+        Returns
+        -------
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
+        '''
+        ntargets = 8
+        gen = ScreenTargetCapture.out_2D_sequence(nblocks=nblocks, distance=distance)
+        for _ in range(nblocks*ntargets):
+            idx, pos = next(gen)
+            targs = np.zeros([2, 3]) + origin
+            if idx[0] <= 4:
+                targs[0,:] = np.array([distance/2,0,0])
+            else:
+                targs[0,:] = np.array([-distance/2,0,0])
+            targs[1,:] = pos[0]
+            indices = np.zeros([2,1])
+            indices[1] = idx
+            yield indices, targs
+
+    @staticmethod
+    def sequence_2D(nblocks=100, distance=10):
+        '''
+        Pairs of the 1st, 2nd, and 3rd target.
+
+        Returns
+        -------
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
+        '''
+        ntargets = 8
+        gen = ScreenTargetCapture.out_2D_sequence(nblocks=nblocks, distance=distance)
+        for _ in range(nblocks*ntargets):
+            idx, pos = next(gen)
+            targs = np.zeros([3, 3])
+            indices = np.zeros([3,1])
+            idx = idx[0]
+            pos = pos[0]
+
+            if idx >= 5:
+                itheta = 6
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[0,:] = pos = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
+                targs[0,:] = np.array([distance/2,0,0]).T
+                indices[0] = itheta
+
+                itheta = 4
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[1,:] = pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
+                targs[1,:] = np.array([-distance/2,0,0]).T
+                indices[1] = itheta
+
+                targs[2,:] = pos
+                indices[2] = idx
+            
+            elif idx <= 4:
+                itheta = 4
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[0,:] = pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
+                targs[0,:] = np.array([-distance/2,0,0]).T
+                indices[0] = itheta
+
+                itheta = 6
+                theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
+                #targs[1,:] = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
+                targs[1,:] = np.array([distance/2,0,0]).T
+                indices[1] = itheta
+
+                targs[2,:] = pos            
+                indices[2] = idx
+
+            yield indices, targs
+
 
     pass
