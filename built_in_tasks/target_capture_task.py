@@ -11,6 +11,7 @@ from riglib import plants
 from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 import time
+import random
 
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
@@ -435,7 +436,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         if self.chain_length < 3:
             additional_target_state = False
         elif self.target_index == 1 and d > rad:
-            additional_target_state = ts > 0.1
+            additional_target_state = ts > random.uniform(0.1,0.2)
         else:
             additional_target_state = False
         return additional_target_state
@@ -719,7 +720,7 @@ class ScreenTargetCapture(TargetCapture, Window):
                 theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
                 #targs[0,:] = pos = np.array([distance*np.cos(theta)+distance/2,0,distance*np.sin(theta)]).T
                 targs[0,:] = np.array([distance/2,0,0]).T
-                indices[0] = itheta
+                indices[0] = 0
 
                 itheta = 4
                 theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
@@ -735,7 +736,7 @@ class ScreenTargetCapture(TargetCapture, Window):
                 theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
                 #targs[0,:] = pos = np.array([distance*np.cos(theta)-distance/2,0,distance*np.sin(theta)]).T
                 targs[0,:] = np.array([-distance/2,0,0]).T
-                indices[0] = itheta
+                indices[0] = 0
 
                 itheta = 6
                 theta = 2*np.pi*(1-itheta%4)/4 + np.pi/2
