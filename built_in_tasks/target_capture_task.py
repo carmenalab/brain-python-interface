@@ -63,6 +63,7 @@ class TargetCapture(Sequence):
     different_target_penalty_time = traits.Float(1, desc="Length of penalty time for acquiring different targets")
     max_attempts = traits.Int(10, desc='The number of attempts of a target chain before\
         skipping to the next one')
+    target_appearance_distance = traits.Float(3.5, desc="Additional target appear when the cursor passed the distance")
     num_targets_per_attempt = traits.Int(2, desc="Minimum number of target acquisitions to be counted as an attempt")
 
     def init(self):
@@ -436,7 +437,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         if self.chain_length < 3:
             additional_target_state = False
         elif self.target_index == 1 and d > rad:
-            additional_target_state = ts > random.uniform(0.1,0.2)
+            additional_target_state = d > self.target_appearance_distance
         else:
             additional_target_state = False
         return additional_target_state
