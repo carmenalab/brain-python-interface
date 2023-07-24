@@ -465,7 +465,7 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
             elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
                 self.blanking = 1
             elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
-                self.blanking = 2
+                self.blanking = 1
                   
             # Get a chunk of hs data
             try:
