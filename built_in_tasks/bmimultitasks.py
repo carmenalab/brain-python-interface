@@ -281,10 +281,10 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
 
         return np.array(target_state).reshape(-1,1)
 
-    def _start_wait(self):
-        super()._start_wait()
+    def _start_targ_transition(self):
+        super()._start_targ_transition()
         if self.reset:
-            self.decoder.filt.state.mean = self.init_decoder_mean
+            self.decoder.filt.state.mean = np.zeros((7,1))
             self.hdf.sendMsg("reset")
 
     @classmethod
