@@ -423,7 +423,7 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
 
     return decoder
 
-def save_new_dec(task_entry_id, dec_obj, suffix):
+def save_new_dec(task_entry_id, dec_obj, suffix, dbname='default'):
     '''
     Summary: Method to save decoder to DB -- saves to TE that original decoder came from
     Input param: task_entry_id: original task to save decoder to
@@ -449,7 +449,7 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
     old_dec_obj = te.decoder_record
     if old_dec_obj is None:
         old_dec_obj = faux_decoder_obj(task_entry_id)
-    trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix)
+    trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix, dbname=dbname)
 
 def bin_(kin, neural_features, update_rate, desired_update_rate, only_neural=False):
 

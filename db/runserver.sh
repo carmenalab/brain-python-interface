@@ -2,8 +2,9 @@
 
 # Set display
 HOST=`hostname -s`
-if [ "$HOST" = "pagaiisland2" ]; then
+if [ "$HOST" = "pagaiisland2" ] || [ "$HOST" = "siberut-bmi" ]; then
     export DISPLAY=':0.1'
+    echo "Moving display to 0:1"
 elif [ "$HOST" = "peco" ]; then
     export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
     export LIBGL_ALWAYS_INDIRECT=0
@@ -89,6 +90,8 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log
 if  test -f "$BMI3D/env/bin/activate"; then 
     source $BMI3D/env/bin/activate
 else
+    eval "$(conda shell.bash hook)"
+    conda activate bmi3d
     echo "No environment found."
 fi
 

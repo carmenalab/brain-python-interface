@@ -63,7 +63,12 @@ def get_mysql_database(dbname):
         'PASSWORD': get_secret("DB_PASSWORD")
     }
 
-if HOSTNAME in ['pagaiisland2']:
+TESTDB = os.environ.get('TESTDB')
+
+if TESTDB:
+    DATABASES['default'] = get_mysql_database('test')
+    CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
+elif HOSTNAME in ['pagaiisland2']:
     DATABASES['default'] = get_mysql_database('rig1')
     CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
 elif HOSTNAME in ['siberut-bmi']:
@@ -75,6 +80,7 @@ elif HOSTNAME in ['moor', 'crab-eating', 'ecube']:
     DATABASES['rig1'] = get_mysql_database('rig1')
     DATABASES['rig2'] = get_mysql_database('rig2')
     DATABASES['tablet'] = get_mysql_database('tablet')
+    DATABASES['test'] = get_mysql_database('test')
     DATABASES['default'] = DATABASES['rig1']
 else:
     DATABASES = get_sqlite3_databases()
