@@ -4,6 +4,7 @@ Features which have task-like functionality w.r.t. task...
 
 import random
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 from riglib.experiment import traits
 
 class Autostart(traits.HasTraits):
@@ -149,3 +150,72 @@ class PoissonWait(traits.HasTraits):
     def _parse_next_trial(self):
         self.wait_time = np.random.exponential(self.poisson_mu)
         super()._parse_next_trial()
+
+class IncrementalRotation(traits.HasTraits):
+    '''
+    Gradually change the perturbation rotation over trials
+    '''
+    exclude_parent_traits = ['pertubation_rotation', 'perturbation_rotation_z', 'perturbation_rotation_x']
+
+    init_rotation_y  = traits.Float(0.0, desc="initial rotation about bmi3d y-axis in degrees")
+    final_rotation_y = traits.Float(0.0, desc="final rotation about bmi3d y-axis in degrees")
+
+    init_rotation_z  = traits.Float(0.0, desc="initial rotation about bmi3d z-axis in degrees")
+    final_rotation_z = traits.Float(0.0, desc="final rotation about bmi3d z-axis in degrees")
+    
+    init_rotation_x  = traits.Float(0.0, desc="inital rotation about bmi3d x-axis in degrees")
+    final_rotation_x = traits.Float(0.0, desc="final rotation about bmi3d x-axis in degrees")
+
+    delta_rotation_y = traits.Float(0.0, desc="rotation step size about bmi3d y-axis in degrees")
+    delta_rotation_z = traits.Float(0.0, desc="rotation step size about bmi3d z-axis in degrees")
+    delta_rotation_x = traits.Float(0.0, desc="rotation step size about bmi3d x-axis in degrees")
+
+    trials_per_increment = traits.Int(1, desc="number of successful trials per rotation step")
+
+    def init(self):    
+        super().init()
+        self.num_trials_success = 0
+        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        self.pertubation_rotation = self.init_rotation_y
+        self.perturbation_rotation_z = self.init_rotation_z
+        self.perturbation_rotation_x = self.init_rotation_x
+
+    def _start_wait(self):
+        super()._start_wait()
+        # determine the current rotation step
+        num_deltas = int(self.num_trials_success / self.trials_per_increment)
+
+        # increment the current perturbation rotation by delta
+        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
+        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
+        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
+
+        # stop incrementing once final perturbation rotation reached
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
+            self.pertubation_rotation = self.final_rotation_y
+            self.perturbation_rotation_z = self.final_rotation_z
+            self.perturbation_rotation_x = self.final_rotation_x
+        
+        print(self.pertubation_rotation)
+
+    def _start_wait_retry(self):
+        super()._start_wait_retry()
+        # determine the current rotation step
+        num_deltas = int(self.num_trials_success / self.trials_per_increment)
+
+        # increment the current perturbation rotation by delta
+        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
+        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
+        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
+
+        # stop incrementing once final perturbation rotation reached
+        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
+            self.pertubation_rotation = self.final_rotation_y
+            self.perturbation_rotation_z = self.final_rotation_z
+            self.perturbation_rotation_x = self.final_rotation_x
+        
+        print(self.pertubation_rotation)
+
+    def _start_reward(self):
+        super()._start_reward()
+        self.num_trials_success += 1

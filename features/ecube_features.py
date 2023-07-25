@@ -36,12 +36,19 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
+    headstage_module_id = traits.String("", desc="Unique identifier for the tether module being used")
+    headstage_stacking_id = traits.String("", desc="Unique identifier for the stacking cable being used")
     channel_mapping_file = traits.String("", desc="Name of channel mapping excel file")
     drmap_chamber = traits.String("", desc="Name of the recording chamber (e.g. LM1)")
     drmap_drive_type = traits.String("", desc="Type of recording drive (e.g. ECoG244)")
+    drmap_drive_id = traits.String("", desc="Unique identifier for the drive being used")
+    drmap_drive_orientation = traits.String("", desc="Orientation (in degrees) of the drive inside the chamber")
     drmap_implant_date = traits.String("", desc="Date recording drive was implanted (YYMMDD)")
     drmap_config_date = traits.String("", desc="Date channel mapping was configured (YYMMDD)")
+    ecube_feature_version = traits.Int(1, desc="Version number of the BMI3D feature used to record ecube data")
+    
     ecube_status = "Not initialized"
+    hidden_traits = ['ecube_feature_version']
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -281,7 +288,7 @@ class EcubeFileBMI(EcubeFileData, CorticalBMI):
             send_data_to_sink_manager=self.send_data_to_sink_manager, 
             channels=self.cortical_channels,
             ecube_bmi_filename=self.ecube_bmi_filename)
-        self._neural_src_system_type = ecube.LFP_Blanking_File
+        self._neural_src_system_type = ecube.File
 
 class EcubeBMI(CorticalBMI):
     '''
@@ -292,7 +299,7 @@ class EcubeBMI(CorticalBMI):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._neural_src_system_type = ecube.LFP_Blanking
+        self._neural_src_system_type = ecube.LFP
 
     def init(self):
         self.neural_src_kwargs = dict(headstage=self.bmi_ecube_headstage)

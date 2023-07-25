@@ -21,6 +21,7 @@ from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
 from .ecube_features import EcubeFileBMI, EcubeBMI
 from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync
+from .neuropixel_features import RecordNeuropixels
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -68,7 +69,8 @@ built_in_features = dict(
     screen_sync=ScreenSync,
     cursor_sync=CursorAnalogOut,
     progress_bar=ProgressBar,
-    tracking_rewards=TrackingRewards
+    tracking_rewards=TrackingRewards,
+    neuropixel=RecordNeuropixels
 )
 
 # >>> features.built_in_features['autostart'].__module__
