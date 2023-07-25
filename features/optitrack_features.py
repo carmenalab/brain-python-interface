@@ -26,6 +26,8 @@ class Optitrack(traits.HasTraits):
     smooth_features = traits.Int(1, desc="How many features to average")
     scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
     offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
+    optitrack_ip = traits.String('10.155.204.10', desc="address of the optitrack computer")
+    optitrack_save_path = traits.String("C:/Users/aolab/Documents", desc="where on the optitrack computer to save data")
 
     hidden_traits = ['optitrack_feature', 'smooth_features']
 
@@ -39,15 +41,14 @@ class Optitrack(traits.HasTraits):
         # Start the natnet client and recording
         import natnet
         now = datetime.now()
-        local_path = "C:/Users/Orsborn Lab/Documents"
         session = "OptiTrack/Session " + now.strftime("%Y-%m-%d")
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         logger = Logger(take)
         try:
-            client = natnet.Client.connect(logger=logger)
+            client = natnet.Client.connect(server=self.optitrack_ip, logger=logger, timeout=1)
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
-                client.set_session(os.path.join(local_path, session))
+                client.set_session(os.path.join(self.optitrack_save_path, session))
                 client.set_take(take)
                 self.filename = os.path.join(session, take + '.tak')
                 client._send_command_and_wait("LiveMode")
