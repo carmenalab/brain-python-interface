@@ -127,6 +127,9 @@ class LinearScaleFilter(Filter):
     def _add_obs(self, obs,**kwargs):
         ''' Add new observations to the observation matrix'''
         
+        if np.any(np.isnan(obs)):
+            return
+
         # Update observation matrix
         if self.count < len(self.obs): 
             self.count += 1

@@ -284,7 +284,7 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     def _start_targ_transition(self):
         super()._start_targ_transition()
         if self.reset and self.target_index >= self.chain_length - 2:
-            self.decoder.filt.state.mean = self.init_decoder_mean
+            self.decoder.filt.state.mean = self.init_decoder_mean.copy()
             self.hdf.sendMsg("reset")
 
     @classmethod

@@ -360,6 +360,10 @@ class CursorAnalogOut(traits.HasTraits):
         float_values = (voltage + max_voltage/2)/max_voltage # (-1.15, +1.15) becomes (0, 1)
         float_values[float_values > 1] = 1.
         float_values[float_values < 0] = 0.
+        if any(np.isnan(float_values)):
+            super()._cycle()
+            return
+            
         int_values = (max_int*float_values).astype(int)
         self.cursor_output_gpio.analog_write(self.cursor_x_pin, int_values[0])
         # self.cursor_output_gpio.analog_write(self.cursor_y_pin, int_values[1])
