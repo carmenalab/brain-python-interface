@@ -416,7 +416,7 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
-        if next_idx < self.chain_length:
+        if next_idx == 1 and next_idx < self.chain_length: # Delay state only occurs before the 2nd target
             target = self.targets[next_idx % self.chain_length]
             target.move_to_position(self.targs[next_idx])
             target.show()
@@ -842,22 +842,6 @@ class SequenceCapture(ScreenTargetCapture):
         super()._start_wait()
         s, e = self.random_target_appearance_dist
         self.target_appearance_distance = random.uniform(s,e)
-        
-
-    def _start_delay(self):
-        super()._start_delay()
-
-        # Make next target visible unless this is the final target in the trial
-        next_idx = (self.target_index + 1)
-        #if next_idx < self.chain_length:
-        if next_idx == 1 and next_idx < self.chain_length:
-            target = self.targets[next_idx % self.chain_length]
-            target.move_to_position(self.targs[next_idx])
-            target.show()
-            self.sync_event('TARGET_ON', self.gen_indices[next_idx])       
-        else:
-            # This delay state should only last 1 cycle, don't sync anything
-            pass
         
     def _start_additional_target(self):
         next_idx = (self.target_index + 1)
