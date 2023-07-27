@@ -113,7 +113,8 @@ class LinearScaleFilter(Filter):
         self.fixed = False
 
     def _pickle_init(self):
-        self.fix_norm_attr()
+        #self.fix_norm_attr()
+        pass
 
     def _init_state(self):
         ''' Required by decoder'''
