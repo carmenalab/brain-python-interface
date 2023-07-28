@@ -308,10 +308,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         if instantiate_targets:
 
             # 2 targets for delay
-            targetA = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-            targetB = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
-            self.targets = [targetA, targetB]
+            self.targets = [target1, target2]
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
