@@ -401,7 +401,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_target()
 
         # Show target if it is hidden (this is the first target, or previous state was a penalty)
-        target = self.targets[self.target_index % self.chain_length]
+        target = self.targets[self.target_index % 2]
         if self.target_index == 0:
             target.move_to_position(self.targs[self.target_index])
             target.show()
@@ -416,8 +416,8 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
-        if next_idx == 1 and next_idx < self.chain_length: # Delay state only occurs before the 2nd target
-            target = self.targets[next_idx % self.chain_length]
+        if next_idx < self.chain_length:
+            target = self.targets[next_idx % 2]
             target.move_to_position(self.targs[next_idx])
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[next_idx])
@@ -434,7 +434,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         elif self.target_index + 1 < self.chain_length:
 
             # Hide the current target if there are more
-            self.targets[self.target_index % self.chain_length].hide()
+            self.targets[self.target_index % 2].hide()
             self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
@@ -474,10 +474,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.sync_event('TRIAL_END')
 
     def _start_reward(self):
-        self.targets[self.target_index % self.chain_length].cue_trial_end_success()
+        self.targets[self.target_index % 2].cue_trial_end_success()
         self.sync_event('REWARD')
         
-    
     def _end_reward(self):
         super()._end_reward()
         self.sync_event('TRIAL_END')
@@ -558,8 +557,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             indices = np.zeros([2,1])
             indices[1] = idx
             yield indices, targs
-
-
 
     @staticmethod
     def centeroutback_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -797,27 +794,27 @@ class ScreenReachAngle(ScreenTargetCapture):
 class SequenceCapture(ScreenTargetCapture):
 
     '''
-    This is the sequence task. 2nd target appears when subjects acquire the 1st target.
-    The 3rd target appears while they are moving the cursor to the 2nd target.
+    This is a sequence task in which a 2nd target appears after subjects acquire the 1st target, and
+    a 3rd target (additional target) appears while they are moving the cursor to the 2nd target.
     '''
 
     status = dict(
         wait = dict(start_trial="target"),
         target = dict(enter_target="hold", timeout="timeout_penalty", show_additional_target='additional_target'),
-        additional_target = dict(enter_target="hold", timeout="timeout_penalty", enter_different_target="different_target_penalty"),
+        additional_target = dict(enter_target="hold", timeout="timeout_penalty", enter_incorrect_target="incorrect_target_penalty"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
         targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
         timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
         hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
         delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
-        different_target_penalty = dict(different_target_penalty_end="targ_transition", end_state=True),
+        incorrect_target_penalty = dict(incorrect_target_penalty_end="targ_transition", end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
     sequence_generators = ['out_2D_sequence','sequence_2D', 'centerout_2D_different_center']
-    different_target_penalty_time = traits.Float(1, desc="Length of penalty time for acquiring different targets")
-    random_target_appearance_dist = traits.Tuple((3.5, 3.5), desc="Another target appear when the cursor passed a certain distance")
+    incorrect_target_penalty_time = traits.Float(1, desc="Length of penalty time for acquiring an incorrect target")
+    random_target_appearance_dist = traits.Tuple((3.5, 3.5), desc="Another target appear when the cursor passed a certain distance from the 1st target in cm")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -842,7 +839,18 @@ class SequenceCapture(ScreenTargetCapture):
         super()._start_wait()
         s, e = self.random_target_appearance_dist
         self.target_appearance_distance = random.uniform(s,e)
-        
+
+    def _start_targ_transition(self):
+        if self.target_index == -1:
+
+            # Came from a penalty state
+            pass
+        elif self.target_index + 1 < self.chain_length:
+
+            # Hide the current target if there are more
+            self.targets[self.target_index % self.chain_length].hide()
+            self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
+
     def _start_additional_target(self):
         next_idx = (self.target_index + 1)
         target = self.targets[next_idx % self.chain_length]
@@ -850,7 +858,7 @@ class SequenceCapture(ScreenTargetCapture):
         target.show()
         self.sync_event('TARGET_ON', self.gen_indices[next_idx])    
 
-    def _start_different_target_penalty(self):
+    def _start_incorrect_target_penalty(self):
         self._increment_tries()
         self.sync_event('OTHER_PENALTY') 
         # Hide targets
@@ -858,9 +866,12 @@ class SequenceCapture(ScreenTargetCapture):
             target.hide()
             target.reset()
 
-    def _end_different_target_penalty(self):
+    def _end_incorrect_target_penalty(self):
         self.sync_event('TRIAL_END') 
 
+    def _start_reward(self):
+        self.targets[self.target_index % self.chain_length].cue_trial_end_success()
+        self.sync_event('REWARD')
 
     #### TEST FUNCTIONS ####
 
@@ -895,15 +906,15 @@ class SequenceCapture(ScreenTargetCapture):
             delay_state = True # No delay period for the 3rd target
         return delay_state
 
-    def _test_enter_different_target(self, ts):
+    def _test_enter_incorrect_target(self, ts):
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index+1]) # Measure distance between the cursor and the next target
         rad = self.target_radius - self.cursor_radius
 
         return d < rad   
 
-    def _test_different_target_penalty_end(self, time_in_state):
-        return time_in_state > self.different_target_penalty_time
+    def _test_incorrect_target_penalty_end(self, time_in_state):
+        return time_in_state > self.incorrect_target_penalty_time
 
     def _test_show_additional_target(self,ts):
         cursor_pos = self.plant.get_endpoint_pos()
