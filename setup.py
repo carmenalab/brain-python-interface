@@ -12,7 +12,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        "django",
+        "django==4.1",
         "celery",
         "jinja2",
         "scipy",
