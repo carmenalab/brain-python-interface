@@ -840,6 +840,17 @@ class SequenceCapture(ScreenTargetCapture):
         s, e = self.random_target_appearance_dist
         self.target_appearance_distance = random.uniform(s,e)
 
+    def _start_delay(self):
+        next_idx = (self.target_index + 1)
+        if next_idx == 1 and next_idx < self.chain_length: # Delay period is only for the 2nd target
+            target = self.targets[next_idx % self.chain_length]
+            target.move_to_position(self.targs[next_idx])
+            target.show()
+            self.sync_event('TARGET_ON', self.gen_indices[next_idx])     
+        else:
+            # Don't sync anything when the 1st target and 3rd target appear
+            pass
+
     def _start_targ_transition(self):
         if self.target_index == -1:
 
