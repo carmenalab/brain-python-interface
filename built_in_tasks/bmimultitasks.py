@@ -10,6 +10,7 @@ from riglib.bmi import goal_calculators, ppfdecoder, feedback_controllers
 from riglib.bmi.bmi import BMILoop
 from riglib.bmi.assist import Assister, FeedbackControllerAssist
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
+from riglib.experiment.experiment import control_decorator
 
 from riglib.stereo_opengl.window import WindowDispl2D
 from .target_capture_task import ScreenReachAngle, ScreenTargetCapture
@@ -292,6 +293,11 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
         duration = round(log_summary['runtime'] / 60, 1)
         return "{}/{} succesful trials in {} min".format(
             log_summary['n_success_trials'], log_summary['n_trials'], duration)
+
+    @control_decorator
+    def reset_cursor(self):
+        self.decoder.filt.state.mean = self.init_decoder_mean.copy()
+        self.hdf.sendMsg("reset")
 
 class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.
