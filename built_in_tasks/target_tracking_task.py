@@ -527,10 +527,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.target.hide()
         self.trajectory.hide()
 
-        if self.reset:
-            self.plant.set_endpoint_pos(self.starting_pos)
-            self.hdf.sendMsg("reset")
-
     def _while_wait(self):
         super()._while_wait()
         # # Add disturbance
