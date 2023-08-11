@@ -7,9 +7,7 @@ from datetime import datetime
 import time
 import numpy as np
 import os
-
-DEFAULT_OFFSET = [0, -60, -30] # optitrack cm [forward, up, right]
-DEFAULT_SCALE = 1 # optitrack cm --> screen cm
+from config.rig_defaults import optitrack as defaults
 
 ########################################################################################################
 # Optitrack datasources
@@ -24,10 +22,10 @@ class Optitrack(traits.HasTraits):
 
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     smooth_features = traits.Int(1, desc="How many features to average")
-    scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
-    offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
-    optitrack_ip = traits.String('10.155.204.10', desc="address of the optitrack computer")
-    optitrack_save_path = traits.String("C:/Users/aolab/Documents", desc="where on the optitrack computer to save data")
+    scale = traits.Float(defaults['scale'], desc="Control scale factor")
+    offset = traits.Array(value=defaults['offset'], desc="Control offset")
+    optitrack_ip = traits.String(defaults['address'], desc="address of the optitrack computer")
+    optitrack_save_path = traits.String(defaults['save_path'], desc="where on the optitrack computer to save data")
 
     hidden_traits = ['optitrack_feature', 'smooth_features']
 

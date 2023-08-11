@@ -25,14 +25,10 @@ except ImportError:
     import warnings
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
+from config.rig_defaults import window as defaults
+
 # for WindowDispl2D only
 from .primitives import Shape2D
-
-monitor_res = dict(
-    test_monitor = (1680, 1050),
-    monitor_2D = (2560, 1440),
-    monitor_3D = (1920*2, 1080),
-)
 
 class Window(LogExperiment):
     '''
@@ -44,13 +40,13 @@ class Window(LogExperiment):
 
     # XPS computer
     # window_size = (1920*2, 1080)
-    window_size = traits.Tuple(monitor_res['monitor_2D'], desc='Window size, in pixels')
+    window_size = traits.Tuple(defaults['window_size'], desc='Window size, in pixels')
     background = traits.Tuple((0.,0.,0.,1.), desc="Background color (R,G,B,A)")
     fullscreen = traits.Bool(True, desc="Fullscreen window")
 
     #Screen parameters, all in centimeters -- adjust for monkey
-    screen_dist = traits.Float(44.5+3, desc="Screen to eye distance (cm)")
-    screen_half_height = traits.Float(10.75, desc="Screen half height (cm)")
+    screen_dist = traits.Float(defaults['screen_dist'], desc="Screen to eye distance (cm)")
+    screen_half_height = traits.Float(defaults['screen_half_height'], desc="Screen half height (cm)")
     iod = traits.Float(2.5, desc="Intraocular distance (cm)")     # intraocular distance
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
