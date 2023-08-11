@@ -510,7 +510,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         '''
         cursor_pos = self.plant.get_endpoint_pos()
         d = np.linalg.norm(cursor_pos - self.target.get_position())
-        return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(time_in_state)
+        return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(time_in_state) or (self.hold_time==0 and self.state=='trajectory')
 
     def _test_leave_target(self, time_in_state):
         '''
