@@ -9,10 +9,12 @@ import re
 import socket
 import json
 from django.core.exceptions import ImproperlyConfigured
+from config.rig_defaults import db as rig_defaults
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 HOSTNAME = socket.gethostname()
 
+# Add databases
 def get_sqlite3_databases():
     dbs = dict()
     db_files = glob.glob(os.path.join(BASE_DIR, '*.sql'))
@@ -23,7 +25,7 @@ def get_sqlite3_databases():
         if db_name.startswith('_'):
             db_name = db_name[1:]
         elif db_name == "":
-            db_name = "default"
+            db_name = "local"
         else:
             # unrecognized db name pattern
             print("Unrecognized database file: ", db)
@@ -39,10 +41,6 @@ def get_sqlite3_databases():
         }
 
     return dbs
-
-
-# DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
-DATABASES = {}
 
 def get_secret(setting):
     """Get secret setting or fail with ImproperlyConfigured"""
@@ -63,27 +61,21 @@ def get_mysql_database(dbname):
         'PASSWORD': get_secret("DB_PASSWORD")
     }
 
-TESTDB = os.environ.get('TESTDB')
+# DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
-if TESTDB:
-    DATABASES['default'] = get_mysql_database('test')
+DATABASES = get_sqlite3_databases() # local databases
+
+dbnames = rig_defaults['secret_dbnames']
+for dbname in dbnames:
+    DATABASES[dbname] = get_mysql_database(dbname)
+
+if rig_defaults['enable_celery']:
     CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
-elif HOSTNAME in ['pagaiisland2']:
-    DATABASES['default'] = get_mysql_database('rig1')
-    CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
-elif HOSTNAME in ['siberut-bmi']:
-    DATABASES['default'] = get_mysql_database('rig2')
-    CELERY_BROKER_URL = f'amqp://{get_secret("AMQP_USER")}:{get_secret("AMQP_PASSWORD")}@{get_secret("AMQP_HOST")}:{get_secret("AMQP_PORT")}//'
-elif HOSTNAME in ['booted-server']:
-    DATABASES['default'] = get_mysql_database('tablet')
-elif HOSTNAME in ['moor', 'crab-eating', 'ecube']:
-    DATABASES['rig1'] = get_mysql_database('rig1')
-    DATABASES['rig2'] = get_mysql_database('rig2')
-    DATABASES['tablet'] = get_mysql_database('tablet')
-    DATABASES['test'] = get_mysql_database('test')
-    DATABASES['default'] = DATABASES['rig1']
-else:
-    DATABASES = get_sqlite3_databases()
+
+default_db = rig_defaults['default_db']
+if default_db not in DATABASES:
+    raise ValueError("Misconfigured rig_defaults.py, must add an existing default database.")
+DATABASES['default'] = DATABASES[default_db]
 
 # Django settings for db project.
 DEBUG = True

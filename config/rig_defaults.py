@@ -15,3 +15,15 @@ window = {
     'screen_dist': 44.5+3,
     'screen_half_height': 10.25, # 10.75,
 }
+
+db = {
+    'secret_dbnames': [
+        'rig1',
+        'rig2',
+        'tablet',
+        'test',
+    ],
+    'enable_celery': False,
+    # 'default_db': 'local',
+    'default_db': 'rig1',
+}
