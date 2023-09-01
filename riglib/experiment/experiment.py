@@ -12,6 +12,7 @@ import traceback
 import numpy as np
 from collections import OrderedDict
 
+from config.rig_defaults import rig_settings
 from . import traits
 from .. import fsm
 from ..fsm import FSMTable, StateTransitions, ThreadedFSM
@@ -135,6 +136,9 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
 
     # Runtime settable traits
     session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
+
+    # Always include rig parameters
+    rig_name = traits.String(rig_settings['name'], desc="Name of the rig running the experiment")
 
     # Initialization functions -----------------------------------------------
     @classmethod
