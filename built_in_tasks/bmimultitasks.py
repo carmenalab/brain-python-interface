@@ -197,16 +197,13 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     Cursor movement can be assisted toward target by setting assist_level > 0.
     '''
 
-    background = (.5,.5,.5,1) # Set the screen background color to grey
-    reset = traits.Int(0, desc='reset the decoder state to the starting configuration')
+    reset = traits.Int(0, desc='reset the decoder state to the starting configuration. 1 for always, 2 for only on timeout')
     cursor_color = traits.OptionsList("orange", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
 
-    static_states = ['reward']
+    static_states = ['reward'] # states in which the decoder is not run
 
     ordered_traits = ['session_length', 'assist_level', 'assist_level_time', 'reward_time','timeout_time','timeout_penalty_time']
     exclude_parent_traits = ['marker_count', 'marker_num', 'goal_cache_block']
-
-    static_states = [] # states in which the decoder is not run
     hidden_traits = ['arm_hide_rate', 'arm_visible', 'hold_penalty_time', 'rand_start', 'reset', 'target_radius', 'window_size']
 
     is_bmi_seed = False
@@ -282,9 +279,19 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
 
         return np.array(target_state).reshape(-1,1)
 
-    def _start_targ_transition(self):
-        super()._start_targ_transition()
-        if self.reset and self.target_index >= self.chain_length - 2:
+    def _end_targ_transition(self):
+        super()._end_targ_transition()
+        if self.reset == 1 and ((self.target_index == self.chain_length - 1) or (self.target_index == -1)):
+
+            # Reset on any target transition away from the last target
+            self.decoder.filt.state.mean = self.init_decoder_mean.copy()
+            self.hdf.sendMsg("reset")
+
+    def _end_timeout_penalty(self):
+        super()._end_timeout_penalty()
+        if self.reset == 2:
+
+            # Reset on timeout
             self.decoder.filt.state.mean = self.init_decoder_mean.copy()
             self.hdf.sendMsg("reset")
 
