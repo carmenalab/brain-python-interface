@@ -313,6 +313,8 @@ class ScreenTargetCapture(TargetCapture, Window):
 
             self.targets = [target1, target2]
 
+        self.target_location = np.array(self.starting_pos).copy()
+
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
             self.add_dtype(*attr)
@@ -406,6 +408,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.move_to_position(self.targs[self.target_index])
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[self.target_index])
+        self.target_location = self.targs[self.target_index] # save for BMILoop
 
     def _start_hold(self):
         super()._start_hold()
