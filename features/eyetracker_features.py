@@ -17,15 +17,15 @@ class ArduinoEye(traits.HasTraits):
     Add eye data to the task
     '''
 
-    calibration = traits.Tuple()
-
     def __init__(self, *args, **kwargs):
         # Maybe load previous recording and do calibration here
+        print('hello')
         super().__init__(*args, **kwargs)
+        self.eyedata = ArduinoEyeInput() #np.array(self.starting_pos[::2]), self.calibration)
 
     def init(self, *args, **kwargs):
+        print('hello init')
         super().init(*args, **kwargs)
-        self.eyedata = ArduinoEyeInput(np.array(self.starting_pos[::2]), self.calibration)
 
 class ArduinoEyeInput():
     '''
@@ -33,14 +33,17 @@ class ArduinoEyeInput():
     and converts to screen coordinates.
     '''
 
-    def __init__(self, start_pos, calibration):
+    def __init__(self): #, start_pos, calibration):
+        print('hello arduino')
         self.board = ArduinoGPIO('/dev/ttyACM4', enable_analog=True)
         self.calibration = np.array([[1,0],[1,0]])
 
     def get(self):
-        pos = np.array([self.board.analog[0].read(), self.board.analog[1].read()])
-        pos = aopy.postproc.get_calibrated_eye_data(pos, self.coefficients)
-        return [pos] # has to be an array of [x,y] positions, last one is most current
+        pos = np.array([self.board.analog_read(0), self.board.analog_read(1)])
+        if any(pos == None):
+            return [[0,0,0]]
+        pos = aopy.postproc.get_calibrated_eye_data(pos, self.calibration)
+        return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current
 
 class EyeCursorControl(ArduinoEye):
     '''
@@ -48,7 +51,9 @@ class EyeCursorControl(ArduinoEye):
     '''
 
     def _get_manual_position(self):
-        return self.eyedata.get()
+        pos = self.eyedata.get()
+        print(pos)
+        return pos
 
 class EyeData(traits.HasTraits):
     '''
