@@ -6,10 +6,49 @@ import tempfile
 import numpy as np
 from riglib import calibrations
 from riglib.experiment import traits
+from riglib.gpio import ArduinoGPIO
+import aopy
 
 ###### CONSTANTS
 sec_per_min = 60
 
+class ArduinoEye(traits.HasTraits):
+    '''
+    Add eye data to the task
+    '''
+
+    calibration = traits.Tuple()
+
+    def __init__(self, *args, **kwargs):
+        # Maybe load previous recording and do calibration here
+        super().__init__(*args, **kwargs)
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.eyedata = ArduinoEyeInput(np.array(self.starting_pos[::2]), self.calibration)
+
+class ArduinoEyeInput():
+    '''
+    Pretend to be a data source for eye data. Just gets the analog input from arduino
+    and converts to screen coordinates.
+    '''
+
+    def __init__(self, start_pos, calibration):
+        self.board = ArduinoGPIO('/dev/ttyACM4', enable_analog=True)
+        self.calibration = np.array([[1,0],[1,0]])
+
+    def get(self):
+        pos = np.array([self.board.analog[0].read(), self.board.analog[1].read()])
+        pos = aopy.postproc.get_calibrated_eye_data(pos, self.coefficients)
+        return [pos] # has to be an array of [x,y] positions, last one is most current
+
+class EyeCursorControl(ArduinoEye):
+    '''
+    Use eye data to control the cursor position
+    '''
+
+    def _get_manual_position(self):
+        return self.eyedata.get()
 
 class EyeData(traits.HasTraits):
     '''
