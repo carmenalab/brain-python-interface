@@ -225,6 +225,48 @@ class CalibratedEyeData(EyeData):
         '''
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
+
+class EyeConstrained(CalibratedEyeData):
+    '''
+    Add a penalty state when subjects looks away
+    '''
+
+    fixation_dist = traits.Float(10., desc="Distance from center that is considered a broken fixation")
+
+    def __init__(self, *args, **kwargs):
+        super(EyeConstrained, self).__init__(*args, **kwargs)
+        self.status["target"]["fixation_break"] = "fixation_penalty"
+        self.status["hold"]["fixation_break"] = "fixation_penalty"
+        self.status["delay"]["fixation_break"] = "fixation_penalty"
+        self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
+        self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
+
+    def _test_start_trial(self, ts):
+        '''Triggers the start_trial state when eye posistions are within fixation_distance'''
+        super(EyeConstrained, self)._start_wait()
+        pos = self.eyedata.get()
+        #pos = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(pos)
+        return d < self.fixation_dist
+    
+    def _test_fixation_break(self,ts):
+        '''Triggers the fixation_penalty state when eye positions are within fixation distance'''
+        super(EyeConstrained, self)._fixation_break()
+        pos = self.eyedata.get()
+        #os = self.plant.get_endpoint_pos()
+        d = np.linalg.norm(pos)
+        return d > self.fixation_dist
+    
+    def _start_fixation_penalty(self):
+        self._increment_tries()
+
+        self.sync_event('FIXATION_PENALTY') 
+        super()._start_fixation_penalty()
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")

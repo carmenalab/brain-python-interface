@@ -21,6 +21,7 @@ rig1_sync_events = dict(
     HOLD_PENALTY            = 0x40,
     TIMEOUT_PENALTY         = 0x41,
     DELAY_PENALTY           = 0x42,
+    FIXATION_PENALTY        = 0x43,
     OTHER_PENALTY           = 0x4f,
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
