@@ -567,13 +567,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         Generates a sequence of 2D (x and z) targets at a given distance from the origin, 
         but lets you select which targets out of the total number you want to keep
-
-        Note: target_idx is a string because it needs to be arbitrary length and the UI doesn't 
-        support arbitrary length arrays.
         '''
-        if type(target_idx) != list or len(target_idx) == 0:
-            print("Malformed target_idx selection!")
-            return iter(())
+        if type(target_idx) not in (list, tuple) or len(target_idx) == 0:
+            raise ValueError(f'Malformed target_idx selection "{target_idx}"! Input a list of [idx1, idx2, ...]')
         gen = ScreenTargetCapture.centerout_2D(nblocks, ntargets, distance, origin)
         while True:
             try:
