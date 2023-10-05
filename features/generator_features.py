@@ -176,6 +176,7 @@ class IncrementalRotation(traits.HasTraits):
     def init(self):    
         super().init()
         self.num_trials_success = 0
+        # NOTE: currently can only handle incremental rotations around one axis at a time
         if self.final_rotation_y != self.init_rotation_y:
             rotation_info = [self.init_rotation_y, self.final_rotation_y, self.delta_rotation_y]
         elif self.final_rotation_z != self.init_rotation_z:
