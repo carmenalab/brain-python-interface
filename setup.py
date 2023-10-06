@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="aolab-bmi3d",
-    version="0.9.6",
+    version="1.0.0",
     author="Lots of people",
     description="electrophysiology experimental rig library",
     packages=setuptools.find_packages(),
