@@ -192,8 +192,9 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_x = self.init_rotation_x
 
         print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
-
+    
     def _start_wait(self):
+        # incremental_start_wait called by both start waits here
         super()._start_wait()
         # determine the current rotation step
         num_deltas = int(self.num_trials_success / self.trials_per_increment)

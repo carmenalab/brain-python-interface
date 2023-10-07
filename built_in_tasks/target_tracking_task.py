@@ -121,6 +121,7 @@ class TargetTracking(Sequence):
             except StopIteration:
                 self.end_task()
 
+        # put everything below into a common start_wait function
         print(self.gen_index)
 
         self.trial_record['trial'] = self.calc_trial_num()
