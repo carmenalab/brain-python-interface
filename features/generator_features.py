@@ -178,15 +178,15 @@ class IncrementalRotation(traits.HasTraits):
         self.num_trials_success = 0
         # NOTE: currently can only handle incremental rotations around one axis at a time
         if self.final_rotation_y != self.init_rotation_y:
-            rotation_info = [self.init_rotation_y, self.final_rotation_y, self.delta_rotation_y]
+            num_increments_y = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
         elif self.final_rotation_z != self.init_rotation_z:
-            rotation_info = [self.init_rotation_z, self.final_rotation_z, self.delta_rotation_z]
+            num_increments_z = int( (self.final_rotation_z-self.init_rotation_z) / self.delta_rotation_z+1 )
         elif self.final_rotation_x != self.init_rotation_x:
-            rotation_info = [self.init_rotation_x, self.final_rotation_x, self.delta_rotation_x]
+            num_increments_x = int( (self.final_rotation_x-self.init_rotation_x) / self.delta_rotation_x+1 )
         else:
             print('Warning! Please specify an initial and final rotation.')
 
-        self.num_increments = int( (rotation_info[1]-rotation_info[0]) / rotation_info[2]+1 )
+        self.num_increments = np.max([num_increments_y, num_increments_z, num_increments_x])
         self.pertubation_rotation = self.init_rotation_y
         self.perturbation_rotation_z = self.init_rotation_z
         self.perturbation_rotation_x = self.init_rotation_x
