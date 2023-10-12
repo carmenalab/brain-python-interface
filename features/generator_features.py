@@ -176,17 +176,18 @@ class IncrementalRotation(traits.HasTraits):
     def init(self):    
         super().init()
         self.num_trials_success = 0
-        # NOTE: currently can only handle incremental rotations around one axis at a time
-        if self.final_rotation_y != self.init_rotation_y:
-            num_increments_y = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
-        elif self.final_rotation_z != self.init_rotation_z:
-            num_increments_z = int( (self.final_rotation_z-self.init_rotation_z) / self.delta_rotation_z+1 )
-        elif self.final_rotation_x != self.init_rotation_x:
-            num_increments_x = int( (self.final_rotation_x-self.init_rotation_x) / self.delta_rotation_x+1 )
-        else:
-            print('Warning! Please specify an initial and final rotation.')
+        self.num_increments_y = 0
+        self.num_increments_z = 0
+        self.num_increments_x = 0
 
-        self.num_increments = np.max([num_increments_y, num_increments_z, num_increments_x])
+        if self.final_rotation_y != self.init_rotation_y:
+            self.num_increments_y = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        if self.final_rotation_z != self.init_rotation_z:
+            self.num_increments_z = int( (self.final_rotation_z-self.init_rotation_z) / self.delta_rotation_z+1 )
+        if self.final_rotation_x != self.init_rotation_x:
+            self.num_increments_x = int( (self.final_rotation_x-self.init_rotation_x) / self.delta_rotation_x+1 )
+
+        self.max_num_increments = np.max([self.num_increments_y, self.num_increments_z, self.num_increments_x])
         self.pertubation_rotation = self.init_rotation_y
         self.perturbation_rotation_z = self.init_rotation_z
         self.perturbation_rotation_x = self.init_rotation_x
@@ -203,17 +204,19 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
         # change tracking out time of final rotation
-        if num_deltas+1 == self.num_increments:
+        if num_deltas+1 == self.max_num_increments:
             self.tracking_out_time = self.final_tracking_out_time
 
         # stop incrementing once final perturbation rotation reached
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
+        if self.num_trials_success >= self.num_increments_y * self.trials_per_increment:
             self.pertubation_rotation = self.final_rotation_y
+        if self.num_trials_success >= self.num_increments_z * self.trials_per_increment:
             self.perturbation_rotation_z = self.final_rotation_z
+        if self.num_trials_success >= self.num_increments_x * self.trials_per_increment:
             self.perturbation_rotation_x = self.final_rotation_x
         
         print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
-        print(self.tracking_out_time, "tracking out")        
+        print(self.tracking_out_time, "tracking out")
     
     def _start_wait(self):
         super()._start_wait()
