@@ -107,21 +107,8 @@ class TargetTracking(Sequence):
         # print(np.amax(self.targs), np.amax(self.disturbance_path))
 
         self.targs = np.concatenate((lookahead, self.targs),axis=0) # (time_length*sample_rate+30,3) # targs and disturbance are no longer same length
-
-    def _start_wait(self):
-        # Call parent method to draw the next target capture sequence from the generator
-        super()._start_wait()
-        if self.sample_rate != self.fps:
-            print('WARNING: generator sample rate should equal FSM fps!')
-
-        if self.repeat_freq_set:
-            try:
-                self.next_trial = next(self.gen)
-                self._parse_next_trial()
-            except StopIteration:
-                self.end_task()
-
-        # put everything below into a common start_wait function
+    
+    def tracking_task_start_wait(self):
         print(self.gen_index)
 
         self.trial_record['trial'] = self.calc_trial_num()
@@ -149,34 +136,27 @@ class TargetTracking(Sequence):
         # saved plant poitions
         self.plant_position = []
 
+    def _start_wait(self):
+        # Call parent method to draw the next target capture sequence from the generator
+        super()._start_wait()
+        if self.sample_rate != self.fps:
+            print('WARNING: generator sample rate should equal FSM fps!')
+
+        if self.repeat_freq_set:
+            try:
+                self.next_trial = next(self.gen)
+                self._parse_next_trial()
+            except StopIteration:
+                self.end_task()
+
+        self.tracking_task_start_wait()
+
     def _while_wait(self):
         '''Nothing generic to do.'''
         pass
 
     def _start_wait_retry(self):
-        print(self.gen_index)
-
-        self.trial_record['trial'] = self.calc_trial_num()
-        self.trial_record['index'] = self.gen_index
-        self.trial_record['is_disturbance'] = self.disturbance_trial
-        for i in range(len(self.disturbance_path)):
-            # Update the data sinks with trial information --> bmi3d_trials
-            self.trial_record['target'] = self.targs[i+self.lookahead]
-            self.trial_record['disturbance'] = self.disturbance_path[i]
-            self.sinks.send("trials", self.trial_record)
-
-         # trial is not finished
-        self.trial_timed_out = False
-
-        # index into trajectory
-        self.frame_index = -1
-
-        # number of frames in trajectory
-        '''Nothing generic to do.'''
-        self.trajectory_length = len(self.targs)
-
-        # saved plant poitions
-        self.plant_position = []  
+        self.tracking_task_start_wait()
 
     def _while_wait_retry(self):
         '''Nothing generic to do.'''
@@ -522,11 +502,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         return d > (self.target_radius - self.cursor_radius) or super()._test_leave_target(time_in_state)
 
     #### STATE FUNCTIONS ####
-    def _start_wait(self):
-        super()._start_wait()
-        print('WAIT')
-        # self.in_end_state = False
-
+    def setup_start_wait(self):
         if self.calc_trial_num() == 0:
             # Instantiate the targets here so they don't show up in any states that might come before "wait" 
             for model in self.target.graphics_models:
@@ -564,73 +540,33 @@ class ScreenTargetTracking(TargetTracking, Window):
 
         self.target.hide()
         self.trajectory.hide()
+        # self.in_end_state = False      
+
+    def setup_screen_reset(self):
+        # Hide target and trajectory
+        self.target.hide()
+        self.target.reset()
+        self.trajectory.hide()
+        self.trajectory.reset()
+        self.bar.hide()
+        self.bar.reset()
+
+    def _start_wait(self):
+        super()._start_wait()
+        self.setup_start_wait()
+        print('WAIT')
 
     def _while_wait(self):
         super()._while_wait()
-        # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[0])*1/self.fps # self.frame_index is -1 when _start_wait
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[0]
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
+        self.setup_start_wait()
         # print('WAIT RETRY')
-        # self.in_end_state = False
-
-        if self.calc_trial_num() == 0:
-            # Instantiate the targets here so they don't show up in any states that might come before "wait" 
-            for model in self.target.graphics_models:
-                self.add_model(model)
-                self.target.hide()
-                
-            for model in self.trajectory.graphics_models:
-                self.add_model(model)
-                self.trajectory.hide()
-
-            for model in self.bar.graphics_models:
-                self.add_model(model)
-                self.bar.hide()
-
-        # Allow 2d movement
-        self.limit1d = False
-
-        # Set up for progress bar
-        self.bar_width = 12        
-        self.tracking_frame_index = 0
-        
-        # Set up the next trajectory
-        next_trajectory = np.array(np.squeeze(self.targs)[:,2])
-        next_trajectory[:self.lookahead] = next_trajectory[self.lookahead]
-
-        if hasattr(self, 'trajectory'):
-            for model in self.trajectory.graphics_models:
-                self.remove_model(model)
-            del self.trajectory
-
-        self.trajectory = VirtualCableTarget(target_radius=self.trajectory_radius, target_color=target_colors[self.trajectory_color], trajectory=next_trajectory)
-
-        for model in self.trajectory.graphics_models:
-                self.add_model(model)
-
-        self.target.hide()
-        self.trajectory.hide()
 
     def _while_wait_retry(self):
         super()._while_wait_retry()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[0])*1/self.fps # self.frame_index is -1 when _start_wait
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[0]
 
     def _start_trajectory(self):
         super()._start_trajectory()
@@ -648,14 +584,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_trajectory(self):
         super()._while_trajectory()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps # self.frame_index is 0 when _start_trajectory
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[self.frame_index]
 
     def _start_hold(self):
         super()._start_hold()
@@ -667,14 +595,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_hold(self):
         super()._while_hold()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[self.frame_index]
 
     def _start_tracking_in(self):
         super()._start_tracking_in()
@@ -736,14 +656,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_timeout_penalty()
         # print('START TIMEOUT')
         self.sync_event('TIMEOUT_PENALTY')
+
         # self.in_end_state = True
-        # Hide target and trajectory
-        self.target.hide()
-        self.target.reset()
-        self.trajectory.hide()
-        self.trajectory.reset()
-        self.bar.hide()
-        self.bar.reset()
+        self.setup_screen_reset()
 
         # skip to next generated trial using same freq set
         self.repeat_freq_set = True
@@ -751,14 +666,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_timeout_penalty(self):
         super()._while_timeout_penalty()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
-        #     else:
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[self.frame_index]
 
     def _end_timeout_penalty(self):
         super()._end_timeout_penalty()
@@ -768,14 +675,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_hold_penalty()
         # print('START HOLD TIMEOUT')
         self.sync_event('HOLD_PENALTY')
+
         # self.in_end_state = True
-        # Hide target and trajectory
-        self.target.hide()
-        self.target.reset()
-        self.trajectory.hide()
-        self.trajectory.reset()
-        self.bar.hide()
-        self.bar.reset()
+        self.setup_screen_reset()
 
         # skip to next generated trial using same freq set
         self.repeat_freq_set = True
@@ -783,14 +685,6 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_hold_penalty(self):
         super()._while_hold_penalty()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[self.frame_index]
 
     def _end_hold_penalty(self):
         super()._end_hold_penalty()
@@ -811,26 +705,12 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_tracking_out_penalty(self):
         super()._while_tracking_out_penalty()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[self.frame_index])*1/self.fps
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[self.frame_index]
 
     def _end_tracking_out_penalty(self):
         super()._end_tracking_out_penalty()
         # print('TRIAL END')
         self.sync_event('TRIAL_END')
-        # Hide target and trajectory
-        self.target.hide()
-        self.target.reset()
-        self.trajectory.hide()
-        self.trajectory.reset()
-        self.bar.hide()
-        self.bar.reset()
+        self.setup_screen_reset()
 
     def _start_reward(self):
         super()._start_reward()
@@ -847,38 +727,18 @@ class ScreenTargetTracking(TargetTracking, Window):
     def _while_reward(self):
         super()._while_reward()
         # # Add disturbance
-        # cursor_pos = self.plant.get_endpoint_pos()
-        # if self.disturbance_trial == True:
-        #     if self.velocity_control:
-        #         # TODO check manualcontrolmixin for how to implement velocity control
-        #         self.vel_offset = (cursor_pos + self.disturbance_path[-1])*1/self.fps # self.frame_index is # of frames at _start_reward
-        #     else: 
-        #         # position control
-        #         self.pos_offset = self.disturbance_path[-1]
 
     def _end_reward(self):
         super()._end_reward()
         # print('TRIAL END')
         self.sync_event('TRIAL_END')
-        # Hide target and trajectory
-        self.target.hide()
-        self.target.reset()
-        self.trajectory.hide()
-        self.trajectory.reset()
-        self.bar.hide()
-        self.bar.reset()
+        self.setup_screen_reset()
 
     def _start_pause(self):
         super()._start_pause()
         # print('START PAUSE')
         self.sync_event('PAUSE_START') # self.sync_event('PAUSE_START') - this will overwrite TRIAL_END whenever you pause during an end state
-        # Hide target and trajectory
-        self.target.hide()
-        self.target.reset()
-        self.trajectory.hide()
-        self.trajectory.reset()
-        self.bar.hide()
-        self.bar.reset()
+        self.setup_screen_reset()
 
     def _while_pause(self):
         super()._while_pause()
