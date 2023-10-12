@@ -193,9 +193,7 @@ class IncrementalRotation(traits.HasTraits):
 
         print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
     
-    def _start_wait(self):
-        # incremental_start_wait called by both start waits here
-        super()._start_wait()
+    def incremental_start_wait(self):
         # determine the current rotation step
         num_deltas = int(self.num_trials_success / self.trials_per_increment)
 
@@ -215,30 +213,15 @@ class IncrementalRotation(traits.HasTraits):
             self.perturbation_rotation_x = self.final_rotation_x
         
         print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
-        print(self.tracking_out_time, "tracking out")
+        print(self.tracking_out_time, "tracking out")        
+    
+    def _start_wait(self):
+        super()._start_wait()
+        self.incremental_start_wait()
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
-        # determine the current rotation step
-        num_deltas = int(self.num_trials_success / self.trials_per_increment)
-
-        # increment the current perturbation rotation by delta
-        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
-        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
-
-        # change tracking out time of final rotation
-        if num_deltas+1 == self.num_increments:
-            self.tracking_out_time = self.final_tracking_out_time
-
-        # stop incrementing once final perturbation rotation reached
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
-            self.pertubation_rotation = self.final_rotation_y
-            self.perturbation_rotation_z = self.final_rotation_z
-            self.perturbation_rotation_x = self.final_rotation_x
-        
-        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
-        print(self.tracking_out_time, "tracking out")
+        self.incremental_start_wait()
 
     def _start_reward(self):
         super()._start_reward()
