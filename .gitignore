@@ -29,6 +29,8 @@ riglib/plexon/Plexfile_utilities.egg-info/*
 
 */build/*
 */dist/*
+build/
+dist/
 _build
 docs/_build/*
 log/*
@@ -60,3 +62,4 @@ riglib/plexon/Plexfile_utilities.egg-info/*
 riglib/dio/nidaq/pcidio.py
 db/settings.py
 db/secrets.json
+!db_test_aopy.sql

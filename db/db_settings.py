@@ -12,6 +12,7 @@ from django.core.exceptions import ImproperlyConfigured
 from config.rig_defaults import db as rig_defaults
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), '.config', 'bmi3d')
 HOSTNAME = socket.gethostname()
 
 # Add databases
@@ -40,12 +41,15 @@ def get_sqlite3_databases():
             'PORT': '',                      # Set to empty string for default. Not used with sqlite3.        
         }
 
+    if len(dbs.keys()) == 1 and 'test_aopy' in dbs.keys():
+        dbs = {'default': dbs['test_aopy']}
+
     return dbs
 
 def get_secret(setting):
     """Get secret setting or fail with ImproperlyConfigured"""
     try:
-        with open(os.path.join(BASE_DIR, 'secrets.json')) as secrets_file:
+        with open(os.path.join(CONFIG_DIR, 'secrets.json')) as secrets_file:
             secrets = json.load(secrets_file)
         return secrets[setting]
     except KeyError:
