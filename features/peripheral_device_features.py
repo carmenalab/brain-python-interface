@@ -184,6 +184,14 @@ class Button(object):
         import pygame
         pygame.event.clear()
 
+class EyeControl(object):
+    '''
+    this class implements a python cursor control task
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Keyboard(np.array(self.starting_pos[::2]))
 
 class KeyboardControl(object):
     '''

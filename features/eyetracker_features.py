@@ -7,6 +7,9 @@ import numpy as np
 from riglib import calibrations
 from riglib.experiment import traits
 from riglib.gpio import ArduinoGPIO
+from built_in_tasks.target_graphics import *
+from built_in_tasks.target_capture_task import ScreenTargetCapture
+from .peripheral_device_features import *
 import aopy
 
 ###### CONSTANTS
@@ -45,15 +48,40 @@ class ArduinoEyeInput():
         pos = aopy.postproc.get_calibrated_eye_data(pos, self.calibration)
         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current
 
-class EyeCursorControl(ArduinoEye):
+class EyeInput(traits.HasTraits):
     '''
-    Use eye data to control the cursor position
+    Add eye data to the task
     '''
 
-    def _get_manual_position(self):
-        pos = self.eyedata.get()
-        print(pos)
-        return pos
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print('a')
+        self.eyedata = Keyboard(np.array(self.starting_pos[::2]))
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+
+# class EyeInput():
+#     '''
+#     Add eye data to the task
+#     '''
+
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+
+#     def get(self):
+#         pos = Keyboard(np.array(self.starting_pos[::2]))
+#         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current    
+
+# class EyeCursorControl(ArduinoEye):
+#     '''
+#     Use eye data to control the cursor position
+#     '''
+
+#     def _get_manual_position(self):
+#         pos = self.eyedata.get()
+#         print(pos)
+#         return pos
 
 class EyeData(traits.HasTraits):
     '''
@@ -226,20 +254,62 @@ class CalibratedEyeData(EyeData):
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
 
-class EyeConstrained(CalibratedEyeData):
+class EyeConstrained(ScreenTargetCapture):
     '''
     Add a penalty state when subjects looks away
     '''
 
     fixation_dist = traits.Float(10., desc="Distance from center that is considered a broken fixation")
 
+    status = dict(
+        wait = dict(start_trial="target"),
+        target = dict(enter_target="hold", timeout="timeout_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
+        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+    )
+
     def __init__(self, *args, **kwargs):
         super(EyeConstrained, self).__init__(*args, **kwargs)
-        self.status["target"]["fixation_break"] = "fixation_penalty"
-        self.status["hold"]["fixation_break"] = "fixation_penalty"
-        self.status["delay"]["fixation_break"] = "fixation_penalty"
-        self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
-        self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
+        # self.status["target"]["fixation_break"] = "fixation_penalty"
+        # self.status["hold"]["fixation_break"] = "fixation_penalty"
+        # self.status["delay"]["fixation_break"] = "fixation_penalty"
+        # self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
+        # self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
+
+
+        # Visualize eye positions
+        self.eye_data = Keyboard(np.array(self.starting_pos[::2]))
+        self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=target_colors[self.target_color])
+        self.target_location = np.array(self.starting_pos).copy()
+
+        # For visualization
+        for model in self.eye_cursor.graphics_models:
+            self.add_model(model)
+            self.eye_cursor.show()
+
+    #### STATE FUNCTIONS ####
+    def _start_wait(self):
+        super()._start_wait()
+
+    def _cycle(self):
+        super()._cycle()
+
+        # For visualization
+        pos = self.eye_data.get()
+        # if any(pos == None):
+        #     return [[0,0,0]]
+        # else:
+        print('b')
+        print(pos)
+        pos = [pos[0][0],0,pos[0][1]]
+        print(pos)
+        self.eye_cursor.move_to_position(pos)
+        self.eye_cursor.show()
 
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''

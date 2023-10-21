@@ -9,7 +9,7 @@ from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
 from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward, JackpotRewards, ProgressBar, TrackingRewards
-from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
+from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart, EyeConstrained, EyeInput
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
 from .optitrack_features import Optitrack
 from .plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
@@ -70,7 +70,9 @@ built_in_features = dict(
     cursor_sync=CursorAnalogOut,
     progress_bar=ProgressBar,
     tracking_rewards=TrackingRewards,
-    neuropixel=RecordNeuropixels
+    neuropixel=RecordNeuropixels,
+    eye_constrained=EyeConstrained,
+    eye_input=EyeInput
 )
 
 # >>> features.built_in_features['autostart'].__module__
