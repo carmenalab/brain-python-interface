@@ -48,6 +48,7 @@ class ArduinoEyeInput():
         pos = aopy.postproc.get_calibrated_eye_data(pos, self.calibration)
         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current
 
+#
 class EyeInput(traits.HasTraits):
     '''
     Add eye data to the task
@@ -55,11 +56,12 @@ class EyeInput(traits.HasTraits):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print('a')
-        self.eyedata = Keyboard(np.array(self.starting_pos[::2]))
 
-    def init(self, *args, **kwargs):
-        super().init(*args, **kwargs)
+    #def get(self):
+        # pos = Keyboard(np.array(starting_pos[::2]))
+        # #pos = Keyboard(np.array([0,0]))
+        # print(pos)
+        # return [[pos[0],0,pos[1]]]
 
 # class EyeInput():
 #     '''
@@ -283,32 +285,31 @@ class EyeConstrained(ScreenTargetCapture):
 
 
         # Visualize eye positions
-        self.eye_data = Keyboard(np.array(self.starting_pos[::2]))
-        self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=target_colors[self.target_color])
+        self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
 
-        # For visualization
-        for model in self.eye_cursor.graphics_models:
-            self.add_model(model)
-            self.eye_cursor.show()
-
+        print(self.starting_pos)
+        print(self.starting_pos[::2])
+        self.eye_data = Keyboard(self.starting_pos[::2])
+        
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
 
-    def _cycle(self):
-        super()._cycle()
+        if self.calc_trial_num() == 0:
 
-        # For visualization
+            # Instantiate the targets here so they don't show up in any states that might come before "wait"
+            for model in self.eye_cursor.graphics_models:
+                self.add_model(model)
+                self.eye_cursor.show()
+
+    # def _cycle(self):
+    #     super()._cycle()
+
+    def update_eye_cursor(self):
+        '''Update gaze positions'''
         pos = self.eye_data.get()
-        # if any(pos == None):
-        #     return [[0,0,0]]
-        # else:
-        print('b')
-        print(pos)
-        pos = [pos[0][0],0,pos[0][1]]
-        print(pos)
-        self.eye_cursor.move_to_position(pos)
+        self.eye_cursor.move_to_position([pos[0][0],0,pos[0][1]])
         self.eye_cursor.show()
 
     def _test_start_trial(self, ts):
@@ -336,6 +337,42 @@ class EyeConstrained(ScreenTargetCapture):
         for target in self.targets:
             target.hide()
             target.reset()
+    
+    def _while_wait(self):
+        #super(EyeConstrained, self)._while_wait()
+        self.update_eye_cursor()
+
+    def _while_target(self):
+        #super(EyeConstrained, self)._while_target()
+        self.update_eye_cursor()    
+
+    def _while_delay(self):
+        super(EyeConstrained, self)._while_delay()
+        self.update_eye_cursor()    
+
+    def _while_hold(self):
+        super(EyeConstrained, self)._while_hold()
+        self.update_eye_cursor()   
+
+    def _while_targ_transition(self):
+        super(EyeConstrained, self)._while_targ_transition()
+        self.update_eye_cursor()       
+
+    def _while_timeout_penalty(self):
+        super(EyeConstrained, self)._while_timeout_penalty()
+        self.update_eye_cursor()  
+
+    def _while_hold_penalty(self):
+        super(EyeConstrained, self)._while_hold_penalty()
+        self.update_eye_cursor()  
+
+    def _while_delay_penalty(self):
+        super(EyeConstrained, self)._while_delay_penalty()
+        self.update_eye_cursor()  
+
+    def _while_reward(self):
+        super(EyeConstrained, self)._while_reward()
+        self.update_eye_cursor()
 
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
