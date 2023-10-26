@@ -191,7 +191,34 @@ class EyeControl(object):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Keyboard(np.array(self.starting_pos[::2]))
+        self.joystick = Eye(np.array(self.starting_pos[::2]))
+
+class Eye(object):
+    '''
+    Pretend to be a data source
+    '''
+
+    def __init__(self, start_pos):
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
+
+    def get(self):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYUP:
+                if event.type == pygame.K_q:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_LEFT:
+                    self.pos[0] -= self.move_step
+                if event.key == pygame.K_RIGHT:
+                    self.pos[0] += self.move_step
+                if event.key == pygame.K_UP:
+                    self.pos[1] += self.move_step
+                if event.key == pygame.K_DOWN:
+                    self.pos[1] -= self.move_step
+        return [self.pos]
 
 class KeyboardControl(object):
     '''

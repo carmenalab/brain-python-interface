@@ -48,43 +48,6 @@ class ArduinoEyeInput():
         pos = aopy.postproc.get_calibrated_eye_data(pos, self.calibration)
         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current
 
-#
-class EyeInput(traits.HasTraits):
-    '''
-    Add eye data to the task
-    '''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    #def get(self):
-        # pos = Keyboard(np.array(starting_pos[::2]))
-        # #pos = Keyboard(np.array([0,0]))
-        # print(pos)
-        # return [[pos[0],0,pos[1]]]
-
-# class EyeInput():
-#     '''
-#     Add eye data to the task
-#     '''
-
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-
-#     def get(self):
-#         pos = Keyboard(np.array(self.starting_pos[::2]))
-#         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current    
-
-# class EyeCursorControl(ArduinoEye):
-#     '''
-#     Use eye data to control the cursor position
-#     '''
-
-#     def _get_manual_position(self):
-#         pos = self.eyedata.get()
-#         print(pos)
-#         return pos
-
 class EyeData(traits.HasTraits):
     '''
     Pulls data from the eyetracking system and make it available on self.eyedata
@@ -261,37 +224,34 @@ class EyeConstrained(ScreenTargetCapture):
     Add a penalty state when subjects looks away
     '''
 
-    fixation_dist = traits.Float(10., desc="Distance from center that is considered a broken fixation")
+    fixation_dist = traits.Float(6., desc="Distance from center that is considered a broken fixation")
 
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(enter_target="hold", timeout="timeout_penalty"),
-        hold = dict(leave_target="hold_penalty", hold_complete="delay"),
-        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
-        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        target = dict(enter_target="hold", timeout="timeout_penalty",fixation_break="fixation_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target", fixation_break="fixation_penalty"),
         timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
         hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
         delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        fixation_penalty = dict(fixation_penalty_end="targ_transition",end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
     def __init__(self, *args, **kwargs):
         super(EyeConstrained, self).__init__(*args, **kwargs)
-        # self.status["target"]["fixation_break"] = "fixation_penalty"
-        # self.status["hold"]["fixation_break"] = "fixation_penalty"
-        # self.status["delay"]["fixation_break"] = "fixation_penalty"
-        # self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
-        # self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
-
+        #self.status["target"]["fixation_break"] = "fixation_penalty"
+        #self.status["hold"]["fixation_break"] = "fixation_penalty"
+        #self.status["delay"]["fixation_break"] = "fixation_penalty"
+        #self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
+        #self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
 
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-
-        print(self.starting_pos)
-        print(self.starting_pos[::2])
-        self.eye_data = Keyboard(self.starting_pos[::2])
-        
+        self.eye_data = Eye(self.starting_pos[::2])
+   
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
@@ -315,28 +275,20 @@ class EyeConstrained(ScreenTargetCapture):
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''
         super(EyeConstrained, self)._start_wait()
-        pos = self.eyedata.get()
-        #pos = self.plant.get_endpoint_pos()
+        pos = self.eye_data.get()
         d = np.linalg.norm(pos)
         return d < self.fixation_dist
     
     def _test_fixation_break(self,ts):
         '''Triggers the fixation_penalty state when eye positions are within fixation distance'''
-        super(EyeConstrained, self)._fixation_break()
-        pos = self.eyedata.get()
-        #os = self.plant.get_endpoint_pos()
+        pos = self.eye_data.get()
         d = np.linalg.norm(pos)
         return d > self.fixation_dist
     
-    def _start_fixation_penalty(self):
-        self._increment_tries()
-
-        self.sync_event('FIXATION_PENALTY') 
-        super()._start_fixation_penalty()
-        # Hide targets
-        for target in self.targets:
-            target.hide()
-            target.reset()
+    def _test_fixation_penalty_end(self,ts):
+        pos = self.eye_data.get()
+        d = np.linalg.norm(pos)
+        return d < self.fixation_dist
     
     def _while_wait(self):
         #super(EyeConstrained, self)._while_wait()
@@ -369,6 +321,18 @@ class EyeConstrained(ScreenTargetCapture):
     def _while_delay_penalty(self):
         super(EyeConstrained, self)._while_delay_penalty()
         self.update_eye_cursor()  
+
+    def _start_fixation_penalty(self):
+        self._increment_tries()
+        self.sync_event('FIXATION_PENALTY') 
+
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
+    def _while_fixation_penalty(self):
+        self.update_eye_cursor() 
 
     def _while_reward(self):
         super(EyeConstrained, self)._while_reward()
