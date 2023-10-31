@@ -197,12 +197,13 @@ class Eye(object):
     '''
     Pretend to be a data source
     '''
-
+    
     def __init__(self, start_pos):
         self.pos = [0., 0.]
         self.pos[0] = start_pos[0]
         self.pos[1] = start_pos[1]
         self.move_step = 1 # cm, before scaling
+        self.calibration = np.array([2,0.2]) # TODO load calibration data
 
     def get(self):
         for event in pygame.event.get():
@@ -218,7 +219,9 @@ class Eye(object):
                     self.pos[1] += self.move_step
                 if event.key == pygame.K_DOWN:
                     self.pos[1] -= self.move_step
-        return [self.pos]
+
+        calibrated_pos = self.calibration*self.pos
+        return [calibrated_pos]
 
 class KeyboardControl(object):
     '''
