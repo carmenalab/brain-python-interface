@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
 from riglib import tablet_reward
 
-hostName = "localhost"
+hostName = "0.0.0.0" # open to anyone on the LAN - careful to not run this on the internet!
 serverPort = 8080
 
 class MyServer(BaseHTTPRequestHandler):
