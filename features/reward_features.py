@@ -73,8 +73,12 @@ class PelletReward(RewardSystem):
         if hasattr(super(RewardSystem, self), '_start_reward'):
             super(RewardSystem, self)._start_reward()
         self.reportstats['Reward #'] += 1
+        pellets_per_reward = traits.Int(1, desc='The number of pellets to dispense per reward.')      
+        
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-            self.reward.trigger()
+            for _ in range(pellets_per_reward): # call trigger num of pellets_per_reward time
+                self.reward.trigger()
+                time.sleep(1) # wait for x seconds
 
     def _end_reward(self):
         if hasattr(super(RewardSystem, self), '_end_reward'):
