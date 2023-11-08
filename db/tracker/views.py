@@ -13,6 +13,8 @@ from django.http import HttpResponse
 
 from . import exp_tracker
 
+from config.rig_defaults import rig_settings
+
 def main(request):
     return render(request, "main.html", dict())
 
@@ -76,6 +78,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         n_entries=len(entries),
         show_hidden=show_hidden,
         n_hidden=len([e for e in entries if e.visible==False]),
+        rig_name=rig_settings['name'],
     )
 
     try:
@@ -175,12 +178,11 @@ def setup_parameters(request):
         path = models.KeyValueStore.get('data_path', '--', dbname=db)
         database_objs.append({"name":db, "path":path})
 
-    rig_name = models.KeyValueStore.get("rig_name", "")
     recording_sys = models.KeyValueStore.get("recording_sys")
     recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
     return render(request, "setup_parameters.html",
-        dict(rig_name=rig_name, systems=systems, databases=database_objs, 
+        dict(systems=systems, databases=database_objs, 
             recording_sys=recording_sys,
             recording_sys_options=recording_sys_options))
 

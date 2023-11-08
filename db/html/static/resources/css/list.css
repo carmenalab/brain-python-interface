@@ -130,26 +130,30 @@ table#main th {
 }
 
 .colDate {
-    width : 100px;
+    width : 80px;
     background: #FFF;
 }
 
 .colTime {
-	width : 90px;
+	width : 80px;
 }
 
 .colID {
-	width : 190px;
+	width : 160px;
+}
+
+.colRig {
+	width : 80px;
 }
 
 .colSubj {
-	width : 90px;
+	width : 80px;
 	font-size : 10pt;
 	font-family:Arial;
 }
 
 .colTask {
-	width : 150px;
+	width : 130px;
 	text-align : left;
 }
 

@@ -806,9 +806,9 @@ TaskEntry.prototype.new_row = function(info) {
     this.tr.html("<td class='colDate'>Now</td>" +
                 "<td class='colTime' >--</td>" +
                 "<td class='colID'   >"+info.idx+"</td>" +
+                "<td class='colRig'  >"+info.rig_name+"</td>" +
                 "<td class='colSubj' >"+info.subj+"</td>" +
                 "<td class='colTask' >"+info.task+"</td>");
-
 
     // Insert the new row after the top row of the table
     $("#newentry").after(this.tr);

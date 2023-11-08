@@ -137,9 +137,6 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     # Runtime settable traits
     session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
 
-    # Always include rig parameters
-    rig_name = traits.String(rig_settings['name'], desc="Name of the rig running the experiment")
-
     # Initialization functions -----------------------------------------------
     @classmethod
     def pre_init(cls, **kwargs):

@@ -115,10 +115,19 @@
       }
     );
 
+    $("#toggle_rigs").change(
+      function() {
+        if (this.checked)
+          $("tr.other_rigs").show();
+        else
+          $("tr.other_rigs").hide();
+      }
+    );
+
+
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
     $("tr.template").hide();
-
 
     document.addEventListener('keydown', function(event) {
         // hotkeys for simple TE tasks
@@ -193,6 +202,11 @@
     //   }
     // })
 
+    $(document).ready(function(){
+      $("#toggle_rigs").click();
+      $("#toggle_rigs").click();
+    })
+    
     {% if status == "running" and saveid %}
     // If there is a task already running, then immediately open the taskentry and change the status
     te = new TaskEntry({{saveid}});
@@ -216,6 +230,7 @@
     <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
     <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
     <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Show templates</span>
+    <input id="toggle_rigs" type="checkbox"><span class="checkboxtext">Show all rigs</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
@@ -228,6 +243,7 @@
           <th class='colDate'>Date</th>
           <th class='colTime'>Time</th>
           <th class='colID'>ID</th>
+          <th class='colRig'>Rig</th>
           <th class='colSubj'>Who</th>
           <th class='colTask'>Task</th>
           <th class='colShortDesc'>Description</th>
@@ -251,7 +267,7 @@
             <tr title="Template" id='row{{e.id}}' class='template' style="background-color: gray">
             {% endif %}
             {% if e == templates|first %}
-                <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
+                <td class='colDate' rowspan={{templates|length}} colspan=3>Templates</td>
             {% endif %}
                 <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
                 <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
@@ -275,21 +291,19 @@
           <tr name='hidden' style="display: none"></tr>
         <!-- Task entries -->
         {% for e in entries %}
-        {% if e.visible %}
-          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-        {% else %}
-          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %} style="background-color: gray">
-          {% endif %}
+          <tr title="{{e.desc}}" id='row{{e.id}}' class='{% if e.id == running %}running {% endif %} {% if e.rig_name != rig_name %}other_rigs{% endif %}' {% if not e.visible %}style="background-color: gray"{% endif %}>
               {% if e.html_date %}
                 <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
                 <td class='colTime firstRowOfday' >{{e.html_time}}</td>
                 <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
+                <td class='colRig firstRowOfday' >{{e.rig_name}}</td>
                 <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
                 <td class='colTask firstRowOfday' >{{e.task.name}}</td>
                 <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
               {% else %}
                 <td class='colTime' >{{e.html_time}}</td>
                 <td class='colID'   >{{e.ui_id}}</td>
+                <td class='colRig' >{{e.rig_name}}</td>
                 <td class='colSubj' >{{e.subject.name}}</td>
                 <td class='colTask' >{{e.task.name}}</td>
                 <td class='colShortDesc'>{{e.desc}}</td>

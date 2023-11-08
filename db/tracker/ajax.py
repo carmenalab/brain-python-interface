@@ -14,7 +14,7 @@ from riglib import experiment
 from .json_param import Parameters
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, Experimenter, DataFile, System, Decoder, KeyValueStore, import_by_path
 from .tasktrack import Track
-
+from config.rig_defaults import rig_settings
 import logging
 import io, traceback
 
@@ -282,7 +282,7 @@ def start_experiment(request, save=True, execute=True):
         project = data['metadata'].pop('project')
         session = data['metadata'].pop('session')
 
-        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id, experimenter_id=experimenter.id,
+        entry = TaskEntry.objects.create(rig_name=rig_settings['name'], subject_id=subject.id, task_id=task.id, experimenter_id=experimenter.id,
             project=project, session=session)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
@@ -308,7 +308,7 @@ def start_experiment(request, save=True, execute=True):
             entry.sequence = seq
             kwargs['seq'] = seq
 
-        response = dict(status="testing", subj=entry.subject.name,
+        response = dict(status="testing", rig_name=rig_settings['name'], subj=entry.subject.name,
                         task=entry.task.name)
 
         if save:
@@ -711,12 +711,6 @@ def save_recording_sys(request):
     ret_msg = "Set recording_sys to %s" % KeyValueStore.get('recording_sys')
     return _respond(dict(status="success", msg=ret_msg))
 
-def save_rig_name(request):
-    from . import models
-    KeyValueStore.set('rig_name', request.POST['rig_name'])
-    print(KeyValueStore.get('rig_name'))
-    ret_msg = "Set rig_name to %s" % KeyValueStore.get('rig_name')
-    return _respond(dict(status="success", msg=ret_msg))
 
 @csrf_exempt
 def setup_handler(request):
@@ -726,10 +720,8 @@ def setup_handler(request):
         return update_database_storage_path(request)
     elif action == "save_recording_sys":
         return save_recording_sys(request)
-    elif action == "save_rig_name":
-        return save_rig_name(request)
     elif action == "update_built_in_feature_paths":
         return update_built_in_feature_import_paths(request)
     else:
-        return _respond(dict(status="error", msg="Unrecognized data type: %s" % data_type))
+        return _respond(dict(status="error", msg="Unrecognized data type: %s" % action))
 
