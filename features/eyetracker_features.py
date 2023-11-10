@@ -10,6 +10,94 @@ from riglib.experiment import traits
 ###### CONSTANTS
 sec_per_min = 60
 
+'''
+class EyeConstraint():
+
+    def init(self):
+        self.add_dtype('eyedata', 'f8', (6,))
+        super().init()
+
+    def _cycle(self):
+        eye_coords = self.eyedata.get()[-1] # (le_x, le_y, re_x, re_y, le_diam, re_diam)
+        self.task_data['eyedata'] = eye_coords
+
+    ... etc ...
+'''
+
+class Oculomatic(traits.HasTraits):
+    '''
+    Pulls data from oculomatic and makes it available on self.eyedata
+    '''
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the 'eyedata' DataSource and registers it with the 
+        SinkRegister so that the data gets saved to file as it is collected.
+        '''
+        from riglib import source
+        from riglib import sink
+        sink_manager = sink.SinkManager.get_instance()
+
+        src, ekw = self.eye_source
+        self.eyedata = source.DataSource(src, **ekw)
+        sink_manager.register(self.eyedata)
+
+        super().init()
+    
+    @property
+    def eye_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        from riglib import oculomatic
+        return oculomatic.System, dict()
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
+        '''
+        self.eyedata.start()
+        try:
+            super().run()
+        finally:
+            self.eyedata.stop()
+    
+    def join(self):
+        '''
+        '''
+        self.eyedata.join()
+        super(EyeData, self).join()
+    
+    def _start_None(self):
+        '''
+        '''
+        print("Done!")
+        self.eyedata.stop()
+        super()._start_None()
+    
+
+class OculomaticPlayback(traits.HasTraits):
+
+    playback_hdf_data_dir = traits.String("", desc="directory where hdf file lives")
+    playback_hdf_filename = traits.String("", desc="filename of hdf data containing eye data")
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
+        '''
+        from riglib import oculomatic
+        playback = oculomatic.PlaybackEye(self.playback_hdf_data_dir, self.playback_hdf_filename)
+        playback.start()
+        super().run()
+
 
 class EyeData(traits.HasTraits):
     '''
