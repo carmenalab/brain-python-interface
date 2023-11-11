@@ -86,11 +86,13 @@
         if (this.checked) {
           $("#toggle_visible,#toggle_visible+span").show();
           $("#toggle_templates,#toggle_templates+span").show();
+          $("#toggle_rigs,#toggle_rigs+span").show();
           $('#leftpane').show()
           $('#rightpane').css({'left': "640px", 'top': '0px', 'position': 'fixed'});
         } else {
           $("#toggle_visible,#toggle_visible+span").hide();
           $("#toggle_templates,#toggle_templates+span").hide();
+          $("#toggle_rigs,#toggle_rigs+span").hide();
           $('#leftpane').hide()
           $('#rightpane').css({'left': "0px", 'top': 'auto', 'position': 'relative'});
         }
@@ -227,10 +229,10 @@
 <body>
   <div id="banner">
     <a href="/">Back</a>
-    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
-    <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
-    <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Show templates</span>
-    <input id="toggle_rigs" type="checkbox"><span class="checkboxtext">Show all rigs</span>
+    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">History</span>
+    <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Hidden entries</span>
+    <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Templates</span>
+    <input id="toggle_rigs" type="checkbox"><span class="checkboxtext">All rigs</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
@@ -278,9 +280,8 @@
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
             <td id="newentry_now">Now</td>
             <td></td> <!-- Empty for database ID slot -->
-            <td class='colSubj'>
-              
-            </td>
+            <td></td> <!-- Empty for rig name slot -->
+            <td class='colSubj'></td>
             <td class='colTask'>
               <select id='tasks'>
                 {% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
