@@ -102,9 +102,9 @@
     $("#toggle_visible").change(
       function() {
         if (this.checked)
-          location.href = "?show_hidden";
+          location.href = "?show_hidden{% if show_all_rigs %}&show_all_rigs{% endif %}";
         else
-          location.href = "?";
+          location.href = "?{% if show_all_rigs %}&show_all_rigs{% endif %}";
       }
     );
 
@@ -120,12 +120,11 @@
     $("#toggle_rigs").change(
       function() {
         if (this.checked)
-          $("tr.other_rigs").show();
+          location.href = "?show_all_rigs{% if show_hidden %}&show_hidden{% endif %}";
         else
-          $("tr.other_rigs").hide();
+          location.href = "?{% if show_hidden %}&show_hidden{% endif %}";
       }
     );
-
 
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
@@ -204,10 +203,6 @@
     //   }
     // })
 
-    $(document).ready(function(){
-      $("#toggle_rigs").click();
-      $("#toggle_rigs").click();
-    })
     
     {% if status == "running" and saveid %}
     // If there is a task already running, then immediately open the taskentry and change the status
@@ -232,7 +227,7 @@
     <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">History</span>
     <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Hidden entries</span>
     <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Templates</span>
-    <input id="toggle_rigs" type="checkbox"><span class="checkboxtext">All rigs</span>
+    <input id="toggle_rigs" type="checkbox" {% if show_all_rigs %} checked {% endif %}><span class="checkboxtext">All rigs</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
@@ -292,7 +287,7 @@
           <tr name='hidden' style="display: none"></tr>
         <!-- Task entries -->
         {% for e in entries %}
-          <tr title="{{e.desc}}" id='row{{e.id}}' class='{% if e.id == running %}running {% endif %} {% if e.rig_name != rig_name %}other_rigs{% endif %}' {% if not e.visible %}style="background-color: gray"{% endif %}>
+          <tr title="{{e.desc}}" id='row{{e.id}}' class='{% if e.id == running %}running {% endif %}' {% if not e.visible %}style="background-color: gray"{% endif %}>
               {% if e.html_date %}
                 <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
                 <td class='colTime firstRowOfday' >{{e.html_time}}</td>
