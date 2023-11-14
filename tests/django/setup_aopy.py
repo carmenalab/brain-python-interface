@@ -58,5 +58,12 @@ expm = models.Experimenter.objects.get(name="experimenter_1")
 te = models.TaskEntry(subject_id=subj.id, task_id=task.id, experimenter_id=expm.id, params='{"bmi": 1}')
 te.save()
 
+# Add a task entry from a different rig
+subj = models.Subject.objects.get(name="test_subject")
+expm = models.Experimenter.objects.get(name="experimenter_1")
+te = models.TaskEntry(subject_id=subj.id, task_id=task.id, experimenter_id=expm.id, rig_name="siberut-bmi")
+te.save()
+
+# Add a decoder entry
 decoder = models.Decoder(name="test_decoder", entry_id=te.id)
 decoder.save()

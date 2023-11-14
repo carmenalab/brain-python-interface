@@ -42,7 +42,7 @@ def get_sqlite3_databases():
         }
 
     if len(dbs.keys()) == 1 and 'test_aopy' in dbs.keys():
-        dbs = {'default': dbs['test_aopy']}
+        dbs = {'local': dbs['test_aopy']}
 
     return dbs
 
