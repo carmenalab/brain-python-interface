@@ -171,17 +171,30 @@ class IncrementalRotation(traits.HasTraits):
     delta_rotation_x = traits.Float(0.0, desc="rotation step size about bmi3d x-axis in degrees")
 
     trials_per_increment = traits.Int(1, desc="number of successful trials per rotation step")
+    final_tracking_out_time = traits.Float(1.6, desc="Time allowed to be tracking outside the target for final rotation") # AKA tolerance time
 
     def init(self):    
         super().init()
         self.num_trials_success = 0
-        self.num_increments = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        self.num_increments_y = 0
+        self.num_increments_z = 0
+        self.num_increments_x = 0
+
+        if self.final_rotation_y != self.init_rotation_y:
+            self.num_increments_y = int( (self.final_rotation_y-self.init_rotation_y) / self.delta_rotation_y+1 )
+        if self.final_rotation_z != self.init_rotation_z:
+            self.num_increments_z = int( (self.final_rotation_z-self.init_rotation_z) / self.delta_rotation_z+1 )
+        if self.final_rotation_x != self.init_rotation_x:
+            self.num_increments_x = int( (self.final_rotation_x-self.init_rotation_x) / self.delta_rotation_x+1 )
+
+        self.max_num_increments = np.max([self.num_increments_y, self.num_increments_z, self.num_increments_x])
         self.pertubation_rotation = self.init_rotation_y
         self.perturbation_rotation_z = self.init_rotation_z
         self.perturbation_rotation_x = self.init_rotation_x
 
-    def _start_wait(self):
-        super()._start_wait()
+        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
+    
+    def incremental_start_wait(self):
         # determine the current rotation step
         num_deltas = int(self.num_trials_success / self.trials_per_increment)
 
@@ -190,31 +203,28 @@ class IncrementalRotation(traits.HasTraits):
         self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
         self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
 
+        # change tracking out time of final rotation
+        if num_deltas+1 == self.max_num_increments:
+            self.tracking_out_time = self.final_tracking_out_time
+
         # stop incrementing once final perturbation rotation reached
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
+        if self.num_trials_success >= self.num_increments_y * self.trials_per_increment:
             self.pertubation_rotation = self.final_rotation_y
+        if self.num_trials_success >= self.num_increments_z * self.trials_per_increment:
             self.perturbation_rotation_z = self.final_rotation_z
+        if self.num_trials_success >= self.num_increments_x * self.trials_per_increment:
             self.perturbation_rotation_x = self.final_rotation_x
         
-        print(self.pertubation_rotation)
+        print("Y", self.pertubation_rotation, "Z", self.perturbation_rotation_z, "X", self.perturbation_rotation_x)
+        print(self.tracking_out_time, "tracking out")
+    
+    def _start_wait(self):
+        super()._start_wait()
+        self.incremental_start_wait()
 
     def _start_wait_retry(self):
         super()._start_wait_retry()
-        # determine the current rotation step
-        num_deltas = int(self.num_trials_success / self.trials_per_increment)
-
-        # increment the current perturbation rotation by delta
-        self.pertubation_rotation = self.init_rotation_y + self.delta_rotation_y*num_deltas
-        self.perturbation_rotation_z = self.init_rotation_z + self.delta_rotation_z*num_deltas
-        self.perturbation_rotation_x = self.init_rotation_x + self.delta_rotation_x*num_deltas
-
-        # stop incrementing once final perturbation rotation reached
-        if self.num_trials_success >= self.num_increments * self.trials_per_increment:
-            self.pertubation_rotation = self.final_rotation_y
-            self.perturbation_rotation_z = self.final_rotation_z
-            self.perturbation_rotation_x = self.final_rotation_x
-        
-        print(self.pertubation_rotation)
+        self.incremental_start_wait()
 
     def _start_reward(self):
         super()._start_reward()

@@ -113,7 +113,8 @@ class LinearScaleFilter(Filter):
         self.fixed = False
 
     def _pickle_init(self):
-        self.fix_norm_attr()
+        #self.fix_norm_attr()
+        pass
 
     def _init_state(self):
         ''' Required by decoder'''
@@ -127,6 +128,9 @@ class LinearScaleFilter(Filter):
     def _add_obs(self, obs,**kwargs):
         ''' Add new observations to the observation matrix'''
         
+        if np.any(np.isnan(obs)):
+            return
+
         # Update observation matrix
         if self.count < len(self.obs): 
             self.count += 1

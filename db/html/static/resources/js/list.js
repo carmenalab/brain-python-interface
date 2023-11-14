@@ -783,7 +783,7 @@ TaskEntry.prototype.new_row = function(info) {
     if (typeof(info.idx) == "number") {
         this.idx = info.idx;
     } else {
-        this.idx = parseInt(info.idx.match(/(\d+)/)[1]);
+        this.idx = parseInt(info.idx.match(/\((\d+\))/)[1]);
     }
     this.tr.removeClass("running active error testing")
 

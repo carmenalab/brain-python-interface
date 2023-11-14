@@ -37,11 +37,19 @@ class TestManualControlTasks(unittest.TestCase):
         exp.rotation = 'xzy'
         exp.run()
     
-    @unittest.skip("")
-    def test_tracking(self):
-        print("Running tracking task test")
-        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
-        exp = init_exp(TrackingTask, [MouseControl, Window2D], seq) # , window_size=(1000,800)
+    # @unittest.skip("")
+    # def test_tracking(self):
+    #     print("Running tracking task test")
+    #     seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+    #     exp = init_exp(TrackingTask, [MouseControl, Window2D], seq) # , window_size=(1000,800)
+    #     exp.rotation = 'xzy'
+    #     exp.run()
+
+    #@unittest.skip("")
+    def test_sequence(self):
+        print("Running sequence task test")
+        seq = ScreenTargetCapture.sequence_2D(nblocks=1, distance=5)
+        exp = init_exp(ManualControl, [MouseControl, Window2D], seq) # , window_size=(1000,800)
         exp.rotation = 'xzy'
         exp.run()
 
