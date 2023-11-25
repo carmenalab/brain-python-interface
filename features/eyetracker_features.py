@@ -48,6 +48,80 @@ class ArduinoEyeInput():
         pos = aopy.postproc.get_calibrated_eye_data(pos, self.calibration)
         return [[pos[0],0,pos[1]]] # has to be an array of [x,y,z] positions, last one is most current
 
+class Oculomatic(traits.HasTraits):
+    '''
+    Pulls data from oculomatic and makes it available on self.eyedata
+    '''
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the 'eyedata' DataSource and registers it with the 
+        SinkRegister so that the data gets saved to file as it is collected.
+        '''
+        from riglib import source
+        from riglib import sink
+        sink_manager = sink.SinkManager.get_instance()
+
+        src, ekw = self.eye_source
+        self.eyedata = source.DataSource(src, **ekw)
+        sink_manager.register(self.eyedata)
+
+        super().init()
+    
+    @property
+    def eye_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        from riglib import oculomatic
+        return oculomatic.System, dict()
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
+        '''
+        self.eyedata.start()
+        try:
+            super().run()
+        finally:
+            self.eyedata.stop()
+    
+    def join(self):
+        '''
+        '''
+        self.eyedata.join()
+        super(EyeData, self).join()
+    
+    def _start_None(self):
+        '''
+        '''
+        print("Done!")
+        self.eyedata.stop()
+        super()._start_None()
+    
+
+class OculomaticPlayback(traits.HasTraits):
+
+    playback_hdf_data_dir = traits.String("", desc="directory where hdf file lives")
+    playback_hdf_filename = traits.String("", desc="filename of hdf data containing eye data")
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
+        '''
+        from riglib import oculomatic
+        playback = oculomatic.PlaybackEye(self.playback_hdf_data_dir, self.playback_hdf_filename)
+        playback.start()
+        super().run()
+
 class EyeData(traits.HasTraits):
     '''
     Pulls data from the eyetracking system and make it available on self.eyedata
@@ -219,11 +293,41 @@ class CalibratedEyeData(EyeData):
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
 
+class EyeCalibration(traits.HasTraits):
+
+    # TODO It may be better to set task id, not choose filenames
+    hdf_dir = traits.String("", desc="directory where hdf file lives")
+    hdf_files = traits.String("", desc="filename of hdf data containing eye data")
+    data_dir = traits.String("", desc="directory where hdf file lives")
+    files = traits.String("", desc="filename of hdf data containing eye data")
+
+    def __init__(self): #, start_pos, calibration):
+        super(self).__init__()
+        
+        # proc_exp # preprocess cursor data only
+        result_dir = 'a'
+        result_filename = 'aa'
+        bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(self.hdf_dir, self.hdf_files, result_dir, result_filename, overwrite=True, save_res=False)
+        
+        # load preprocessed experiment data
+        # exp_data = aopy.data.load_hdf_group(self.hdf_dir, self.hdf_files, 'exp_data')
+        # exp_metadata = aopy.data.load_hdf_group(self.hdf_dir, self.hdf_files, 'exp_metadata')
+
+        # load raw eye data
+        raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(self.data_dir, self.files, debug=False)
+
+        # calculate coefficients to calibrate eye data
+        events = bmi3d_data['events']
+        self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
+            (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
+             raw_eye_data,raw_eye_metadata['samplerate'],events['timestamp'], events['events'],return_datapoints=True)
+    
 class EyeConstrained(ScreenTargetCapture):
     '''
     Add a penalty state when subjects looks away
     '''
 
+    show_eye_pos = traits.bool(False, desc="Whether to show eye positions")
     fixation_dist = traits.Float(6., desc="Distance from center that is considered a broken fixation")
 
     status = dict(
@@ -250,7 +354,7 @@ class EyeConstrained(ScreenTargetCapture):
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-        self.eye_data = Eye(self.starting_pos[::2])
+        self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
    
     #### STATE FUNCTIONS ####
     def _start_wait(self):
@@ -261,7 +365,10 @@ class EyeConstrained(ScreenTargetCapture):
             # Instantiate the targets here so they don't show up in any states that might come before "wait"
             for model in self.eye_cursor.graphics_models:
                 self.add_model(model)
-                self.eye_cursor.show()
+                if self.show_eye_pos:
+                    self.eye_cursor.show()
+                else:
+                    self.eye_cursor.hide()
 
     # def _cycle(self):
     #     super()._cycle()
@@ -270,7 +377,8 @@ class EyeConstrained(ScreenTargetCapture):
         '''Update gaze positions'''
         pos = self.eye_data.get()
         self.eye_cursor.move_to_position([pos[0][0],0,pos[0][1]])
-        self.eye_cursor.show()
+        if self.show_eye_pos:
+            self.eye_cursor.show()
 
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''
