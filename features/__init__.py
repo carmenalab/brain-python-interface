@@ -19,7 +19,7 @@ from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
-from .ecube_features import EcubeFileBMI, EcubeBMI
+from .ecube_features import EcubeFileBMI, EcubeBMI, RecordECube
 from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync
 from .neuropixel_features import RecordNeuropixels
 
@@ -60,6 +60,7 @@ built_in_features = dict(
     relay_blackrockbyte = RelayBlackrockByte,
     ecube_playback_bmi = EcubeFileBMI,
     ecube_bmi = EcubeBMI,
+    ecube_start = RecordECube,
     qwalor_laser = QwalorLaser,
     multi_qwalor_laser = MultiQwalorLaser,
     laser_state = LaserState,

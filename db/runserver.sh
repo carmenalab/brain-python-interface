@@ -101,14 +101,14 @@ trap "kill 0" EXIT
 # Start python processes
 cd $BMI3D
 python manage.py runserver 0.0.0.0:8000 --noreload &
-if [ "$HOST" = "pagaiisland2" ]; then
-    celery -A db.tracker worker -l INFO &
-fi
+# if [ "$HOST" = "pagaiisland2" ] || [ "$HOST" = "siberut-bmi" ]; then
+#     celery -A db.tracker worker -l INFO &
+# fi
 # celery flower -A db.tracker --address=0.0.0.0 --port=5555 & # for monitoring
 
 # Start servernode-control
-if [ "$HOST" = "pagaiisland2" ]; then
-    gnome-terminal -- ssh 10.155.207.19 sh ~/start-servernode.sh
+if [ "$HOST" = "pagaiisland2" ] || [ "$HOST" = "siberut-bmi" ]; then
+    gnome-terminal -- ssh pagaiisland@10.155.207.19 sh ~/start-servernode.sh
     sleep 1
     gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
 fi
