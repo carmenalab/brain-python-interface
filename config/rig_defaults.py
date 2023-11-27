@@ -6,6 +6,7 @@ hostname = socket.gethostname()
 rig_name = hostname
 optitrack_address = None
 optitrack_save_path = None
+optitrack_sync_dch = 0
 window_size = (1920, 1080)
 screen_dist = 45
 screen_half_height = 12
@@ -45,7 +46,7 @@ nidaq_sync_params.update(dict(
     sync_protocol_version = 10,
     sync_pulse_width = 0.003,
     event_sync_mask = 0xffffff,
-    event_sync_dch = range(16,24),
+    event_sync_dch = range(16,24), # these are 0-indexed channels
     screen_sync_pin = 8,
     screen_sync_dch = 24,
     screen_measure_dch = [5],
@@ -93,6 +94,7 @@ if hostname == 'pagaiisland2':
 elif hostname == 'siberut-bmi':
     optitrack_address = '10.155.204.10'
     optitrack_save_path = "C:/Users/aolab/Documents",
+    optitrack_sync_dch = 53 # 0-index
     screen_dist = 28
     screen_half_height = 10.25
     default_db = 'rig2'
@@ -113,6 +115,7 @@ optitrack = {
     'scale': 1 ,# optitrack cm --> screen cm
     'address': optitrack_address,
     'save_path': optitrack_save_path,
+    'sync_dch': optitrack_sync_dch,
 }
 
 window = {

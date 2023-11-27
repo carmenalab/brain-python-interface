@@ -24,8 +24,9 @@ class Optitrack(traits.HasTraits):
     smooth_features = traits.Int(1, desc="How many features to average")
     scale = traits.Float(defaults['scale'], desc="Control scale factor")
     offset = traits.Array(value=defaults['offset'], desc="Control offset")
-    optitrack_ip = traits.String(defaults['address'], desc="address of the optitrack computer")
-    optitrack_save_path = traits.String(defaults['save_path'], desc="where on the optitrack computer to save data")
+    optitrack_ip = defaults['address']
+    optitrack_save_path = defaults['save_path']
+    optitrack_sync_dch = defaults['sync_dch']
 
     hidden_traits = ['optitrack_feature', 'smooth_features']
 
