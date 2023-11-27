@@ -536,6 +536,7 @@ class Generator(models.Model):
                 'origin': 'Location of the central targets around which the peripheral targets span',
                 'boundaries': 'The limits of the allowed target locations',
                 'chain_length': 'Number of targets in each sequence before a reward',
+                'target_idx': 'Select target indices to include in the task',
             }
             if name in table.keys():
                 return table[name]

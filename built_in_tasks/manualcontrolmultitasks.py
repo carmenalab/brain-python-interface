@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation as R
 from riglib.experiment import traits
 
 from .target_graphics import *
-from .target_capture_task import ScreenTargetCapture, ScreenReachAngle
+from .target_capture_task import ScreenTargetCapture, ScreenReachAngle, SequenceCapture
 from .target_tracking_task import ScreenTargetTracking
 from riglib.stereo_opengl.window import WindowDispl2D
 
@@ -245,6 +245,12 @@ class ManualControlDirectionConstraint(ManualControlMixin, ScreenReachAngle):
     pass
 
 class TrackingTask(ManualControlMixin, ScreenTargetTracking):
+    '''
+    Track moving target task
+    '''
+    pass
+
+class SequenceTask(ManualControlMixin, SequenceCapture):
     '''
     Track moving target task
     '''

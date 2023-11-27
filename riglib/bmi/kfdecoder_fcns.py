@@ -434,7 +434,7 @@ def save_new_dec(task_entry_id, dec_obj, suffix, dbname='default'):
 
     te = dbfn.TaskEntry(task_entry_id)
     try:
-        te_id = te.te_id
+        te_id = te.id
     except:
         dec_nm = te.name
         te_ix = re.search('te[0-9]',dec_nm)
