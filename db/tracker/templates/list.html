@@ -67,7 +67,16 @@
       function () {
         te.toggle_template();
       }
-    )
+    );
+
+    $(document).ready(function () {
+      $("#manual_reward_btn").click(function () {
+          $.post("http://0.0.0.0:8080", function () {
+              console.log("Manual reward triggered");
+          });
+        });
+      }
+    );
 
     // these are wrapped in a function because 'te' is null to start
     $("#startbtn").click(function() { te.start();});
@@ -321,6 +330,8 @@
             <input id="backupbtn" type="checkbox" checked="off" name="hist_checkbox">Flagged for backup?
             <input id="templatebtn" type="checkbox" checked="off" name="hist_checkbox">Use as template
           </div>
+
+          <button id = "manual_reward_btn">Give manual reward</button>
 
           <div id="start_buttons">
             <input id="testbtn" class="btn startbtn" type="submit" value="Test" title="Run the experiment without saving any data">
