@@ -69,11 +69,9 @@
       }
     );
 
-    $(document).ready(function () {
-      $("#manual_reward_btn").click(function () {
-          $.post("http://127.0.0.1:8080", function () {
-              console.log("Manual reward triggered");
-          });
+    $("#manual_reward_btn").click(function () {
+        $.post("http://127.0.0.1:8080", function () {
+            console.log("Manual reward triggered");
         });
       }
     );
