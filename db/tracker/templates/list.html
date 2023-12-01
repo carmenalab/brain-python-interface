@@ -331,8 +331,6 @@
             <input id="templatebtn" type="checkbox" checked="off" name="hist_checkbox">Use as template
           </div>
 
-          <button id = "manual_reward_btn">Give manual reward</button>
-
           <div id="start_buttons">
             <input id="testbtn" class="btn startbtn" type="submit" value="Test" title="Run the experiment without saving any data">
             <input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
@@ -509,6 +507,9 @@
                     <label for="{{c.name}}">{{c.name}}</label>
                   </li>
                 {% endfor %}
+                  <li>
+                    <button id = "manual_reward_btn">Give manual reward</button>
+                  </li>
                 </ul>
               </fieldset>
 
