@@ -49,12 +49,12 @@ class RewardSystem(traits.HasTraits):
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
 
-    @control_decorator
-    def manual_reward(duration=0.5, static=True):
-        from riglib import reward
-        reward_sys = reward.open()
-        float_dur = float(duration)  # these parameters always end up being strings
-        reward_sys.async_drain(float_dur)
+    # @control_decorator
+    # def manual_reward(duration=0.5, static=True):
+    #     from riglib import reward
+    #     reward_sys = reward.open()
+    #     float_dur = float(duration)  # these parameters always end up being strings
+    #     reward_sys.async_drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
@@ -84,11 +84,11 @@ class PelletReward(RewardSystem):
         if hasattr(super(RewardSystem, self), '_end_reward'):
             super(RewardSystem, self)._end_reward()
 
-    @control_decorator
-    def manual_reward( static=True):
-        from riglib.tablet_reward import RemoteReward
-        reward_sys = RemoteReward()
-        reward_sys.reward.trigger()
+    # @control_decorator
+    # def manual_reward( static=True):
+    #     from riglib.tablet_reward import RemoteReward
+    #     reward_sys = RemoteReward()
+    #     reward_sys.reward.trigger()
 
 
 class RewardAudio(traits.HasTraits):
