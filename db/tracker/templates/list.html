@@ -71,7 +71,7 @@
 
     $(document).ready(function () {
       $("#manual_reward_btn").click(function () {
-          $.post("http://0.0.0.0:8080", function () {
+          $.post("http://127.0.0.1:8080", function () {
               console.log("Manual reward triggered");
           });
         });
@@ -432,6 +432,7 @@
               </fieldset>
 
               <fieldset id="controls">
+                <button id = "manual_reward_btn">Give manual reward</button>
                 <legend>Controls</legend>
                 <table id="controls_table">
                 </table>
@@ -507,9 +508,6 @@
                     <label for="{{c.name}}">{{c.name}}</label>
                   </li>
                 {% endfor %}
-                  <li>
-                    <button id = "manual_reward_btn">Give manual reward</button>
-                  </li>
                 </ul>
               </fieldset>
 
