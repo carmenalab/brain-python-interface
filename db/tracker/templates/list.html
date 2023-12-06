@@ -25,6 +25,7 @@
   var feats = new Features();
   var collections = new Collections();
   $(document).ready(function() {
+    console.log("TEST");
     $("table#main tr").each(function() {
       // Register a click callback for each row of the 'main' table
       // If you click on the very top row, the id is set to "newentry"
@@ -115,13 +116,6 @@
       }
     );
 
-//    $("#manual_reward_btn").click(function () {
-//      console.log("Button press registered.")
-//      $.post("http://0.0.0.0:8080", function () {
-//        console.log("Manual reward triggered");
-//      });
-//    });
-
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
     $("tr.template").hide();
@@ -184,6 +178,13 @@
         $("#file_modal").css("display", "none");
       }
     }
+
+    $("#manual_reward_btn").click(function () {
+      console.log("Button press registered.")
+      $.post("http://0.0.0.0:8080", function () {
+        console.log("Manual reward triggered");
+      });
+    });
 
     // $(window).resize(function(){
     //   var window_width = $(window).width();
@@ -429,12 +430,12 @@
                 </div>
               </fieldset>
 
-              <!-- <fieldset id="controls">
+              <fieldset id="controls">
                 <button id = "manual_reward_btn">Give manual reward</button>
                 <legend>Controls</legend>
                 <table id="controls_table">
                 </table>
-              </fieldset> -->
+              </fieldset>
 
               <fieldset id="notes">
                 <legend>Notes</legend>
