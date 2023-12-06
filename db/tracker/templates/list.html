@@ -179,13 +179,6 @@
       }
     }
 
-    $("#manual_reward_btn").click(function () {
-      console.log("Button press registered.")
-      $.post("http://0.0.0.0:8080", function () {
-        console.log("Manual reward triggered");
-      });
-    });
-
     // $(window).resize(function(){
     //   var window_width = $(window).width();
     //   var rightpane_width = $('#rightpane').width();
@@ -215,6 +208,35 @@
     $("#newentry_today").html("Today");
     $('#newentry_today').css('color', 'black');
   }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var dispenseBtn = document.getElementById('dispenseBtn');
+
+    dispenseBtn.addEventListener('click', function() {
+      // use fetch to send a POST request to server
+      fetch('http://localhost:8080', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'dispenseTabletReward' }),
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // handle response from the server if needed
+        console.log('Server response:', data);
+      })
+      .catch(error => {
+        // handle errors
+        console.error('There was a problem with the fetch operation:', error);
+      });
+    });
+  });
 </script>
 </head>
 
@@ -431,11 +453,12 @@
               </fieldset>
 
               <fieldset id="controls">
-                <button id = "manual_reward_btn">Give manual reward</button>
+                <button id="dispenseBtn" type="button">Dispense manual reward</button>
                 <legend>Controls</legend>
                 <table id="controls_table">
                 </table>
               </fieldset>
+              
 
               <fieldset id="notes">
                 <legend>Notes</legend>
