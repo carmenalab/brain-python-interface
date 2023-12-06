@@ -115,11 +115,12 @@
       }
     );
 
-    $("#manual_reward_btn").click(function () {
-      $.post("http://0.0.0.0:8080", function () {
-          console.log("Manual reward triggered");
-      });
-    });
+//    $("#manual_reward_btn").click(function () {
+//      console.log("Button press registered.")
+//      $.post("http://0.0.0.0:8080", function () {
+//        console.log("Manual reward triggered");
+//      });
+//    });
 
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
@@ -428,12 +429,12 @@
                 </div>
               </fieldset>
 
-              <fieldset id="controls">
+              <!-- <fieldset id="controls">
                 <button id = "manual_reward_btn">Give manual reward</button>
                 <legend>Controls</legend>
                 <table id="controls_table">
                 </table>
-              </fieldset>
+              </fieldset> -->
 
               <fieldset id="notes">
                 <legend>Notes</legend>
