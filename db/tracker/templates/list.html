@@ -69,13 +69,6 @@
       }
     );
 
-    $("#manual_reward_btn").click(function () {
-        $.post("http://127.0.0.1:8080", function () {
-            console.log("Manual reward triggered");
-        });
-      }
-    );
-
     // these are wrapped in a function because 'te' is null to start
     $("#startbtn").click(function() { te.start();});
     $("#testbtn").click(function() { te.test();});
@@ -121,6 +114,12 @@
           $("tr.template").hide();
       }
     );
+
+    $("#manual_reward_btn").click(function () {
+      $.post("http://0.0.0.0:8080", function () {
+          console.log("Manual reward triggered");
+      });
+    });
 
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
