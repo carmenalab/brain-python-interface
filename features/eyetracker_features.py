@@ -11,6 +11,7 @@ from built_in_tasks.target_graphics import *
 from built_in_tasks.target_capture_task import ScreenTargetCapture
 from .peripheral_device_features import *
 import aopy
+import glob
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -295,39 +296,38 @@ class CalibratedEyeData(EyeData):
 
 class EyeCalibration(traits.HasTraits):
 
-    # TODO It may be better to set task id, not choose filenames
-    hdf_dir = traits.String("", desc="directory where hdf file lives")
-    hdf_files = traits.String("", desc="filename of hdf data containing eye data")
-    data_dir = traits.String("", desc="directory where hdf file lives")
-    files = traits.String("", desc="filename of hdf data containing eye data")
+    taskid_for_eye_calibration = traits.Int(0, desc="directory where hdf file lives")
 
-    def __init__(self): #, start_pos, calibration):
-        super(self).__init__()
+    def __init__(self, *args, **kwargs): #, start_pos, calibration):
+        super(EyeCalibration,self).__init__(*args, **kwargs)
         
         # proc_exp # preprocess cursor data only
-        result_dir = 'a'
-        result_filename = 'aa'
-        bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(self.hdf_dir, self.hdf_files, result_dir, result_filename, overwrite=True, save_res=False)
-        
-        # load preprocessed experiment data
-        # exp_data = aopy.data.load_hdf_group(self.hdf_dir, self.hdf_files, 'exp_data')
-        # exp_metadata = aopy.data.load_hdf_group(self.hdf_dir, self.hdf_files, 'exp_metadata')
+        taskid = self.taskid_for_eye_calibration
+        print(taskid)
+        hdf_dir = '/home/pagaiisland/hdf'
+        hdf_file = glob.glob(f'/home/pagaiisland/hdf/*{taskid}*')[0]
+        ecube_file = glob.glob(f'/media/NeuroAcq/*{taskid}*')[0]
+        files = {}
+        files['hdf'] = hdf_file
+        files['ecube'] = ecube_file
+        print(files)
+        bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(hdf_dir, files, 'hoge', 'hoge', overwrite=True, save_res=False)
 
         # load raw eye data
-        raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(self.data_dir, self.files, debug=False)
+        raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
 
         # calculate coefficients to calibrate eye data
         events = bmi3d_data['events']
         self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
             (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
-             raw_eye_data,raw_eye_metadata['samplerate'],events['timestamp'], events['events'],return_datapoints=True)
+             raw_eye_data['data'],raw_eye_metadata['samplerate'],events['timestamp'], events['code'],return_datapoints=True)
     
 class EyeConstrained(ScreenTargetCapture):
     '''
     Add a penalty state when subjects looks away
     '''
 
-    show_eye_pos = traits.bool(False, desc="Whether to show eye positions")
+    show_eye_pos = traits.Bool(False, desc="Whether to show eye positions")
     fixation_dist = traits.Float(6., desc="Distance from center that is considered a broken fixation")
 
     status = dict(
