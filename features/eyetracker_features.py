@@ -7,9 +7,11 @@ import numpy as np
 from riglib import calibrations
 from riglib.experiment import traits
 from riglib.gpio import ArduinoGPIO
+from riglib.oculomatic import oculomatic
 from built_in_tasks.target_graphics import *
 from built_in_tasks.target_capture_task import ScreenTargetCapture
 from .peripheral_device_features import *
+
 import aopy
 import glob
 
@@ -303,7 +305,6 @@ class EyeCalibration(traits.HasTraits):
         
         # proc_exp # preprocess cursor data only
         taskid = self.taskid_for_eye_calibration
-        print(taskid)
         hdf_dir = '/home/pagaiisland/hdf'
         hdf_file = glob.glob(f'/home/pagaiisland/hdf/*{taskid}*')[0]
         ecube_file = glob.glob(f'/media/NeuroAcq/*{taskid}*')[0]
@@ -354,7 +355,9 @@ class EyeConstrained(ScreenTargetCapture):
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-        self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
+        #self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
+        hdf_file = glob.glob(f'/home/pagaiisland/hdf/*12652*')[0]
+        self.eye_data = oculomatic.PlaybackEye('/home/pagaiisland/hdf', hdf_file)
    
     #### STATE FUNCTIONS ####
     def _start_wait(self):
