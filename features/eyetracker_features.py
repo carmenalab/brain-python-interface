@@ -355,9 +355,7 @@ class EyeConstrained(ScreenTargetCapture):
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-        #self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
-        hdf_file = glob.glob(f'/home/pagaiisland/hdf/*12652*')[0]
-        self.eye_data = oculomatic.PlaybackEye('/home/pagaiisland/hdf', hdf_file)
+        self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
    
     #### STATE FUNCTIONS ####
     def _start_wait(self):
