@@ -355,8 +355,19 @@ class EyeConstrained(ScreenTargetCapture):
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-        self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
+        # self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
+        from riglib import source
+        from riglib.oculomatic import System
+        self.eye_data = source.DataSource(System)
    
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the motiondata source and stops it after the FSM has finished running
+        '''
+        self.eye_data.start()
+        super().run()
+
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
