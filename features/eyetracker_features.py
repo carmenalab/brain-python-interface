@@ -359,14 +359,18 @@ class EyeConstrained(ScreenTargetCapture):
         from riglib import source
         from riglib.oculomatic import System
         self.eye_data = source.DataSource(System)
-   
+
     def run(self):
         '''
         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
         See riglib.experiment.Experiment.run(). This 'run' method starts the motiondata source and stops it after the FSM has finished running
         '''
         self.eye_data.start()
-        super().run()
+        try:
+            super().run()
+        finally:
+            print("Stopping streaming eye data")
+            self.eye_data.stop()
 
     #### STATE FUNCTIONS ####
     def _start_wait(self):
@@ -388,27 +392,40 @@ class EyeConstrained(ScreenTargetCapture):
     def update_eye_cursor(self):
         '''Update gaze positions'''
         pos = self.eye_data.get()
-        self.eye_cursor.move_to_position([pos[0][0],0,pos[0][1]])
-        if self.show_eye_pos:
-            self.eye_cursor.show()
+        if len(pos) == 0:
+            pass
+        else:
+            self.eye_cursor.move_to_position([pos[0][0],0,pos[0][1]])
+            if self.show_eye_pos:
+                self.eye_cursor.show()
 
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''
         super(EyeConstrained, self)._start_wait()
         pos = self.eye_data.get()
-        d = np.linalg.norm(pos)
-        return d < self.fixation_dist
+        
+        if len(pos) == 0:
+            pass
+        else:
+            d = np.linalg.norm(pos)
+            return d < self.fixation_dist
     
     def _test_fixation_break(self,ts):
         '''Triggers the fixation_penalty state when eye positions are within fixation distance'''
         pos = self.eye_data.get()
-        d = np.linalg.norm(pos)
-        return d > self.fixation_dist
+        if len(pos) == 0:
+            pass
+        else:
+            d = np.linalg.norm(pos)
+            return d > self.fixation_dist
     
     def _test_fixation_penalty_end(self,ts):
         pos = self.eye_data.get()
-        d = np.linalg.norm(pos)
-        return d < self.fixation_dist
+        if len(pos) == 0:
+            pass
+        else:
+            d = np.linalg.norm(pos)
+            return d < self.fixation_dist
     
     def _while_wait(self):
         #super(EyeConstrained, self)._while_wait()
