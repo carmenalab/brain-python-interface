@@ -389,9 +389,20 @@ class EyeConstrained(ScreenTargetCapture):
     # def _cycle(self):
     #     super()._cycle()
 
+    def get_calibrated_eye_data(self):
+        '''Average left and right positions'''
+        pos = self.eye_data.get() # This is (1,6) array
+        if len(pos) == 0:
+            ave_pos = np.zeros((1,6))*np.nan
+        else:
+            calibrated_pos = np.array([5,5,5,5])*pos[0,:4]
+            ave_pos = np.array([(calibrated_pos[0] + calibrated_pos[2])/2, (calibrated_pos[1] + calibrated_pos[3])/2])
+            ave_pos = np.expand_dims(ave_pos, axis=0)
+        return ave_pos
+    
     def update_eye_cursor(self):
         '''Update gaze positions'''
-        pos = self.eye_data.get()
+        pos = self.get_calibrated_eye_data()
         if len(pos) == 0:
             pass
         else:
@@ -402,7 +413,7 @@ class EyeConstrained(ScreenTargetCapture):
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''
         super(EyeConstrained, self)._start_wait()
-        pos = self.eye_data.get()
+        pos = self.get_calibrated_eye_data()
         
         if len(pos) == 0:
             pass
@@ -412,7 +423,7 @@ class EyeConstrained(ScreenTargetCapture):
     
     def _test_fixation_break(self,ts):
         '''Triggers the fixation_penalty state when eye positions are within fixation distance'''
-        pos = self.eye_data.get()
+        pos = self.get_calibrated_eye_data()
         if len(pos) == 0:
             pass
         else:
@@ -420,7 +431,7 @@ class EyeConstrained(ScreenTargetCapture):
             return d > self.fixation_dist
     
     def _test_fixation_penalty_end(self,ts):
-        pos = self.eye_data.get()
+        pos = self.get_calibrated_eye_data()
         if len(pos) == 0:
             pass
         else:
