@@ -329,14 +329,15 @@ class EyeConstrained(ScreenTargetCapture):
     '''
 
     show_eye_pos = traits.Bool(False, desc="Whether to show eye positions")
-    fixation_dist = traits.Float(6., desc="Distance from center that is considered a broken fixation")
+    fixation_dist = traits.Float(2.5, desc="Distance from center that is considered a broken fixation")
+    keyboard_control = traits.Bool(False, desc="Whether to replace eye control with keyboard control")
 
     status = dict(
-        wait = dict(start_trial="target"),
-        target = dict(enter_target="hold", timeout="timeout_penalty",fixation_break="fixation_penalty"),
+        wait = dict(start_trial="target", fixation_break="fixation_penalty"),
+        target = dict(enter_target="hold", timeout="timeout_penalty", fixation_break="fixation_penalty"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
-        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target", fixation_break="fixation_penalty"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
         timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
         hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
         delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
@@ -355,22 +356,33 @@ class EyeConstrained(ScreenTargetCapture):
         # Visualize eye positions
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
-        # self.eye_data = Eye(self.starting_pos[::2]) # TODO Apply coefficients for calibration
-        from riglib import source
-        from riglib.oculomatic import System
-        self.eye_data = source.DataSource(System)
+        if self.keyboard_control:
+            self.eye_data = Eye(self.starting_pos[::2])
+        else:
+            from riglib import source
+            from riglib.oculomatic import System
+            self.eye_data = source.DataSource(System)
+        
+    def init(self):
+        if self.keyboard_control:
+            self.add_dtype('eye', 'f8', (2,))
+        else:
+            self.add_dtype('eye', 'f8', (6,))
+        super(EyeConstrained, self).init()
 
     def run(self):
         '''
         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
         See riglib.experiment.Experiment.run(). This 'run' method starts the motiondata source and stops it after the FSM has finished running
         '''
-        self.eye_data.start()
+        if not self.keyboard_control:
+            self.eye_data.start()
         try:
             super().run()
         finally:
-            print("Stopping streaming eye data")
-            self.eye_data.stop()
+            if not self.keyboard_control:
+                print("Stopping streaming eye data")
+                self.eye_data.stop()
 
     #### STATE FUNCTIONS ####
     def _start_wait(self):
@@ -386,18 +398,27 @@ class EyeConstrained(ScreenTargetCapture):
                 else:
                     self.eye_cursor.hide()
 
-    # def _cycle(self):
-    #     super()._cycle()
+    def _cycle(self):
+        pos = self.eye_data.get()
+        if len(pos) == 0:
+            self.task_data['eye'] = np.zeros((1,6))*np.nan
+        else:
+            self.task_data['eye'] = pos[[0],:]
+        super()._cycle()
 
     def get_calibrated_eye_data(self):
         '''Average left and right positions'''
         pos = self.eye_data.get() # This is (1,6) array
-        if len(pos) == 0:
-            ave_pos = np.zeros((1,6))*np.nan
+        if self.keyboard_control:
+            ave_pos = pos
         else:
-            calibrated_pos = np.array([5,5,5,5])*pos[0,:4]
-            ave_pos = np.array([(calibrated_pos[0] + calibrated_pos[2])/2, (calibrated_pos[1] + calibrated_pos[3])/2])
-            ave_pos = np.expand_dims(ave_pos, axis=0)
+            if len(pos) == 0:
+                ave_pos = np.zeros((1,6))*np.nan
+            else:
+                #calibrated_pos = np.array([1,1,1,1])*pos[0,:4]
+                calibrated_pos = aopy.postproc.get_calibrated_eye_data(pos[0,:4],self.eye_coeff)
+                ave_pos = np.array([(calibrated_pos[0] + calibrated_pos[2])/2, (calibrated_pos[1] + calibrated_pos[3])/2])
+                ave_pos = np.expand_dims(ave_pos, axis=0)
         return ave_pos
     
     def update_eye_cursor(self):
@@ -422,13 +443,19 @@ class EyeConstrained(ScreenTargetCapture):
             return d < self.fixation_dist
     
     def _test_fixation_break(self,ts):
-        '''Triggers the fixation_penalty state when eye positions are within fixation distance'''
-        pos = self.get_calibrated_eye_data()
-        if len(pos) == 0:
-            pass
+        '''
+        Triggers the fixation_penalty state when eye positions are within fixation distance
+        Only apply this to the first hold and delay period
+        '''
+        if self.target_index <= 0:
+            pos = self.get_calibrated_eye_data()
+            if len(pos) == 0:
+                pass
+            else:
+                d = np.linalg.norm(pos)
+                return d > self.fixation_dist
         else:
-            d = np.linalg.norm(pos)
-            return d > self.fixation_dist
+            pass
     
     def _test_fixation_penalty_end(self,ts):
         pos = self.get_calibrated_eye_data()
