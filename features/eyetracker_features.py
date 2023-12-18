@@ -299,6 +299,7 @@ class CalibratedEyeData(EyeData):
 class EyeCalibration(traits.HasTraits):
 
     taskid_for_eye_calibration = traits.Int(0, desc="directory where hdf file lives")
+    show_eye_pos = traits.Bool(False, desc="Whether to show eye positions")
 
     def __init__(self, *args, **kwargs): #, start_pos, calibration):
         super(EyeCalibration,self).__init__(*args, **kwargs)
@@ -316,60 +317,133 @@ class EyeCalibration(traits.HasTraits):
 
         # load raw eye data
         # raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
-        eye_interp = aopy.data.get_interp_kinmatics(bmi3d_data,bmi3d_metadata,datatype='eye',samplerate=bmi3d_metadata['cursor_interp_samplerate'])
+        eye_interp = aopy.data.get_interp_kinematics(bmi3d_data,bmi3d_metadata,datatype='eye',samplerate=bmi3d_metadata['cursor_interp_samplerate'])
 
         # calculate coefficients to calibrate eye data
         events = bmi3d_data['events']
         self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
             (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
              eye_interp[:,:4], bmi3d_metadata['cursor_interp_samplerate'],events['timestamp'], events['code'],return_datapoints=True)
-    
-class EyeConstrained(ScreenTargetCapture):
-    '''
-    Add a penalty state when subjects looks away
-    '''
 
-    show_eye_pos = traits.Bool(False, desc="Whether to show eye positions")
-    fixation_dist = traits.Float(2.5, desc="Distance from center that is considered a broken fixation")
-    keyboard_control = traits.Bool(False, desc="Whether to replace eye control with keyboard control")
+        print("Calibration complete:", self.eye_coeff)
 
-    status = dict(
-        wait = dict(start_trial="target", fixation_break="fixation_penalty"),
-        target = dict(enter_target="hold", timeout="timeout_penalty", fixation_break="fixation_penalty"),
-        hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
-        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
-        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
-        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
-        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
-        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
-        fixation_penalty = dict(fixation_penalty_end="targ_transition",end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True)
-    )
-
-    def __init__(self, *args, **kwargs):
-        super(EyeConstrained, self).__init__(*args, **kwargs)
-        #self.status["target"]["fixation_break"] = "fixation_penalty"
-        #self.status["hold"]["fixation_break"] = "fixation_penalty"
-        #self.status["delay"]["fixation_break"] = "fixation_penalty"
-        #self.status["targ_transition"]["fixation_break"] = "fixation_penalty"
-        #self.status["fixation_penalty"] = dict(fixation_penalty_end="targ_transition",end_state=True)
-
-        # Visualize eye positions
+        # Set up eye cursor
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
         self.target_location = np.array(self.starting_pos).copy()
+        self.calibrated_eye_pos = np.zeros((1,2))*np.nan
+        for model in self.eye_cursor.graphics_models:
+            self.add_model(model)
+
+    def init(self):
+        self.add_dtype('calibrated_eye', 'f8', (2,))
+        super().init()
+
+    #### STATE FUNCTIONS ####
+    def _start_wait(self):
+        super()._start_wait()
+
+        if self.calc_trial_num() == 0:
+            if self.show_eye_pos:
+                self.eye_cursor.show()
+            else:
+                self.eye_cursor.hide()
+
+            # Instantiate the targets here so they don't show up in any states that might come before "wait"
+            
+
+    # def _while_wait(self):
+    #     #super(EyeConstrained, self)._while_wait()
+    #     self.update_eye_cursor()
+
+    # def _while_target(self):
+    #     #super(EyeConstrained, self)._while_target()
+    #     self.update_eye_cursor()    
+
+    # def _while_delay(self):
+    #     super()._while_delay()
+    #     self.update_eye_cursor()    
+
+    # def _while_hold(self):
+    #     super()._while_hold()
+    #     self.update_eye_cursor()   
+
+    # def _while_targ_transition(self):
+    #     super()._while_targ_transition()
+    #     self.update_eye_cursor()       
+
+    # def _while_timeout_penalty(self):
+    #     super()._while_timeout_penalty()
+    #     self.update_eye_cursor()  
+
+    # def _while_hold_penalty(self):
+    #     super()._while_hold_penalty()
+    #     self.update_eye_cursor()  
+
+    # def _while_delay_penalty(self):
+    #     super()._while_delay_penalty()
+    #     self.update_eye_cursor()  
+
+    # def _while_reward(self):
+    #     super()._while_reward()
+    #     self.update_eye_cursor()
+
+    def _cycle(self):
+        self.eye_pos = self.eye_data.get() # This is (1,6) array
+        if not self.keyboard_control:
+            if len(self.eye_pos) == 0:
+                self.eye_pos = np.zeros((1,6))*np.nan
+                print('no data')
+        else:
+            if len(self.eye_pos) == 0:
+                self.eye_pos = np.zeros((1,2))*np.nan
+        self.task_data['eye'] = self.eye_pos[[0],:]
+
+        # Do calibration
+        ave_pos = self.eye_pos
+        if not self.keyboard_control:
+            calibrated_pos = aopy.postproc.get_calibrated_eye_data(self.eye_pos[0,:4],self.eye_coeff)
+            ave_pos = np.array([(calibrated_pos[0] + calibrated_pos[2])/2, (calibrated_pos[1] + calibrated_pos[3])/2])
+            ave_pos = np.expand_dims(ave_pos, axis=0)
+        
+        # Save calibration
+        self.calibrated_eye_pos = ave_pos
+        self.task_data['calibrated_eye'] = self.calibrated_eye_pos[[0],:]
+
+        super(EyeStreaming, self)._cycle()
+
+        # Move the eye cursor
+        if np.any(np.isnan(self.calibrated_eye_pos)):
+            pass
+        else:
+            self.eye_cursor.move_to_position([self.calibrated_eye_pos[0][0],0,self.calibrated_eye_pos[0][1]])
+            if self.show_eye_pos:
+                self.eye_cursor.show()
+
+
+class EyeStreaming(traits.HasTraits):
+
+    keyboard_control = traits.Bool(False, desc="Whether to replace eye control with keyboard control")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Visualize eye positions
         if self.keyboard_control:
             self.eye_data = Eye(self.starting_pos[::2])
+            self.eye_pos = np.zeros((1,2))*np.nan
         else:
             from riglib import source
             from riglib.oculomatic import System
             self.eye_data = source.DataSource(System)
-        
+            self.eye_pos = np.zeros((1,6))*np.nan
+
+
     def init(self):
         if self.keyboard_control:
             self.add_dtype('eye', 'f8', (2,))
         else:
             self.add_dtype('eye', 'f8', (6,))
-        super(EyeConstrained, self).init()
+        super().init()
 
     def run(self):
         '''
@@ -385,62 +459,45 @@ class EyeConstrained(ScreenTargetCapture):
                 print("Stopping streaming eye data")
                 self.eye_data.stop()
 
-    #### STATE FUNCTIONS ####
-    def _start_wait(self):
-        super()._start_wait()
-
-        if self.calc_trial_num() == 0:
-
-            # Instantiate the targets here so they don't show up in any states that might come before "wait"
-            for model in self.eye_cursor.graphics_models:
-                self.add_model(model)
-                if self.show_eye_pos:
-                    self.eye_cursor.show()
-                else:
-                    self.eye_cursor.hide()
-
     def _cycle(self):
-        pos = self.eye_data.get()
-        if len(pos) == 0:
-            self.task_data['eye'] = np.zeros((1,6))*np.nan
-        else:
-            self.task_data['eye'] = pos[[0],:]
+        self.eye_pos = self.eye_data.get() # This is (1,6) array
+        if not self.keyboard_control:
+            if len(self.eye_pos) == 0:
+                self.task_data['eye'] = np.zeros((1,6))*np.nan
+            else:
+                self.task_data['eye'] = self.eye_pos[[0],:]
         super()._cycle()
 
-    def get_calibrated_eye_data(self):
-        '''Average left and right positions'''
-        pos = self.eye_data.get() # This is (1,6) array
-        if self.keyboard_control:
-            ave_pos = pos
-        else:
-            if len(pos) == 0:
-                ave_pos = np.zeros((1,6))*np.nan
-            else:
-                #calibrated_pos = np.array([1,1,1,1])*pos[0,:4]
-                calibrated_pos = aopy.postproc.get_calibrated_eye_data(pos[0,:4],self.eye_coeff)
-                ave_pos = np.array([(calibrated_pos[0] + calibrated_pos[2])/2, (calibrated_pos[1] + calibrated_pos[3])/2])
-                ave_pos = np.expand_dims(ave_pos, axis=0)
-        return ave_pos
-    
-    def update_eye_cursor(self):
-        '''Update gaze positions'''
-        pos = self.get_calibrated_eye_data()
-        if len(pos) == 0:
-            pass
-        else:
-            self.eye_cursor.move_to_position([pos[0][0],0,pos[0][1]])
-            if self.show_eye_pos:
-                self.eye_cursor.show()
+
+class EyeConstrained(ScreenTargetCapture):
+    '''
+    Add a penalty state when subjects looks away
+    '''
+
+    fixation_dist = traits.Float(2.5, desc="Distance from center that is considered a broken fixation")
+    fixation_penalty_time = traits.Float(0., desc="Time in fixation penalty state")
+
+    status = dict(
+        wait = dict(start_trial="target", fixation_break="fixation_penalty"),
+        target = dict(enter_target="hold", timeout="timeout_penalty", fixation_break="fixation_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
+        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        fixation_penalty = dict(fixation_penalty_end="targ_transition",end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+    )
 
     def _test_start_trial(self, ts):
         '''Triggers the start_trial state when eye posistions are within fixation_distance'''
-        super(EyeConstrained, self)._start_wait()
-        pos = self.get_calibrated_eye_data()
+        super(EyeConstrained, self)._start_trial()
         
-        if len(pos) == 0:
-            pass
+        if len(self.calibrated_eye_pos) == 0:
+            return False
         else:
-            d = np.linalg.norm(pos)
+            d = np.linalg.norm(self.calibrated_eye_pos)
             return d < self.fixation_dist
     
     def _test_fixation_break(self,ts):
@@ -449,55 +506,15 @@ class EyeConstrained(ScreenTargetCapture):
         Only apply this to the first hold and delay period
         '''
         if self.target_index <= 0:
-            pos = self.get_calibrated_eye_data()
-            if len(pos) == 0:
-                pass
-            else:
-                d = np.linalg.norm(pos)
-                return d > self.fixation_dist
+            d = np.linalg.norm(self.calibrated_eye_pos)
+            return d > self.fixation_dist
         else:
             pass
     
     def _test_fixation_penalty_end(self,ts):
-        pos = self.get_calibrated_eye_data()
-        if len(pos) == 0:
-            pass
-        else:
-            d = np.linalg.norm(pos)
-            return d < self.fixation_dist
+        d = np.linalg.norm(self.calibrated_eye_pos)
+        return (d < self.fixation_dist) and (ts > self.fixation_penalty_time)
     
-    def _while_wait(self):
-        #super(EyeConstrained, self)._while_wait()
-        self.update_eye_cursor()
-
-    def _while_target(self):
-        #super(EyeConstrained, self)._while_target()
-        self.update_eye_cursor()    
-
-    def _while_delay(self):
-        super(EyeConstrained, self)._while_delay()
-        self.update_eye_cursor()    
-
-    def _while_hold(self):
-        super(EyeConstrained, self)._while_hold()
-        self.update_eye_cursor()   
-
-    def _while_targ_transition(self):
-        super(EyeConstrained, self)._while_targ_transition()
-        self.update_eye_cursor()       
-
-    def _while_timeout_penalty(self):
-        super(EyeConstrained, self)._while_timeout_penalty()
-        self.update_eye_cursor()  
-
-    def _while_hold_penalty(self):
-        super(EyeConstrained, self)._while_hold_penalty()
-        self.update_eye_cursor()  
-
-    def _while_delay_penalty(self):
-        super(EyeConstrained, self)._while_delay_penalty()
-        self.update_eye_cursor()  
-
     def _start_fixation_penalty(self):
         self._increment_tries()
         self.sync_event('FIXATION_PENALTY') 
@@ -506,13 +523,6 @@ class EyeConstrained(ScreenTargetCapture):
         for target in self.targets:
             target.hide()
             target.reset()
-
-    def _while_fixation_penalty(self):
-        self.update_eye_cursor() 
-
-    def _while_reward(self):
-        super(EyeConstrained, self)._while_reward()
-        self.update_eye_cursor()
 
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
