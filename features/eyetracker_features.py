@@ -315,13 +315,14 @@ class EyeCalibration(traits.HasTraits):
         bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(hdf_dir, files, 'hoge', 'hoge', overwrite=True, save_res=False)
 
         # load raw eye data
-        raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
+        # raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
+        eye_interp = aopy.data.get_interp_kinmatics(bmi3d_data,bmi3d_metadata,datatype='eye',samplerate=bmi3d_metadata['cursor_interp_samplerate'])
 
         # calculate coefficients to calibrate eye data
         events = bmi3d_data['events']
         self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
             (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
-             raw_eye_data['data'],raw_eye_metadata['samplerate'],events['timestamp'], events['code'],return_datapoints=True)
+             eye_interp[:,:4], bmi3d_metadata['cursor_interp_samplerate'],events['timestamp'], events['code'],return_datapoints=True)
     
 class EyeConstrained(ScreenTargetCapture):
     '''
