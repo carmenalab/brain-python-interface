@@ -512,8 +512,8 @@ class EyeConstrained(ScreenTargetCapture):
             pass
     
     def _test_fixation_penalty_end(self,ts):
-        d = np.linalg.norm(self.calibrated_eye_pos)
-        return (d < self.fixation_dist) and (ts > self.fixation_penalty_time)
+        # d = np.linalg.norm(self.calibrated_eye_pos)
+        return (ts > self.fixation_penalty_time) # (d < self.fixation_dist) and 
     
     def _start_fixation_penalty(self):
         self._increment_tries()
