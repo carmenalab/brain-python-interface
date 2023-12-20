@@ -348,45 +348,6 @@ class EyeCalibration(traits.HasTraits):
             else:
                 self.eye_cursor.hide()
 
-            # Instantiate the targets here so they don't show up in any states that might come before "wait"
-            
-
-    # def _while_wait(self):
-    #     #super(EyeConstrained, self)._while_wait()
-    #     self.update_eye_cursor()
-
-    # def _while_target(self):
-    #     #super(EyeConstrained, self)._while_target()
-    #     self.update_eye_cursor()    
-
-    # def _while_delay(self):
-    #     super()._while_delay()
-    #     self.update_eye_cursor()    
-
-    # def _while_hold(self):
-    #     super()._while_hold()
-    #     self.update_eye_cursor()   
-
-    # def _while_targ_transition(self):
-    #     super()._while_targ_transition()
-    #     self.update_eye_cursor()       
-
-    # def _while_timeout_penalty(self):
-    #     super()._while_timeout_penalty()
-    #     self.update_eye_cursor()  
-
-    # def _while_hold_penalty(self):
-    #     super()._while_hold_penalty()
-    #     self.update_eye_cursor()  
-
-    # def _while_delay_penalty(self):
-    #     super()._while_delay_penalty()
-    #     self.update_eye_cursor()  
-
-    # def _while_reward(self):
-    #     super()._while_reward()
-    #     self.update_eye_cursor()
-
     def _cycle(self):
         self.eye_pos = self.eye_data.get() # This is (1,6) array
         if not self.keyboard_control:

@@ -70,7 +70,9 @@ class System(DataSourceSystem):
 # Simulated data
 #################
 class SimulatedEye(threading.Thread):
-
+    '''
+    This is not tested
+    '''
     update_rate = 240
 
     def __init__(self, radius=(0.2,0.04,0.21,0.05,20,21), speed=(0.5,1,0.4,1.2,0.1, 0.1)):
@@ -105,7 +107,9 @@ class SimulatedEye(threading.Thread):
 ########################
 
 class PlaybackEye(SimulatedEye):
-
+    '''
+    This is not tested
+    '''
     def __init__(self, data_dir, filename):
         self.data, metadata = aopy.data.load_bmi3d_hdf_table(data_dir, filename, 'task')
 

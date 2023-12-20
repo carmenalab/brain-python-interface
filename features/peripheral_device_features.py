@@ -186,7 +186,7 @@ class Button(object):
 
 class EyeControl(object):
     '''
-    this class implements a python cursor control task
+    this class implements a python cursor control task. This is just for testing eye related task. 
     '''
 
     def init(self, *args, **kwargs):
@@ -195,7 +195,7 @@ class EyeControl(object):
 
 class Eye(object):
     '''
-    Pretend to be a data source
+    Pretend to be a data source. This is just for testing eye related task. 
     '''
     
     def __init__(self, start_pos):

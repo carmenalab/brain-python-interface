@@ -1044,12 +1044,3 @@ class SequenceCapture(ScreenTargetCapture):
 
             yield indices, targs
 
-class EyeConstrainedTargetCapture(ScreenTargetCapture):
-
-    '''
-    This is a ...
-    '''
-
-    # Define new state transitions
-    pass
-
