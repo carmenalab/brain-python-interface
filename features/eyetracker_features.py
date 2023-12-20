@@ -333,7 +333,7 @@ class EyeCalibration(traits.HasTraits):
         self.calibrated_eye_pos = np.zeros((1,2))*np.nan
         for model in self.eye_cursor.graphics_models:
             self.add_model(model)
-
+        
     def init(self):
         self.add_dtype('calibrated_eye', 'f8', (2,))
         super().init()
@@ -353,11 +353,14 @@ class EyeCalibration(traits.HasTraits):
         if not self.keyboard_control:
             if len(self.eye_pos) == 0:
                 self.eye_pos = np.zeros((1,6))*np.nan
-                print('no data')
+            else:
+                self.task_data['eye'] = self.eye_pos[[0],:]
         else:
             if len(self.eye_pos) == 0:
                 self.eye_pos = np.zeros((1,2))*np.nan
-        self.task_data['eye'] = self.eye_pos[[0],:]
+            else:
+                self.task_data['eye'] = self.eye_pos[0]
+        
 
         # Do calibration
         ave_pos = self.eye_pos
@@ -368,7 +371,10 @@ class EyeCalibration(traits.HasTraits):
         
         # Save calibration
         self.calibrated_eye_pos = ave_pos
-        self.task_data['calibrated_eye'] = self.calibrated_eye_pos[[0],:]
+        if not self.keyboard_control:
+            self.task_data['calibrated_eye'] = self.calibrated_eye_pos[[0],:]
+        else:
+            self.task_data['calibrated_eye'] = self.calibrated_eye_pos[0]
 
         super(EyeStreaming, self)._cycle()
 
@@ -391,7 +397,7 @@ class EyeStreaming(traits.HasTraits):
         # Visualize eye positions
         if self.keyboard_control:
             self.eye_data = Eye(self.starting_pos[::2])
-            self.eye_pos = np.zeros((1,2))*np.nan
+            #self.eye_pos = np.zeros((1,2))*np.nan
         else:
             from riglib import source
             from riglib.oculomatic import System
@@ -437,10 +443,12 @@ class EyeConstrained(ScreenTargetCapture):
 
     fixation_dist = traits.Float(2.5, desc="Distance from center that is considered a broken fixation")
     fixation_penalty_time = traits.Float(0., desc="Time in fixation penalty state")
-
+    fixation_target_color = traits.OptionsList("cyan", *target_colors, desc="Color of the center target under fixation state", bmi3d_input_options=list(target_colors.keys()))
+    
     status = dict(
-        wait = dict(start_trial="target", fixation_break="fixation_penalty"),
-        target = dict(enter_target="hold", timeout="timeout_penalty", fixation_break="fixation_penalty"),
+        wait = dict(start_trial="target"),
+        target = dict(gaze_target="fixation", timeout="timeout_penalty"),
+        fixation = dict(enter_target="hold", fixation_break="target"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
         targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
@@ -451,19 +459,26 @@ class EyeConstrained(ScreenTargetCapture):
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
-    def _test_start_trial(self, ts):
-        '''Triggers the start_trial state when eye posistions are within fixation_distance'''
-        super(EyeConstrained, self)._start_trial()
+    # def _test_start_trial(self, ts):
+    #     '''Triggers the start_trial state when eye posistions are within fixation_distance'''
+    #     super(EyeConstrained, self)._start_trial()
         
-        if len(self.calibrated_eye_pos) == 0:
-            return False
-        else:
-            d = np.linalg.norm(self.calibrated_eye_pos)
-            return d < self.fixation_dist
+    #     if len(self.calibrated_eye_pos) == 0:
+    #         return False
+    #     else:
+    #         d = np.linalg.norm(self.calibrated_eye_pos)
+    #         return d < self.fixation_dist
+    
+    def _test_gaze_target(self,ts):
+        '''
+        Check whether eye positions are within the fixation distance
+        '''        
+        d = np.linalg.norm(self.calibrated_eye_pos)
+        return d < self.fixation_dist
     
     def _test_fixation_break(self,ts):
         '''
-        Triggers the fixation_penalty state when eye positions are within fixation distance
+        Triggers the fixation_penalty state when eye positions are outside fixation distance
         Only apply this to the first hold and delay period
         '''
         if self.target_index <= 0:
@@ -476,6 +491,25 @@ class EyeConstrained(ScreenTargetCapture):
         # d = np.linalg.norm(self.calibrated_eye_pos)
         return (ts > self.fixation_penalty_time) # (d < self.fixation_dist) and 
     
+    def _start_wait(self):
+        super()._start_wait()
+        self.num_fixation_state = 0
+
+    def _start_target(self):
+        super()._start_target()
+        if self.num_fixation_state > 0:
+            self.target_index = 0
+            self.targets[0].reset()
+
+    def _start_fixation(self):
+        #self.target_index = 0 # To prevent target index from keep incrementing after the current state goes back to target state
+        self.num_fixation_state += 1
+        self.targets[0].sphere.color = target_colors[self.fixation_target_color]
+
+    def _start_hold(self):
+        super()._start_hold()
+        self.num_fixation_state = 0
+
     def _start_fixation_penalty(self):
         self._increment_tries()
         self.sync_event('FIXATION_PENALTY') 
