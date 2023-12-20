@@ -10,6 +10,8 @@ import pyfirmata
 from serial.serialutil import SerialException
 import serial
 
+from .source import DataSourceSystem
+
 def convert_masked_data_to_pins(mask, data, bits=64):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''
     pins = []
@@ -283,3 +285,51 @@ class DigitalWaveMulti(DigitalWave):
             for idx in range(len(self.gpio)):
                 self.gpio[idx].write_many(self.mask, int(state*self.data))
             state = not state
+
+
+class System(DataSourceSystem):
+    '''
+    Generic DataSourceSystem interface for GPIO
+    '''
+    update_freq = 1000
+
+    def __init__(self, gpio,):
+        self.gpio = gpio
+        self.interval = 1. / self.update_freq
+
+    def start(self):
+        self.tic = time.time()
+    
+    def get(self):
+        toc = time.time() - self.tic
+        if 0 < toc < self.interval:
+            time.sleep(self.interval - toc)
+        data = self.gpio.get()
+        self.tic = time.time()
+        return data
+
+def make(gpio, analog_read=True, pin=0, cls=System, **kwargs):
+    '''
+    Docstring
+    This ridiculous function dynamically creates a class with a new init function
+    Only supports reading a single pin
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    def init(self, **kwargs):
+        print('making gpio')
+        if analog_read:
+            def get(self):
+                return self.analog_read(pin)
+        else:
+            def get(self):
+                return self.read(pin)
+        gpio.get = get
+        super(self.__class__, self).__init__(gpio=gpio, **kwargs)
+
+    dtype = np.dtype('i8')
+    return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
