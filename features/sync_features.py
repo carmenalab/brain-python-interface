@@ -21,6 +21,7 @@ rig1_sync_events = dict(
     HOLD_PENALTY            = 0x40,
     TIMEOUT_PENALTY         = 0x41,
     DELAY_PENALTY           = 0x42,
+    FIXATION_PENALTY        = 0x43,
     OTHER_PENALTY           = 0x4f,
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
@@ -63,7 +64,7 @@ rig1_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(rig1_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 13,
+    sync_protocol_version = 14,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),

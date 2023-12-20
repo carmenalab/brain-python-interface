@@ -184,6 +184,44 @@ class Button(object):
         import pygame
         pygame.event.clear()
 
+class EyeControl(object):
+    '''
+    this class implements a python cursor control task. This is just for testing eye related task. 
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Eye(np.array(self.starting_pos[::2]))
+
+class Eye(object):
+    '''
+    Pretend to be a data source. This is just for testing eye related task. 
+    '''
+    
+    def __init__(self, start_pos):
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
+        self.calibration = np.array([2,0.2]) # TODO load calibration data
+
+    def get(self):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYUP:
+                if event.type == pygame.K_q:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_LEFT:
+                    self.pos[0] -= self.move_step
+                if event.key == pygame.K_RIGHT:
+                    self.pos[0] += self.move_step
+                if event.key == pygame.K_UP:
+                    self.pos[1] += self.move_step
+                if event.key == pygame.K_DOWN:
+                    self.pos[1] -= self.move_step
+
+        calibrated_pos = self.calibration*self.pos
+        return [calibrated_pos]
 
 class KeyboardControl(object):
     '''

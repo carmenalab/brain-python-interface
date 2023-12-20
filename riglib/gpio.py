@@ -85,7 +85,7 @@ class CustomBoard(pyfirmata.Board):
 
 class ArduinoGPIO(GPIO):
     ''' Pin-addressable arduino serial interface'''
-    def __init__(self, port=None, baudrate=57600, timeout=10):
+    def __init__(self, port=None, baudrate=57600, timeout=10, enable_analog=False):
         if port is None:
             import serial.tools.list_ports
             ports = serial.tools.list_ports.comports()
@@ -96,6 +96,10 @@ class ArduinoGPIO(GPIO):
                 raise Exception('No serial device found')
         self.board = CustomBoard(port, baudrate=baudrate, timeout=timeout)
         self.lock = Lock()
+        if enable_analog:
+            it = pyfirmata.util.Iterator(self.board)
+            it.start()
+        self.enable_analog = enable_analog
 
     def write(self, pin, value):
         with self.lock:
@@ -105,6 +109,14 @@ class ArduinoGPIO(GPIO):
         with self.lock:
             return bool(self.board.digital[pin].read())
 
+    def analog_read(self, pin):
+        if not self.enable_analog:
+            raise ValueError("Analog reporting not enabled, start over with enable_analog=True!")
+        with self.lock:
+            if self.board.analog[pin].reporting == False:
+                self.board.analog[pin].enable_reporting() # This analog_read() call will fail
+            return self.board.analog[pin].read()
+        
     def write_many(self, mask, data):
         pins, values = convert_masked_data_to_pins(mask, data)
         for idx in range(len(pins)):

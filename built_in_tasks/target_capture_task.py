@@ -1061,3 +1061,4 @@ class SequenceCapture(ScreenTargetCapture):
                 indices[2] = idx
 
             yield indices, targs
+
