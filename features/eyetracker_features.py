@@ -447,7 +447,7 @@ class EyeConstrained(ScreenTargetCapture):
     
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(gaze_target="fixation", timeout="timeout_penalty"),
+        target = dict(enter_2nd_target="hold", gaze_target="fixation", timeout="timeout_penalty"),
         fixation = dict(enter_target="hold", fixation_break="target"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
@@ -458,24 +458,27 @@ class EyeConstrained(ScreenTargetCapture):
         fixation_penalty = dict(fixation_penalty_end="targ_transition",end_state=True),
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
-
-    # def _test_start_trial(self, ts):
-    #     '''Triggers the start_trial state when eye posistions are within fixation_distance'''
-    #     super(EyeConstrained, self)._start_trial()
-        
-    #     if len(self.calibrated_eye_pos) == 0:
-    #         return False
-    #     else:
-    #         d = np.linalg.norm(self.calibrated_eye_pos)
-    #         return d < self.fixation_dist
-    
+ 
     def _test_gaze_target(self,ts):
         '''
         Check whether eye positions are within the fixation distance
-        '''        
-        d = np.linalg.norm(self.calibrated_eye_pos)
-        return d < self.fixation_dist
-    
+        Only apply this to the first target (1st target)
+        '''
+        if self.target_index <= 0:     
+            d = np.linalg.norm(self.calibrated_eye_pos)
+            return d < self.fixation_dist
+
+    def _test_enter_2nd_target(self, ts):
+        '''
+        return true if the distance between center of cursor and target is smaller than the cursor radius
+        This is for skipping fixation state for the 2nd reach
+        '''
+
+        if self.target_index > 0:
+            cursor_pos = self.plant.get_endpoint_pos()
+            d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
+            return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(ts)
+        
     def _test_fixation_break(self,ts):
         '''
         Triggers the fixation_penalty state when eye positions are outside fixation distance
@@ -484,31 +487,28 @@ class EyeConstrained(ScreenTargetCapture):
         if self.target_index <= 0:
             d = np.linalg.norm(self.calibrated_eye_pos)
             return d > self.fixation_dist
-        else:
-            pass
-    
+     
     def _test_fixation_penalty_end(self,ts):
         # d = np.linalg.norm(self.calibrated_eye_pos)
         return (ts > self.fixation_penalty_time) # (d < self.fixation_dist) and 
     
     def _start_wait(self):
         super()._start_wait()
-        self.num_fixation_state = 0
+        self.num_fixation_state = 0 # Initializa fixation state
 
     def _start_target(self):
-        super()._start_target()
-        if self.num_fixation_state > 0:
-            self.target_index = 0
-            self.targets[0].reset()
+        if self.num_fixation_state == 0:
+            super()._start_target() # target index shouldn't be incremented after fixation break loop
+        else:
+            self.targets[0].reset() # reset target color after fixation break
 
     def _start_fixation(self):
-        #self.target_index = 0 # To prevent target index from keep incrementing after the current state goes back to target state
-        self.num_fixation_state += 1
-        self.targets[0].sphere.color = target_colors[self.fixation_target_color]
+        self.num_fixation_state = 1
+        self.targets[0].sphere.color = target_colors[self.fixation_target_color] # change target color in fixation state
 
     def _start_hold(self):
         super()._start_hold()
-        self.num_fixation_state = 0
+        self.num_fixation_state = 0 # because target state comes again after hold state in a trial
 
     def _start_fixation_penalty(self):
         self._increment_tries()
