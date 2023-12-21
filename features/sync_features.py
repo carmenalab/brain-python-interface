@@ -28,6 +28,7 @@ rig1_sync_events = dict(
     CUE                     = 0x70,
     PAUSE_START             = 0x80,
     PAUSE_END               = 0x81,
+    FIXATION                = 0x90,
     TIME_ZERO               = 0xee,
     TRIAL_END               = 0xef,
     PAUSE                   = 0xfe,

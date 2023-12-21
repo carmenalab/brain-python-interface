@@ -505,7 +505,8 @@ class EyeConstrained(ScreenTargetCapture):
     def _start_fixation(self):
         self.num_fixation_state = 1
         self.targets[0].sphere.color = target_colors[self.fixation_target_color] # change target color in fixation state
-
+        self.sync_event('FIXATION')
+         
     def _start_hold(self):
         super()._start_hold()
         self.num_fixation_state = 0 # because target state comes again after hold state in a trial
