@@ -8,7 +8,7 @@ from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 
 disk_colors = {
-    'target': (1, 1, 1, 0.75),
+    'target': (1, 1, 1, 1),
     'cursor': (1, 0.5, 0, 0.5),
 }
 
@@ -44,7 +44,7 @@ class DiskMatching(Window, LogExperiment):
         super().__init__(self, *args, **kwargs)
         self.disk_cursor_pos = self.disk_pos
         self.disk_target_pos = np.array(self.disk_pos).copy()
-        self.disk_target_pos[1] = 10 # since targets are actually spheres, move them far apart for 2D screen
+        self.disk_target_pos[1] = 0 # since targets are actually spheres, move them far apart for 2D screen
         self.disk_cursor = VirtualCircularTarget(target_radius=0, target_color=disk_colors[self.disk_cursor_color], starting_pos=self.disk_cursor_pos)
         for model in self.disk_cursor.graphics_models:
             self.add_model(model)
@@ -115,7 +115,7 @@ class DiskMatching(Window, LogExperiment):
         self.sync_event('TARGET_ON', 0)
         
         self.task_data['disk_target_size'] = self.disk_target_radius
-        self.disk_target = VirtualCircularTarget(target_radius=self.disk_target_radius, target_color=disk_colors[self.disk_target_color], starting_pos=self.disk_target_pos)
+        self.disk_target = VirtualTorusTarget(5, target_color=disk_colors[self.disk_target_color], starting_pos=self.disk_target_pos)
         for model in self.disk_target.graphics_models:
             self.add_model(model)
 
