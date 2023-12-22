@@ -222,10 +222,10 @@ class VirtualCableTarget(CableTarget):
 
 class VirtualTorusTarget(VirtualCircularTarget):
 
-    def __init__(self, major_radius=2, minor_radius=2, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
+    def __init__(self, inner_radius=2, outer_radius=3, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
         self.target_color = target_color
-        self.major_radius = major_radius
-        self.minor_radius = minor_radius
+        self.major_radius = np.mean([inner_radius, outer_radius])
+        self.minor_radius = np.abs(outer_radius - inner_radius)
         self.target_color = target_color
         self.position = starting_pos
         self.int_position = starting_pos
@@ -233,7 +233,6 @@ class VirtualTorusTarget(VirtualCircularTarget):
 
     def _pickle_init(self):
         self.sphere = Torus(major_radius=self.major_radius, minor_radius=self.minor_radius, color=self.target_color)
-        print('made a torus')
         self.graphics_models = [self.sphere]
         self.sphere.translate(*self.position)
         self.sphere.rotate_x(90)

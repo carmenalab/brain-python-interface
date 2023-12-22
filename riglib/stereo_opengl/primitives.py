@@ -115,6 +115,10 @@ class Cable(TriMesh):
             tcoords=self.tcoord, normals=self.normals, **kwargs)
 
 class Torus(TriMesh):
+    '''
+    Somewhat wrong triangle mesh of a torus. The lighting in 3D doesn't work. But ok for 2D rendering.
+    '''
+    
     def __init__(self, major_radius=1, minor_radius=0.5, segments_major=36, segments_minor=18, **kwargs):
         self.major_radius = major_radius
         self.minor_radius = minor_radius
