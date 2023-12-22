@@ -313,19 +313,21 @@ class EyeCalibration(traits.HasTraits):
         files['hdf'] = hdf_file
         files['ecube'] = ecube_file
         print(files)
-        bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(hdf_dir, files, 'hoge', 'hoge', overwrite=True, save_res=False)
 
-        # load raw eye data
-        # raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
-        eye_interp = aopy.data.get_interp_kinematics(bmi3d_data,bmi3d_metadata,datatype='eye',samplerate=bmi3d_metadata['cursor_interp_samplerate'])
+        if not self.keyboard_control:
+            bmi3d_data, bmi3d_metadata = aopy.preproc.proc_exp(hdf_dir, files, 'hoge', 'hoge', overwrite=True, save_res=False)
 
-        # calculate coefficients to calibrate eye data
-        events = bmi3d_data['events']
-        self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
-            (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
-             eye_interp[:,:4], bmi3d_metadata['cursor_interp_samplerate'],events['timestamp'], events['code'],return_datapoints=True)
+            # load raw eye data
+            # raw_eye_data, raw_eye_metadata = aopy.preproc.parse_oculomatic(hdf_dir, files, debug=False)
+            eye_interp = aopy.data.get_interp_kinematics(bmi3d_data,bmi3d_metadata,datatype='eye',samplerate=bmi3d_metadata['cursor_interp_samplerate'])
 
-        print("Calibration complete:", self.eye_coeff)
+            # calculate coefficients to calibrate eye data
+            events = bmi3d_data['events']
+            self.eye_coeff,_,_,_ = aopy.preproc.calc_eye_calibration\
+                (bmi3d_data['cursor_interp'],bmi3d_metadata['cursor_interp_samplerate'],\
+                eye_interp[:,:4], bmi3d_metadata['cursor_interp_samplerate'],events['timestamp'], events['code'],return_datapoints=True)
+
+            print("Calibration complete:", self.eye_coeff)
 
         # Set up eye cursor
         self.eye_cursor = VirtualCircularTarget(target_radius=1.0, target_color=(0., 1., 0., 0.75))
@@ -447,7 +449,7 @@ class EyeConstrained(ScreenTargetCapture):
     
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(timeout="timeout_penalty",enter_2nd_target="hold", gaze_target="fixation"),
+        target = dict(timeout="timeout_penalty",gaze_target="fixation"),
         fixation = dict(enter_target="hold", fixation_break="target"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
@@ -467,25 +469,19 @@ class EyeConstrained(ScreenTargetCapture):
         if self.target_index <= 0:     
             d = np.linalg.norm(self.calibrated_eye_pos)
             return d < self.fixation_dist
-
-    def _test_enter_2nd_target(self, ts):
-        '''
-        return true if the distance between center of cursor and target is smaller than the cursor radius
-        This is for skipping fixation state for the 2nd reach
-        '''
-
-        if self.target_index > 0:
-            cursor_pos = self.plant.get_endpoint_pos()
-            d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
-            return d <= (self.target_radius - self.cursor_radius)
+        else:
+            return True
         
     def _test_fixation_break(self,ts):
         '''
         Triggers the fixation_penalty state when eye positions are outside fixation distance
         Only apply this to the first hold and delay period
         '''
-        d = np.linalg.norm(self.calibrated_eye_pos)
-        return (d > self.fixation_dist) or self.pause
+        if self.target_index <= 0:   
+            d = np.linalg.norm(self.calibrated_eye_pos)
+            return (d > self.fixation_dist) or self.pause
+        else:
+            return self.pause
     
     def _test_fixation_penalty_end(self,ts):
         # d = np.linalg.norm(self.calibrated_eye_pos)
@@ -499,12 +495,14 @@ class EyeConstrained(ScreenTargetCapture):
         if self.num_fixation_state == 0:
             super()._start_target() # target index shouldn't be incremented after fixation break loop
         else:
+            self.sync_event('FIXATION', 0)
             self.targets[0].reset() # reset target color after fixation break
 
     def _start_fixation(self):
         self.num_fixation_state = 1
         self.targets[0].sphere.color = target_colors[self.fixation_target_color] # change target color in fixation state
-        self.sync_event('FIXATION')
+        if self.target_index == 0:
+            self.sync_event('FIXATION', 1)
     
     def _start_timeout_penalty(self):
         super()._start_timeout_penalty()

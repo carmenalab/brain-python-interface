@@ -65,7 +65,7 @@ rig1_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(rig1_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 14,
+    sync_protocol_version = 15,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),
