@@ -40,13 +40,13 @@ class TestManualControlTasks(unittest.TestCase):
         exp.rotation = 'xzy'
         exp.run()
     
-    # @unittest.skip("")
-    # def test_tracking(self):
-    #     print("Running tracking task test")
-    #     seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
-    #     exp = init_exp(TrackingTask, [MouseControl, Window2D], seq) # , window_size=(1000,800)
-    #     exp.rotation = 'xzy'
-    #     exp.run()
+    @unittest.skip("")
+    def test_tracking(self):
+        print("Running tracking task test")
+        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+        exp = init_exp(TrackingTask, [MouseControl], seq) # , window_size=(1000,800)
+        exp.rotation = 'xzy'
+        exp.run()
 
     @unittest.skip("")
     def test_sequence(self):
@@ -56,6 +56,7 @@ class TestManualControlTasks(unittest.TestCase):
         exp.rotation = 'xzy'
         exp.run()
 
+    @unittest.skip("")
     def test_force_task(self):
         print("Running force task test")
         exp = init_exp(DiskMatching, [ForceControl, Window2D, Autostart], None) # , window_size=(1000,800)
@@ -66,12 +67,12 @@ class TestManualControlTasks(unittest.TestCase):
             pass
         exp.end_task()
 
-    # @unittest.skip("only to test progress bar")
-    # def test_tracking(self):
-    #     seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
-    #     exp = init_exp(TrackingTask, [MouseControl, Window2D, ProgressBar], seq)
-    #     exp.rotation = 'xzy'
-    #     exp.run()
+    @unittest.skip("only to test progress bar")
+    def test_tracking(self):
+        seq = TrackingTask.tracking_target_debug(nblocks=1, ntrials=6, time_length=5, seed=40, sample_rate=60, ramp=1) # sample_rate needs to match fps in ScreenTargetTracking
+        exp = init_exp(TrackingTask, [MouseControl, Window2D, ProgressBar], seq)
+        exp.rotation = 'xzy'
+        exp.run()
 
 class TestSeqGenerators(unittest.TestCase):
 
