@@ -447,7 +447,7 @@ class EyeConstrained(ScreenTargetCapture):
     
     status = dict(
         wait = dict(start_trial="target"),
-        target = dict(enter_2nd_target="hold", gaze_target="fixation", timeout="timeout_penalty"),
+        target = dict(timeout="timeout_penalty",enter_2nd_target="hold", gaze_target="fixation"),
         fixation = dict(enter_target="hold", fixation_break="target"),
         hold = dict(leave_target="hold_penalty", hold_complete="delay", fixation_break="fixation_penalty"),
         delay = dict(leave_target="delay_penalty", delay_complete="targ_transition", fixation_break="fixation_penalty"),
@@ -477,17 +477,16 @@ class EyeConstrained(ScreenTargetCapture):
         if self.target_index > 0:
             cursor_pos = self.plant.get_endpoint_pos()
             d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
-            return d <= (self.target_radius - self.cursor_radius) or super()._test_enter_target(ts)
+            return d <= (self.target_radius - self.cursor_radius)
         
     def _test_fixation_break(self,ts):
         '''
         Triggers the fixation_penalty state when eye positions are outside fixation distance
         Only apply this to the first hold and delay period
         '''
-        if self.target_index <= 0:
-            d = np.linalg.norm(self.calibrated_eye_pos)
-            return d > self.fixation_dist
-     
+        d = np.linalg.norm(self.calibrated_eye_pos)
+        return (d > self.fixation_dist) or self.pause
+    
     def _test_fixation_penalty_end(self,ts):
         # d = np.linalg.norm(self.calibrated_eye_pos)
         return (ts > self.fixation_penalty_time) # (d < self.fixation_dist) and 
@@ -506,7 +505,11 @@ class EyeConstrained(ScreenTargetCapture):
         self.num_fixation_state = 1
         self.targets[0].sphere.color = target_colors[self.fixation_target_color] # change target color in fixation state
         self.sync_event('FIXATION')
-         
+    
+    def _start_timeout_penalty(self):
+        super()._start_timeout_penalty()
+        self.num_fixation_state = 0
+
     def _start_hold(self):
         super()._start_hold()
         self.num_fixation_state = 0 # because target state comes again after hold state in a trial
