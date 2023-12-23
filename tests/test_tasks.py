@@ -56,7 +56,7 @@ class TestManualControlTasks(unittest.TestCase):
         exp.rotation = 'xzy'
         exp.run()
 
-    @unittest.skip("")
+    # @unittest.skip("")
     def test_force_task(self):
         print("Running force task test")
         exp = init_exp(DiskMatching, [ForceControl, Window2D, Autostart], None) # , window_size=(1000,800)

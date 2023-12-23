@@ -8,9 +8,9 @@ from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 
 disk_colors = {
-    'target': (0.5, 0.5, 0.5, 0.5),
-    'target_bright': (0.25, 0.75, 0.75, 0.5),
-    'cursor': (1, 0.5, 0, 0.5),
+    'target': (0.25, 0.25, 0.25, 0.75),
+    'target_bright': (0.5, 0.5, 0.5, 0.75),
+    'cursor': (1, 1, 1, 0.5),
 }
 
 class DiskMatching(Window, LogExperiment):
@@ -19,11 +19,13 @@ class DiskMatching(Window, LogExperiment):
     """
 
     status = dict(
-        wait = dict(start_trial="target"),
-        target = dict(enter_target="hold"),
-        hold = dict(leave_target="hold_penalty", hold_complete="reward"),
-        hold_penalty = dict(hold_penalty_end="target", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+        wait = dict(start_trial="target", start_pause="pause"),
+        target = dict(enter_target="hold", start_pause="pause_init"),
+        hold = dict(leave_target="hold_penalty", hold_complete="reward", start_pause="pause_init"),
+        hold_penalty = dict(hold_penalty_end="wait", start_pause="pause", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True),
+        pause_init = dict(continue_pause="pause"), # send a TRIAL_END event, then go immediately to pause state
+        pause = dict(end_pause="wait", end_state=True),
     )
 
     # initial state
@@ -46,8 +48,11 @@ class DiskMatching(Window, LogExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.disk_cursor = VirtualCircularTarget(target_radius=0, target_color=disk_colors[self.disk_cursor_color], starting_pos=self.disk_pos)
+        self.disk_target = VirtualTorusTarget() # just a placeholder
         for model in self.disk_cursor.graphics_models:
             self.add_model(model)
+        self.hold_penalty = False
+        np.random.seed() # initialize random number generator
 
     def init(self):
         self.add_dtype('disk_cursor_size', 'f8', (1,))
@@ -71,10 +76,13 @@ class DiskMatching(Window, LogExperiment):
         self.disk_cursor = VirtualCircularTarget(target_radius=self.disk_cursor_radius, target_color=disk_colors[self.disk_cursor_color], starting_pos=self.disk_pos)
         for model in self.disk_cursor.graphics_models:
             self.add_model(model)
+
+        if self.state == "pause":
+            self.disk_cursor.hide()
    
     #### TEST FUNCTIONS ####
     def _test_start_trial(self, ts):
-        return True
+        return not self.pause
 
     def _test_enter_target(self, ts):
         d = abs(self.disk_cursor_radius - self.disk_target_radius_trial)
@@ -90,16 +98,26 @@ class DiskMatching(Window, LogExperiment):
     def _test_hold_penalty_end(self, ts):
         return ts > self.hold_penalty_time
 
-    def _test_reward_end(self, time_in_state):
-        return time_in_state > self.reward_time
+    def _test_reward_end(self, ts):
+        return ts > self.reward_time
+    
+    def _test_start_pause(self, ts):
+        return self.pause
+    
+    def _test_continue_pause(self, ts):
+        return self.pause
+    
+    def _test_end_pause(self, ts):
+        return not self.pause
 
     ### STATE FUNCTIONS ###
     def _start_wait(self):
 
         # Select a random parameters
-        self.disk_target_radius_trial = np.random.uniform(*self.disk_target_radius)
-        self.hold_time_trial = np.random.uniform(*self.hold_time)
-        print("New target radius:", self.disk_target_radius_trial)
+        if not self.hold_penalty:
+            self.disk_target_radius_trial = np.random.uniform(*self.disk_target_radius)
+            self.hold_time_trial = np.random.uniform(*self.hold_time)
+            print("New target radius:", self.disk_target_radius_trial)
 
     def _start_target(self):
         self.sync_event('TARGET_ON', 0)
@@ -114,6 +132,7 @@ class DiskMatching(Window, LogExperiment):
     def _start_hold(self):
         self.sync_event('CURSOR_ENTER_TARGET', 0)
         self.disk_target.sphere.color = disk_colors['target_bright']
+        self.hold_penalty = False
 
     def _start_hold_penalty(self):
         self.sync_event('HOLD_PENALTY')
@@ -122,6 +141,10 @@ class DiskMatching(Window, LogExperiment):
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
 
+        self.hold_penalty = True
+
+    def _end_hold_penalty(self):
+        self.sync_event('TRIAL_END')
 
     def _start_reward(self):
         self.disk_target.cue_trial_end_success()
@@ -133,6 +156,19 @@ class DiskMatching(Window, LogExperiment):
         # Remove the disk target
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
+
+    def _start_pause_init(self):
+        self.sync_event('TRIAL_END')
+
+    def _start_pause(self):
+        self.sync_event('PAUSE_START')
+
+        # Remove the target
+        for model in self.disk_target.graphics_models:
+            self.remove_model(model)
+
+    def _end_pause(self):
+        self.sync_event('PAUSE_END')
 
     def _cycle(self):
         '''
