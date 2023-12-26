@@ -13,24 +13,11 @@ disk_colors = {
     'cursor': (1, 1, 1, 0.5),
 }
 
-class DiskMatching(Window, LogExperiment):
+class DiskMatchingMixin(traits.HasTraits):
     """
-    Annular targets are acquired by "holding" a disk cursor at the appropriate radius
+    Adds an annular target and disk cursor. To be combined with manual control experiments.
     """
-
-    status = dict(
-        wait = dict(start_trial="target", start_pause="pause"),
-        target = dict(enter_target="hold", start_pause="pause_init"),
-        hold = dict(leave_target="hold_penalty", hold_complete="reward", start_pause="pause_init"),
-        hold_penalty = dict(hold_penalty_end="wait", start_pause="pause", end_state=True),
-        reward = dict(reward_end="wait", stoppable=False, end_state=True),
-        pause_init = dict(continue_pause="pause"), # send a TRIAL_END event, then go immediately to pause state
-        pause = dict(end_pause="wait", end_state=True),
-    )
-
-    # initial state
-    state = "wait"
-
+ 
     # Runtime settable traits
     disk_cursor_offset = traits.Float(-0.09, desc="offset from raw joystick value to disk cursor radius")
     disk_cursor_gain = traits.Float(50., desc="conversion from raw joystick value to disk cursor radius")
@@ -41,17 +28,13 @@ class DiskMatching(Window, LogExperiment):
     disk_cursor_color = traits.OptionsList("cursor", *disk_colors, desc='Color of disk cursor ', bmi3d_input_options=list(disk_colors.keys()))
     disk_pos = traits.Tuple((0., 0., 0.), desc='Where to locate the disks') 
 
-    hold_time = traits.Tuple((0.5, 1.5), desc="Amount of time in (min, max) seconds the target must be held before reward")
-    hold_penalty_time = traits.Float(0.5, desc="Amount of time in seconds spent in hold penalty")
-    reward_time = traits.Float(.5, desc="Length of reward dispensation")
-
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.disk_cursor = VirtualCircularTarget(target_radius=0, target_color=disk_colors[self.disk_cursor_color], starting_pos=self.disk_pos)
         self.disk_target = VirtualTorusTarget() # just a placeholder
         for model in self.disk_cursor.graphics_models:
             self.add_model(model)
-        self.hold_penalty = False
+        self.disk_hold_penalty = False
         np.random.seed() # initialize random number generator
 
     def init(self):
@@ -79,6 +62,36 @@ class DiskMatching(Window, LogExperiment):
 
         if self.state == "pause":
             self.disk_cursor.hide()
+
+    def _cycle(self):
+        '''
+        Calls any update functions necessary and redraws screen
+        '''
+        self.update_disk_cursor()
+        super()._cycle()
+
+
+class DiskMatching(DiskMatchingMixin, Window, LogExperiment):
+    """
+    Annular targets are acquired by "holding" a disk cursor at the appropriate radius
+    """
+
+    status = dict(
+        wait = dict(start_trial="target", start_pause="pause"),
+        target = dict(enter_target="hold", start_pause="pause_init"),
+        hold = dict(leave_target="hold_penalty", hold_complete="reward", start_pause="pause_init"),
+        hold_penalty = dict(hold_penalty_end="wait", start_pause="pause", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True),
+        pause_init = dict(continue_pause="pause"), # send a TRIAL_END event, then go immediately to pause state
+        pause = dict(end_pause="wait", end_state=True),
+    )
+
+    # initial state
+    state = "wait"
+
+    hold_time = traits.Tuple((0.5, 1.5), desc="Amount of time in (min, max) seconds the target must be held before reward")
+    hold_penalty_time = traits.Float(0.5, desc="Amount of time in seconds spent in hold penalty")
+    reward_time = traits.Float(.5, desc="Length of reward dispensation")
    
     #### TEST FUNCTIONS ####
     def _test_start_trial(self, ts):
@@ -114,13 +127,13 @@ class DiskMatching(Window, LogExperiment):
     def _start_wait(self):
 
         # Select a random parameters
-        if not self.hold_penalty:
+        if not self.disk_hold_penalty:
             self.disk_target_radius_trial = np.random.uniform(*self.disk_target_radius)
             self.hold_time_trial = np.random.uniform(*self.hold_time)
             print("New target radius:", self.disk_target_radius_trial)
 
     def _start_target(self):
-        self.sync_event('TARGET_ON', 0)
+        self.sync_event('TARGET_ON', 0xd)
         
         self.task_data['disk_target_size'] = self.disk_target_radius_trial
         inner_radius = self.disk_target_radius_trial - self.disk_target_tolerance/2
@@ -130,9 +143,9 @@ class DiskMatching(Window, LogExperiment):
             self.add_model(model)
 
     def _start_hold(self):
-        self.sync_event('CURSOR_ENTER_TARGET', 0)
+        self.sync_event('CURSOR_ENTER_TARGET', 0xd)
         self.disk_target.sphere.color = disk_colors['target_bright']
-        self.hold_penalty = False
+        self.disk_hold_penalty = False
 
     def _start_hold_penalty(self):
         self.sync_event('HOLD_PENALTY')
@@ -141,7 +154,7 @@ class DiskMatching(Window, LogExperiment):
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
 
-        self.hold_penalty = True
+        self.disk_hold_penalty = True
 
     def _end_hold_penalty(self):
         self.sync_event('TRIAL_END')
@@ -163,16 +176,9 @@ class DiskMatching(Window, LogExperiment):
     def _start_pause(self):
         self.sync_event('PAUSE_START')
 
-        # Remove the target
+        # Remove the disk target
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
 
     def _end_pause(self):
         self.sync_event('PAUSE_END')
-
-    def _cycle(self):
-        '''
-        Calls any update functions necessary and redraws screen
-        '''
-        self.update_disk_cursor()
-        super()._cycle()
