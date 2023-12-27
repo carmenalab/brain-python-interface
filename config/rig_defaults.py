@@ -75,10 +75,8 @@ rig2_sync_params_arduino.update(dict(
     sync_protocol = 'rig2',
     sync_protocol_version = 13,
     event_sync_dch = [41,42,43,44,45,48,49,50],
-    screen_sync_pin = 11,
-    screen_sync_dch = 52,
-    recording_pin = 12,
-    recording_dch = 53, # This is not correct
+    screen_sync_dch = 51,
+    recording_dch = 52,
 ))
 arduino_sync_params = None
 
