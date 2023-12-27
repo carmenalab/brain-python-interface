@@ -3,12 +3,13 @@ import time
 from riglib.gpio import ArduinoGPIO, DigitalWave, TeensyGPIO
 from riglib import source
 from riglib.ecube import Digital, LFP
-from features.sync_features import rig1_sync_params_arduino, rig2_sync_params, ArduinoSync
+from features.sync_features import ArduinoSync
+from config.rig_defaults import rig2_sync_params_arduino
 import aopy
 
 import unittest
 
-sync_params = rig2_sync_params # rig1_sync_params_arduino
+sync_params = rig2_sync_params_arduino # rig1_sync_params_arduino
 
 class TestDIO(unittest.TestCase):
 
