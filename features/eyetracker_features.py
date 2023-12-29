@@ -14,6 +14,7 @@ from .peripheral_device_features import *
 
 import aopy
 import glob
+import os
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -306,8 +307,8 @@ class EyeCalibration(traits.HasTraits):
         
         # proc_exp # preprocess cursor data only
         taskid = self.taskid_for_eye_calibration
-        hdf_dir = '/home/pagaiisland/hdf'
-        hdf_file = glob.glob(f'/home/pagaiisland/hdf/*{taskid}*')[0]
+        hdf_dir = '/storage/hdf'
+        hdf_file = glob.glob(os.path.join(hdf_dir, f'*{taskid}*'))[0]
         ecube_file = glob.glob(f'/media/NeuroAcq/*{taskid}*')[0]
         files = {}
         files['hdf'] = hdf_file
