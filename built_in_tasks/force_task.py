@@ -156,6 +156,8 @@ class DiskMatching(DiskMatchingMixin, Window, LogExperiment):
 
         self.disk_hold_penalty = True
 
+        self.task_data['disk_target_size'] = 0.
+
     def _end_hold_penalty(self):
         self.sync_event('TRIAL_END')
 
@@ -170,6 +172,8 @@ class DiskMatching(DiskMatchingMixin, Window, LogExperiment):
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
 
+        self.task_data['disk_target_size'] = self.disk_target_radius_trial
+
     def _start_pause_init(self):
         self.sync_event('TRIAL_END')
 
@@ -179,6 +183,8 @@ class DiskMatching(DiskMatchingMixin, Window, LogExperiment):
         # Remove the disk target
         for model in self.disk_target.graphics_models:
             self.remove_model(model)
+        
+        self.task_data['disk_target_size'] = self.disk_target_radius_trial
 
     def _end_pause(self):
         self.sync_event('PAUSE_END')
