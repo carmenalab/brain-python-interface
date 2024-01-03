@@ -522,6 +522,9 @@ class EyeConstrained(ScreenTargetCapture):
             target.hide()
             target.reset()
 
+    def _end_fixation_penalty(self):
+        self.sync_event('TRIAL_END')
+
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
