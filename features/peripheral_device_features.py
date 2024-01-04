@@ -2,8 +2,10 @@
 Peripheral interface device features
 '''
 
+import types
 import numpy as np
 import pygame
+from riglib import gpio
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -285,3 +287,15 @@ class Mouse():
         self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
         self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
         return [self.pos]
+    
+class ForceControl():
+    '''
+    Read the voltage from pin 0 on connected arduino at '/dev/forcesensor'
+    '''
+    def init(self, *args, **kwargs):
+        if hasattr(super(), 'init'):
+            super().init(*args, **kwargs)
+        self.joystick = gpio.ArduinoGPIO('/dev/forcesensor', enable_analog=True)
+        def get(self):
+            return self.analog_read(0)
+        self.joystick.get = types.MethodType(get, self.joystick)

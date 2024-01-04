@@ -2,6 +2,7 @@
 Classes for general purpose input output (GPIO)
 '''
 
+import types
 import numpy as np
 #from multiprocessing import Process, Lock
 from threading import Thread as Process, Lock
@@ -9,6 +10,8 @@ import time
 import pyfirmata
 from serial.serialutil import SerialException
 import serial
+
+from .source import DataSourceSystem
 
 def convert_masked_data_to_pins(mask, data, bits=64):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''

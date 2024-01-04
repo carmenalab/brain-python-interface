@@ -13,7 +13,7 @@ This package has been used with the following recording systems:
 - Blackrock NeuroPort
 - White-matter eCube
 
-Code documentation can be found at http://carmenalab.github.io/bmi3d_docs/
+(Outdated) code documentation can be found at http://carmenalab.github.io/bmi3d_docs/
 
 Getting started
 ---------------
@@ -32,21 +32,18 @@ sudo xargs apt-get -y install < requirements.system
 ## Windows
 Visual C++ Build tools (for the 'traits' package)
 
+## Installation
+```bash
+pip install aolab-bmi3d
+```
 
-# Installation
+# Full Installation
 ```bash
 git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
 cd brain-python-interface
 pip3 install -r requirements.txt
 pip3 install -e .
 ./install-rabbitmq.sh
-```
-
-## Database access only
-```bash
-git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
-cd brain-python-interface
-pip3 install -e .
 ```
 
 ## Installation in Docker
