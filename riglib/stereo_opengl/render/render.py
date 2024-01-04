@@ -144,6 +144,10 @@ class Renderer(object):
         else:
             for name, program in list(self.programs.items()):
                 program.draw(self, self.render_queue[name], **kwargs)
+
+        error = glGetError()
+        if error != GL_NO_ERROR:
+            print(f"OpenGL Error: {error}")
     
     def draw_done(self):
         self.reset_texunits()
