@@ -12,7 +12,6 @@ from built_in_tasks.target_graphics import VirtualRectangularTarget
 from riglib.stereo_opengl.window import TRANSPARENT
 from config.rig_defaults import hdf_sync_params, nidaq_sync_params, arduino_sync_params
 
-
 def encode_event(dictionary, event_name, event_data):
     value = int(dictionary[event_name] + event_data)
     decoded = decode_event(dictionary, value)

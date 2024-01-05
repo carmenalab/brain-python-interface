@@ -11,6 +11,7 @@ try:
 except:
     import warnings
     warnings.warn('riglib/stereo_opengl_primitives.py: not importing name pygame')
+import matplotlib.tri as mtri
 
 from .models import TriMesh
 
@@ -113,6 +114,59 @@ class Cable(TriMesh):
         super(Cable, self).__init__(self.pts, np.array(self.polys), 
             tcoords=self.tcoord, normals=self.normals, **kwargs)
 
+class Torus(TriMesh):
+    '''
+    Corrected triangle mesh of a torus. Should work well for 3D rendering with lighting.
+    '''
+
+    def __init__(self, major_radius=1, minor_radius=0.5, segments_major=36, segments_minor=18, **kwargs):
+        self.major_radius = major_radius
+        self.minor_radius = minor_radius
+        theta_major = np.linspace(0, 2*np.pi, segments_major, endpoint=False)
+        phi_minor = np.linspace(0, 2*np.pi, segments_minor, endpoint=False)
+
+        # Create the points for the torus
+        pts = []
+        for i in range(segments_major):
+            for j in range(segments_minor):
+                x = (major_radius + minor_radius * np.cos(phi_minor[j])) * np.cos(theta_major[i])
+                y = (major_radius + minor_radius * np.cos(phi_minor[j])) * np.sin(theta_major[i])
+                z = minor_radius * np.sin(phi_minor[j])
+                pts.append([x, y, z])
+
+        pts = np.array(pts)
+
+        # Calculate the normals for the torus using cross product
+        normals = []
+        for i in range(segments_major):
+            for j in range(segments_minor):
+                current = pts[i * segments_minor + j]
+                next_i = pts[((i + 1) % segments_major) * segments_minor + j]
+                next_j = pts[i * segments_minor + (j + 1) % segments_minor]
+
+                edge1 = next_i - current
+                edge2 = next_j - current
+                normal = np.cross(edge1, edge2)
+                normals.append(normal)
+
+        normals = np.array(normals)
+        normals /= np.linalg.norm(normals, axis=1)[:, None]
+
+        # Create the polygons for the torus
+        polys = []
+        for i in range(segments_major):
+            for j in range(segments_minor):
+                p1 = i * segments_minor + j
+                p2 = ((i + 1) % segments_major) * segments_minor + j
+                p3 = ((i + 1) % segments_major) * segments_minor + (j + 1) % segments_minor
+                p4 = i * segments_minor + (j + 1) % segments_minor
+                polys.append((p1, p2, p3))
+                polys.append((p3, p4, p1))
+
+        # Create the texture coordinates for the torus
+        tcoord = np.array([[i, j] for i in np.linspace(0, 1, segments_major) for j in np.linspace(0, 1, segments_minor)])
+
+        super(Torus, self).__init__(pts, np.array(polys), tcoords=tcoord, normals=normals, **kwargs)
 
 class Sphere(TriMesh):
     def __init__(self, radius=1, segments=36, **kwargs):
