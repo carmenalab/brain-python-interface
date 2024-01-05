@@ -21,6 +21,7 @@ sync_events = dict(
     HOLD_PENALTY            = 0x40,
     TIMEOUT_PENALTY         = 0x41,
     DELAY_PENALTY           = 0x42,
+    FIXATION_PENALTY        = 0x43,
     OTHER_PENALTY           = 0x4f,
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
@@ -46,7 +47,7 @@ nidaq_sync_params.update(dict(
     sync_protocol_version = 10,
     sync_pulse_width = 0.003,
     event_sync_mask = 0xffffff,
-    event_sync_dch = range(16,24), # these are 0-indexed channels
+    event_sync_dch = range(16,24),
     screen_sync_pin = 8,
     screen_sync_dch = 24,
     screen_measure_dch = [5],
@@ -60,7 +61,7 @@ nidaq_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(nidaq_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 13,
+    sync_protocol_version = 14,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),
