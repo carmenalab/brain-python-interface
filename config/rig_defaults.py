@@ -11,6 +11,7 @@ window_size = (1920, 1080)
 screen_dist = 45
 screen_half_height = 12
 default_db = 'local'
+reward_address = '/dev/rewardsystem'
 sync_events = dict(
     EXP_START               = 0x1,
     TRIAL_START             = 0x2,
@@ -112,6 +113,7 @@ rig_settings = {
 }
 
 reward = {
+    'address': reward_address,
     'digital_pin': reward_digital_pin,
 }
 

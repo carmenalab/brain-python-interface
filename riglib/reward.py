@@ -24,7 +24,7 @@ class Basic(singleton.Singleton):
 
     def __init__(self):
         super().__init__()
-        com_port = '/dev/rewardsystem'  # specify the port, based on windows/Unix, can find it on IDE or terminal
+        com_port = reward_settings['address']  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = reward_settings['digital_pin'] # pin on the arduino which should be connected to the reward system
         self.off()
