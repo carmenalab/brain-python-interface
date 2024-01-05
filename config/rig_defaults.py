@@ -88,6 +88,7 @@ if hostname == 'pagaiisland2':
     screen_dist = 28
     screen_half_height = 10.75
     default_db = 'rig1'
+    reward_digital_pin = 12
     arduino_sync_params = rig1_sync_params_arduino
 elif hostname == 'siberut-bmi':
     optitrack_address = '10.155.204.10'
@@ -96,6 +97,7 @@ elif hostname == 'siberut-bmi':
     screen_dist = 28
     screen_half_height = 10.25
     default_db = 'rig2'
+    reward_digital_pin = 2
     arduino_sync_params = rig2_sync_params_arduino
 elif hostname == 'booted-server':
     screen_half_height = 5
@@ -106,6 +108,10 @@ elif hostname in ['moor', 'crab-eating']:
 # Organize the settings
 rig_settings = {
     'name': rig_name,
+}
+
+reward = {
+    'digital_pin': reward_digital_pin,
 }
 
 optitrack = {
