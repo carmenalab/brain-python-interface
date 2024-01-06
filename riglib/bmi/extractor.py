@@ -411,7 +411,7 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['win_len']  = self.win_len
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
-        self.npk = aopy.precondition.convert_taper_parameters(win_len, bw)
+        self.npk = aopy.precondition.convert_taper_parameters(win_len, NW/win_len)
    
         extractor_kwargs['no_log']  = 'no_log' in kwargs and kwargs['no_log']==True #remove log calculation
         extractor_kwargs['no_mean'] = 'no_mean' in kwargs and kwargs['no_mean']==True #r
@@ -494,11 +494,9 @@ class LFPMTMPowerExtractor(object):
         lfp_power : np.ndarray of shape (n_channels * n_features, 1)
             Multi-band power estimates for each channel, for each band specified when the feature extractor was instantiated.
         '''
-        print('getting features')
-        # assert int(self.win_len * self.fs) == cont_samples.shape[1]
-        # return np.zeros((len(self.bands)*len(cont_samples), 1))
+        assert int(self.win_len * self.fs) == cont_samples.shape[1]
+
         freqs, time, psd_est = aopy.analysis.calc_mt_tfr(cont_samples.T, *self.npk, self.fs, 1)
-        print('got features')
 
         if ('no_mean' in self.extractor_kwargs) and (self.extractor_kwargs['no_mean'] is True):
             return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
@@ -506,8 +504,10 @@ class LFPMTMPowerExtractor(object):
         else:
             # compute average power of each band of interest
             lfp_power = aopy.analysis.get_tfr_feats(freqs, psd_est, self.bands, not self.extractor_kwargs['no_log'], epsilon=self.epsilon)
-            return lfp_power.reshape(lfp_power.shape[0]*lfp_power.shape[-1], 1)
-
+            if lfp_power.ndim > 1:
+                return lfp_power.reshape(lfp_power.shape[0]*lfp_power.shape[1], 1)
+            else:
+                return lfp_power.reshape(lfp_power.size, 1)
 
     def __call__(self, start_time, *args, **kwargs):
         '''
