@@ -102,13 +102,22 @@ class RandomDelay(traits.HasTraits):
     
     rand_delay = traits.Tuple((0., 0.), desc="Delay interval")
     exclude_parent_traits = ['delay_time']
+    prob_catch_trials = traits.Float(0., desc="Probability of catch trials")
+    short_delay_catch_trials = traits.List([.2,], desc="Delay intervals for catch trials")
 
     def _start_wait(self):
         '''
         At the start of the 'wait' state, draw a sample from the rand_delay interval for this trial.
         '''
-        s, e = self.rand_delay
-        self.delay_time = random.random()*(e-s) + s
+
+        # Catch trial condition
+        if random.random() < self.prob_catch_trials:
+            self.delay_time = random.choice(self.short_delay_catch_trials)
+
+        # Normal trial condition
+        else:
+            s, e = self.rand_delay
+            self.delay_time = random.random()*(e-s) + s
         super()._start_wait()
 
 class TransparentDelayTarget(traits.HasTraits):
