@@ -170,6 +170,41 @@ class LaserConditions(Conditions):
         return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
 
     @staticmethod
+    def dual_laser_pulse(nreps=100, dur_1=[0.005], power_1=[1], dur_2=[0.005], power_2=[1], uniformsampling=True, ascending=False):
+        '''
+        Generates a sequence of laser pulse trains.
+
+        Parameters
+        ----------
+        nreps : int
+            The number of repetitions of each unique condition.
+        duration: list of floats
+            The duration of each pulse. Can be a list, randomly sampled
+        power : list of floats
+            Power for each pulse. Can be a list, randomly sampled
+
+        Returns
+        -------
+        seq : (nreps*len(duration)*len(power) x 3) tuple of trial indices, laser powers, and edge sequences
+
+        '''
+        dur_1 = make_list_of_float(dur_1)
+        dur_2 = make_list_of_float(dur_2)
+        power_1 = make_list_of_float(power_1)
+        power_2 = make_list_of_float(power_2)
+        if uniformsampling:
+            idx, dur_1_seq, dur_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_random_conditions(nreps, dur_1, dur_2, power_1, power_2)
+        else:
+            idx, dur_1_seq, dur_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_conditions(nreps, dur_1, dur_2, power_1, power_2, ascend=ascending)
+        edge_1_seq= map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), dur_1_seq)
+        edge_2_seq = map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), dur_2_seq)
+        return list(zip(idx, [[p1, p2] for p1, p2 in zip(power_1_seq, power_2_seq)], 
+                             [[e1, e2] for e1, e2 in zip(edge_1_seq, edge_2_seq)]))
+
+
+    @staticmethod
     def single_laser_square_wave(nreps=100, freq=[20], duration=[0.5], power=[1], uniformsampling=True, ascending=False):
         '''
         Generates a sequence of laser square waves.
