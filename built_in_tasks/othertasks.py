@@ -198,8 +198,8 @@ class LaserConditions(Conditions):
         else:
             idx, dur_1_seq, dur_2_seq, power_1_seq, power_2_seq = \
             Conditions.gen_conditions(nreps, dur_1, dur_2, power_1, power_2, ascend=ascending)
-        edge_1_seq= map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), dur_1_seq)
-        edge_2_seq = map(lambda freq, dur, dc, delay: DigitalWave.square_wave(freq, dur, duty_cycle=dc, phase_delay=delay), dur_2_seq)
+        edge_1_seq = map(lambda dur: [0, dur], dur_1_seq)
+        edge_2_seq = map(lambda dur: [0, dur], dur_2_seq)
         return list(zip(idx, [[p1, p2] for p1, p2 in zip(power_1_seq, power_2_seq)], 
                              [[e1, e2] for e1, e2 in zip(edge_1_seq, edge_2_seq)]))
 
