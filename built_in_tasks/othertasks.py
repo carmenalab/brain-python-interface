@@ -73,7 +73,7 @@ class Conditions(Sequence):
 
 class LaserConditions(Conditions):
 
-    sequence_generators = ['single_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
+    sequence_generators = ['single_laser_pulse', 'dual_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
     exclude_parent_traits = ['trial_time']
 
     def __init__(self, *args, **kwargs):
