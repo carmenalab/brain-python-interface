@@ -104,6 +104,10 @@ class LaserConditions(Conditions):
         self.trial_index, self.laser_powers, self.laser_edges = self.next_trial
         if len(self.laser_powers) < len(self.lasers) or len(self.laser_edges) < len(self.lasers):
             raise AttributeError("Not enough laser sequences for the number of lasers enabled")
+        
+        # Set laser power
+        for idx in range(len(self.lasers)):
+            self.lasers[idx].set_power(self.laser_powers[idx])
 
         # Send record of trial to sinks
         self.trial_record['trial'] = self.calc_trial_num()
@@ -120,9 +124,7 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             laser = self.lasers[idx]
             edges = self.laser_edges[idx]
-            # set laser power
-            power = self.laser_powers[idx]
-            laser.set_power(power)
+
             # Trigger digital wave
             wave = DigitalWave(laser, mask=1<<laser.port)
             wave.set_edges(edges, True)
