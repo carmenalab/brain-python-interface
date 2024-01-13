@@ -74,9 +74,10 @@ class MultiHoldTime(traits.HasTraits):
     center targets and peripheral targets can have different hold times.
     '''
 
-    hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears. \
+    multi_hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears. \
         Can be a single number or a list of numbers to apply to each target in the sequence (center, out, etc.)")
-
+    exclude_parent_traits = ['hold_time']
+    
     def _test_hold_complete(self, time_in_state):
         '''
         Test whether the target is held long enough to declare the
@@ -88,11 +89,11 @@ class MultiHoldTime(traits.HasTraits):
             - Sensorized object moved to the required location
             - Manually triggered by experimenter
         '''
-        if len(self.hold_time) == 1:
-            hold_time = self.hold_time[0]
+        if len(self.multi_hold_time) == 1:
+            multi_hold_time = self.multi_hold_time[0]
         else:
-            hold_time = self.hold_time[self.target_index]
-        return time_in_state > hold_time
+            multi_hold_time = self.multi_hold_time[self.target_index]
+        return time_in_state > multi_hold_time
 
 class RandomDelay(traits.HasTraits):
     '''
@@ -101,13 +102,22 @@ class RandomDelay(traits.HasTraits):
     
     rand_delay = traits.Tuple((0., 0.), desc="Delay interval")
     exclude_parent_traits = ['delay_time']
+    prob_catch_trials = traits.Float(0., desc="Probability of catch trials")
+    short_delay_catch_trials = traits.List([.2,], desc="Delay intervals for catch trials")
 
     def _start_wait(self):
         '''
         At the start of the 'wait' state, draw a sample from the rand_delay interval for this trial.
         '''
-        s, e = self.rand_delay
-        self.delay_time = random.random()*(e-s) + s
+
+        # Catch trial condition
+        if random.random() < self.prob_catch_trials:
+            self.delay_time = random.choice(self.short_delay_catch_trials)
+
+        # Normal trial condition
+        else:
+            s, e = self.rand_delay
+            self.delay_time = random.random()*(e-s) + s
         super()._start_wait()
 
 class TransparentDelayTarget(traits.HasTraits):

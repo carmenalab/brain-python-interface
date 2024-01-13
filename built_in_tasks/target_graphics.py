@@ -13,6 +13,7 @@ from riglib.stereo_opengl.utils import cloudy_tex
 sec_per_min = 60.0
 RED = (1,0,0,.5)
 GREEN = (0,1,0,0.5)
+BLUE = (0.,0.,1.,0.75)
 GOLD = (1., 0.843, 0., 0.5)
 YELLOW = (1,1,0,0.75)
 mm_per_cm = 1./10
@@ -22,6 +23,7 @@ target_colors = {
     "yellow": (1,1,0,0.75),
     "green":(0., 1., 0., 0.75),
     "blue":(0.,0.,1.,0.75),
+    "cyan":(0.,1.,1.,0.75),
     "magenta": (1,0,1,0.75),
     "pink": (1,0.5,1,0.75),
     "purple":(0.608,0.188,1,0.75),
@@ -70,6 +72,9 @@ class VirtualCircularTarget(CircularTarget):
     def cue_trial_start(self):
         self.sphere.color = self.target_color
         self.show()
+
+    def cue_fixation(self):
+        self.sphere.color = BLUE
 
     def cue_trial_end_success(self):
         self.sphere.color = GREEN
