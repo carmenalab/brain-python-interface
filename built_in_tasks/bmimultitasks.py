@@ -305,6 +305,12 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     def reset_cursor(self):
         self.decoder.filt.state.mean = self.init_decoder_mean.copy()
         self.hdf.sendMsg("reset")
+        
+    # @control_decorator
+    # def toggle_fixed(self):
+    #     self.decoder.filt.fixed = not self.decoder.filt.fixed
+    #     self.hdf.sendMsg(f"fixed = {self.decoder.filt.fixed}")
+    #     print(f"fixed = {self.decoder.filt.fixed}")
 
 class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.
