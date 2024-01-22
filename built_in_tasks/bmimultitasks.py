@@ -315,6 +315,12 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
         print(f"Mean: {self.decoder.filt.attr['offset']}")
         print(f"Std: {self.decoder.filt.attr['scale']}")
 
+    @control_decorator
+    def toggle_clda(self):
+        self.learn_flag = not self.learn_flag
+        self.hdf.sendMsg(f"clda = {self.learn_flag}")
+        print(f"clda = {self.learn_flag}")
+
 class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.
     def __init__(self,*args, **kwargs):
