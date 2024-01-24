@@ -29,11 +29,13 @@ sync_events = dict(
     CUE                     = 0x70,
     PAUSE_START             = 0x80,
     PAUSE_END               = 0x81,
+    FIXATION                = 0x90,
     TIME_ZERO               = 0xee,
     TRIAL_END               = 0xef,
     PAUSE                   = 0xfe,
     EXP_END                 = 0xff,    # For ease of implementation, the last event must be the highest possible value
 )
+
 hdf_sync_params = dict(
     sync_protocol = 'hdf',
     sync_protocol_version = 0,
@@ -62,7 +64,7 @@ nidaq_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(nidaq_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 14,
+    sync_protocol_version = 15,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),
@@ -75,7 +77,7 @@ rig1_sync_params_arduino.update(dict(
 rig2_sync_params_arduino = copy.copy(rig1_sync_params_arduino)
 rig2_sync_params_arduino.update(dict(
     sync_protocol = 'rig2',
-    sync_protocol_version = 13,
+    sync_protocol_version = 15,
     event_sync_dch = [41,42,43,44,45,48,49,50],
     screen_sync_dch = 51,
     recording_dch = 52,
