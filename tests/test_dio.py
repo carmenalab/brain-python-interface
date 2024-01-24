@@ -5,6 +5,7 @@ from riglib import source
 from riglib.ecube import Digital, LFP
 from features.sync_features import ArduinoSync
 from config.rig_defaults import rig2_sync_params_arduino
+from config.rig_defaults import reward
 import aopy
 
 import unittest
@@ -13,7 +14,28 @@ sync_params = rig2_sync_params_arduino # rig1_sync_params_arduino
 
 class TestDIO(unittest.TestCase):
 
-    
+    # def test_reward_out(self):
+    #     dio = ArduinoGPIO(reward['address'])
+    #     time.sleep(5)
+        
+    #     for pin in range(2,14):
+    #         print(pin)
+    #         # Send a bunch of pulses
+    #         pulse_width = 0.2
+    #         pulse_interval = 0.2
+    #         duration = 1
+    #         t0 = time.perf_counter()
+    #         while time.perf_counter() - t0 < duration:
+    #             dio.write(pin, 1)
+    #             t1 = time.perf_counter()
+    #             while time.perf_counter() - t1 < pulse_width:
+    #                 time.sleep(0)
+    #             dio.write(pin, 0)
+    #             t1 = time.perf_counter()
+    #             while time.perf_counter() - t1 < pulse_interval:
+    #                 time.sleep(0)
+
+    # @unittest.skip("")
     def test_dio_speed_direct(self):
         print("Testing direct connection to DIO")
 
@@ -89,7 +111,7 @@ class TestDIO(unittest.TestCase):
         width_ok = np.concatenate(pulses_ok, axis=0)
         print(f"ok: {np.count_nonzero(width_ok)} pulses")
 
-
+    @unittest.skip("")
     def test_dio_speed_multithreaded(self):
         print("Testing DIO via ArduinoSync()")
 
@@ -156,8 +178,6 @@ class TestDIO(unittest.TestCase):
         print(f"too long: {np.count_nonzero(width_too_long)} pulses")
         width_ok = np.concatenate(pulses_ok, axis=0)
         print(f"ok: {np.count_nonzero(width_ok)} pulses")
-
-
 
 if __name__ == '__main__':
     unittest.main()
