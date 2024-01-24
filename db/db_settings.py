@@ -41,9 +41,6 @@ def get_sqlite3_databases():
             'PORT': '',                      # Set to empty string for default. Not used with sqlite3.        
         }
 
-    if len(dbs.keys()) == 1 and 'test_aopy' in dbs.keys():
-        dbs = {'local': dbs['test_aopy']}
-
     return dbs
 
 def get_secret(setting):
@@ -78,7 +75,7 @@ if rig_defaults['enable_celery']:
 
 default_db = rig_defaults['default_db']
 if default_db not in DATABASES:
-    raise ValueError("Misconfigured rig_defaults.py, must add an existing default database.")
+    default_db = 'test_aopy'
 DATABASES['default'] = DATABASES[default_db]
 
 # Django settings for db project.
