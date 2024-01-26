@@ -11,6 +11,7 @@ window_size = (1920, 1080)
 screen_dist = 45
 screen_half_height = 12
 default_db = 'local'
+secret_dbnames = []
 reward_address = '/dev/rewardsystem'
 reward_digital_pin = 12
 sync_events = dict(
@@ -96,6 +97,7 @@ if hostname == 'pagaiisland2':
     screen_dist = 28
     screen_half_height = 10.75
     default_db = 'rig1'
+    secret_dbnames = ['rig1', 'test']
     arduino_sync_params = rig1_sync_params_arduino
 elif hostname == 'siberut-bmi':
     optitrack_address = '10.155.204.10'
@@ -104,13 +106,21 @@ elif hostname == 'siberut-bmi':
     screen_dist = 28
     screen_half_height = 10.25
     default_db = 'rig2'
+    secret_dbnames = ['rig2', 'test']
     reward_digital_pin = 2
     arduino_sync_params = rig2_sync_params_arduino
 elif hostname == 'booted-server':
     screen_half_height = 5
     default_db = 'tablet'
+    secret_dbnames = ['tablet']
 elif hostname in ['moor', 'crab-eating']:
     default_db = 'rig1'
+    secret_dbnames = [
+        'rig1',
+        'rig2',
+        'tablet',
+        'test',
+    ],
 
 # Organize the settings
 rig_settings = {
@@ -137,12 +147,7 @@ window = {
 }
 
 db = {
-    'secret_dbnames': [
-        'rig1',
-        'rig2',
-        'tablet',
-        'test',
-    ],
+    'secret_dbnames': secret_dbnames,
     'enable_celery': False,
     'default_db': default_db,
 }

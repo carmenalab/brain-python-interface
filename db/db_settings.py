@@ -22,7 +22,6 @@ def get_sqlite3_databases():
     for db in db_files:
         db_name_re = re.match('db(.*?).sql', os.path.basename(db))
         db_name = db_name_re.group(1)
-        print(db_name)
         if db_name.startswith('_'):
             db_name = db_name[1:]
         elif db_name == "":
@@ -75,6 +74,7 @@ if rig_defaults['enable_celery']:
 
 default_db = rig_defaults['default_db']
 if default_db not in DATABASES:
+    print('No databases configured. Setting test_aopy as default database.')
     default_db = 'test_aopy'
 DATABASES['default'] = DATABASES[default_db]
 
