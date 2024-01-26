@@ -12,6 +12,7 @@ screen_dist = 45
 screen_half_height = 12
 default_db = 'local'
 reward_address = '/dev/rewardsystem'
+reward_digital_pin = 12
 sync_events = dict(
     EXP_START               = 0x1,
     TRIAL_START             = 0x2,
@@ -95,7 +96,6 @@ if hostname == 'pagaiisland2':
     screen_dist = 28
     screen_half_height = 10.75
     default_db = 'rig1'
-    reward_digital_pin = 12
     arduino_sync_params = rig1_sync_params_arduino
 elif hostname == 'siberut-bmi':
     optitrack_address = '10.155.204.10'
