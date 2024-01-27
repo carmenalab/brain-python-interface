@@ -21,10 +21,14 @@ rig1_sync_events = dict(
     HOLD_PENALTY            = 0x40,
     TIMEOUT_PENALTY         = 0x41,
     DELAY_PENALTY           = 0x42,
+    FIXATION_PENALTY        = 0x43,
     OTHER_PENALTY           = 0x4f,
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
     CUE                     = 0x70,
+    PAUSE_START             = 0x80,
+    PAUSE_END               = 0x81,
+    FIXATION                = 0x90,
     TIME_ZERO               = 0xee,
     TRIAL_END               = 0xef,
     PAUSE                   = 0xfe,
@@ -61,7 +65,7 @@ rig1_sync_params.update(dict(
 rig1_sync_params_arduino = copy.copy(rig1_sync_params)
 rig1_sync_params_arduino.update(dict(
     sync_protocol = 'rig1_arduino',
-    sync_protocol_version = 13,
+    sync_protocol_version = 15,
     event_sync_mask = 0xfffffc,
     event_sync_data_shift = 2,
     event_sync_dch = range(31,39),
@@ -128,8 +132,11 @@ class HDFSync(traits.HasTraits):
         Send a sync event on the next cycle, unless 'immediate' flag is set
         '''
         if self.has_sync_event:
-            print("Warning: Cannot sync more than 1 event per cycle")
-            print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
+            if self.sync_event_record['code'] == self.sync_params['event_sync_dict']['TRIAL_END'] and event_name == 'PAUSE_START':
+                pass
+            else:
+                print("Warning: Cannot sync more than 1 event per cycle")
+                print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
 
         # digital output
         code = encode_event(self.sync_params['event_sync_dict'], event_name, min(event_data, self.sync_params['event_sync_max_data']))
@@ -355,6 +362,10 @@ class CursorAnalogOut(traits.HasTraits):
         float_values = (voltage + max_voltage/2)/max_voltage # (-1.15, +1.15) becomes (0, 1)
         float_values[float_values > 1] = 1.
         float_values[float_values < 0] = 0.
+        if any(np.isnan(float_values)):
+            super()._cycle()
+            return
+            
         int_values = (max_int*float_values).astype(int)
         self.cursor_output_gpio.analog_write(self.cursor_x_pin, int_values[0])
         # self.cursor_output_gpio.analog_write(self.cursor_y_pin, int_values[1])

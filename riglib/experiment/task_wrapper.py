@@ -15,7 +15,7 @@ class TaskWrapper(RPCProcess):
     '''
     proxy = ObjProxy
 
-    def __init__(self, subj, params, target_class=Experiment,
+    def __init__(self, subj, subject_name, params, target_class=Experiment,
         websock=None, status='',
         seq=None, seq_params=None, saveid=None, **kwargs):
         '''
@@ -43,6 +43,7 @@ class TaskWrapper(RPCProcess):
         super().__init__(**kwargs)
         self.log_str("TaskWrapper constructor")
         self.subj = subj
+        self.subject_name = subject_name
         self.target_class = target_class
         self.params = params
         self.seq = seq
@@ -57,12 +58,14 @@ class TaskWrapper(RPCProcess):
         saveid = self.saveid
 
         Task = self.target_class
+        self.params['subject_name'] = self.subject_name
 
         # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
         self.target_class.pre_init(saveid=saveid, **self.params)
 
         self.log_str("Constructing task target")
         self.params['saveid'] = saveid
+
         if issubclass(Task, Sequence):
             if isinstance(seq, np.ndarray):
                 self.log_str("'seq' input is an array")

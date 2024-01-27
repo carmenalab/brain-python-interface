@@ -7,9 +7,9 @@ from features.debug_features import Profiler
 from features.laser_features import QwalorLaser, MultiQwalorLaser, LaserState
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness, PoissonWait
-from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
+from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl, ForceControl
 from .reward_features import RewardSystem, TTLReward, JuiceLogging, PelletReward, JackpotRewards, ProgressBar, TrackingRewards
-from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
+from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart, EyeConstrained, EyeCalibration, EyeStreaming
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
 from .optitrack_features import Optitrack
 from .plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
@@ -21,6 +21,7 @@ from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
 from .ecube_features import EcubeFileBMI, EcubeBMI
 from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync
+from .neuropixel_features import RecordNeuropixels
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -68,7 +69,12 @@ built_in_features = dict(
     screen_sync=ScreenSync,
     cursor_sync=CursorAnalogOut,
     progress_bar=ProgressBar,
-    tracking_rewards=TrackingRewards
+    tracking_rewards=TrackingRewards,
+    neuropixel=RecordNeuropixels,
+    eye_streaming=EyeStreaming,
+    eye_constrained=EyeConstrained,
+    eye_calibration=EyeCalibration, 
+    force_sensor=ForceControl,
 )
 
 # >>> features.built_in_features['autostart'].__module__

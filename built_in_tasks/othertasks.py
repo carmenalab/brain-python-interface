@@ -75,7 +75,6 @@ class LaserConditions(Conditions):
 
     sequence_generators = ['single_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
     exclude_parent_traits = ['trial_time']
-    stimulation_site = traits.String("", desc="Where was the laser stimulation?")
 
     def __init__(self, *args, **kwargs):
         self.laser_threads = []

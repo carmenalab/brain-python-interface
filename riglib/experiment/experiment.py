@@ -599,7 +599,9 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     @control_decorator
     def play_pause(self):
         self.pause = not self.pause
-        self.sync_event("PAUSE", immediate=True)
+
+        if 'pause' not in self.status.states:
+            self.sync_event("PAUSE", immediate=True)
 
         if self.pause:
             print("Paused!")
@@ -800,11 +802,11 @@ class Sequence(LogExperiment):
 
         try:
             self.next_trial = next(self.gen)
-            self._parse_next_trial() # KP changed 10/26/22
+            # self._parse_next_trial() # KP changed 10/26/22
         except StopIteration:
             self.end_task()
 
-        # self._parse_next_trial()
+        self._parse_next_trial()
 
     def _parse_next_trial(self):
         '''

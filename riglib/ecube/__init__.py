@@ -9,6 +9,10 @@ from riglib.source import DataSourceSystem
 eCube streaming sources
 '''
 
+analog_voltsperbit = 3.0517578125e-4
+headstage_voltsperbit = 1.907348633e-7
+TRIG_THRESH = 2.5
+
 def multi_chan_generator(data_block, channels, downsample=1):
     for idx in range(len(channels)):
         yield (channels[idx], data_block[::downsample,idx]) # yield one channel at a time
@@ -264,7 +268,7 @@ class LFP_Plus_Trigger(DataSourceSystem):
     update_freq = 1000.
     dtype = np.dtype('float')
 
-    def __init__(self, headstage=7, trigger_ach=0, channels=[1]):
+    def __init__(self, headstage=7, trigger_ach=0, channels=[1], trig_included_in_channels=False):
         '''
         Constructor for ecube.Broadband
         Inputs:
@@ -275,7 +279,10 @@ class LFP_Plus_Trigger(DataSourceSystem):
         self.conn = eCubeStream(debug=False)
         self.headstage = headstage
         self.trig_channel = trigger_ach
-        self.channels = channels
+        if trig_included_in_channels:
+            self.channels = channels[1:]
+        else:
+            self.channels = channels
 
     def start(self):
         print("Starting ecube streaming datasource...")
@@ -344,14 +351,17 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
     chunksize = 728
     dtype = np.dtype('float')
 
-    def __init__(self, channels, ecube_bmi_filename=None, trig_channel=0):
+    def __init__(self, channels, ecube_bmi_filename=None, trig_channel=0, trig_included_in_channels=False):
         
         if not ecube_bmi_filename:
             ecube_bmi_filename = "/data/raw/ecube/2022-08-19_BMI3D_te6569"
 
         # Open the file
         self.trig_channel = trig_channel
-        self.channels = channels
+        if trig_included_in_channels:
+            self.channels = channels[1:]
+        else:
+            self.channels = channels
         zero_idx_channels = [ch-1 for ch in self.channels]
         self.file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "Headstages", channels=zero_idx_channels, chunksize=self.chunksize)
         self.trig_file = aopy.data.load_ecube_data_chunked(ecube_bmi_filename, "AnalogPanel", channels=[self.trig_channel], chunksize=self.chunksize)
@@ -382,48 +392,49 @@ class LFP_Plus_Trigger_File(DataSourceSystem):
     
 class LFP_Blanking(LFP_Plus_Trigger):
     '''
-    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource
+    Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource.
+
+    Limitation: only blanks one chunk at a time, so smaller chunks are better! But -- the analog panel stream
+    arrives in more frequent 22-sample packets; once the headstage packets are that size then there is no 
+    benefit to making the hs packets any smaller! 
+    
+    Warning: untested! Use at your own risk.
     '''
 
-    blanking = False
-    analog_buffer = np.nan*np.zeros((1000*30,))
+    blanking = 0
     headstage_buffer = []
-        
+    trig_buffer = []
+    
     def get(self):
         '''data
         Retrieve a packet from the server
         '''
         try:
-            if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
-            else:
-                return next(self.gen)        
+            return next(self.gen)        
         except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             while data_block[1] != "Headstages": # new packet of trigger data
-                trig = data_block[2][::25]
-                n_trig = len(trig)
-                self.analog_buffer[:-n_trig] = self.analog_buffer[n_trig:]
-                self.analog_buffer[-n_trig:] = trig
-                median = np.nanmedian(self.analog_buffer)
-                std = np.nanstd(self.analog_buffer)
-                thr = median + 3*std
-                if np.max(trig) > thr:
-                    self.blanking = True
-                else:
-                    self.blanking = False
+                self.trig_buffer = np.concatenate((self.trig_buffer, np.squeeze(data_block[2])), axis=0)
                 data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
 
-            self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
-            if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
+            if len(self.trig_buffer) == 0:
+                self.blanking = 1
             else:
-                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
-                return next(self.gen)
+                trig_chunk_volts = analog_voltsperbit*np.array(self.trig_buffer)
+            if self.blanking:
+                self.blanking -= 1
+            elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
+                self.blanking = 1
+            elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
+                self.blanking = 1
+            self.trig_buffer = [] # reset the trigger accumulation
+
+            if self.blanking:
+                self.gen = multi_chan_generator(self.headstage_buffer, self.channels, downsample=25)
+            else:
+                self.headstage_buffer = data_block[2].copy() # save this good hs data for later if blanking is needed
+                self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
+            return next(self.gen)
 
 
 class LFP_Blanking_File(LFP_Plus_Trigger_File):
@@ -431,54 +442,44 @@ class LFP_Blanking_File(LFP_Plus_Trigger_File):
     Blanks LFP data in the interval when the trigger is on. Compatible with riglib.source.MultiChanDataSource
     '''
 
-    blanking = False
-    analog_buffer = np.nan*np.zeros((1000*30,))
+    blanking = 0
     headstage_buffer = []
-
+    
     def get(self):
         '''data
         Read a "packet" worth of data from the file
         '''
         try:
-            if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
-            else:
-                return next(self.gen)        
+            return next(self.gen)        
         except (StopIteration, AttributeError):
             time.sleep(1./(25000/self.chunksize))
-            if self.trig_flag:
-                try:
-                    trig_chunk = next(self.trig_file)[::25]
-                except StopIteration:
-                    trig_chunk = np.zeros((int(728/25),1))
-                self.trig_flag = False
-                
-                n_trig = trig_chunk.size
-                self.analog_buffer[:-n_trig] = self.analog_buffer[n_trig:]
-                self.analog_buffer[-n_trig:] = np.squeeze(trig_chunk)
-                median = np.nanmedian(self.analog_buffer)
-                std = np.nanstd(self.analog_buffer)
-                thr = median + 3*std
-                if np.max(trig_chunk) > thr:
-                    self.blanking = True
-                else:
-                    self.blanking = False
-
+            
+            # Get a chunk of trigger data
+            try:
+                trig_chunk = next(self.trig_file)
+            except StopIteration:
+                trig_chunk = np.zeros((self.chunksize,))
+            trig_chunk_volts = analog_voltsperbit*trig_chunk
+            if self.blanking:
+                self.blanking -= 1
+            elif (trig_chunk_volts[-1] > TRIG_THRESH and trig_chunk_volts[0] < TRIG_THRESH):
+                self.blanking = 1
+            elif (trig_chunk_volts[-1] < TRIG_THRESH and trig_chunk_volts[0] > TRIG_THRESH):
+                self.blanking = 1
+                  
+            # Get a chunk of hs data
             try:
                 data_block = next(self.file)
-                self.trig_flag = True
             except StopIteration:
-                data_block = np.zeros((int(728/25),len(self.channels)))
-            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+                data_block = np.zeros((self.chunksize,len(self.channels)))
+                
+            # Make the new generator and return the first channel
             if self.blanking:
-                chan, data = next(self.gen)
-                blank = self.headstage_buffer[:,chan-1] # copy the last good headstage data for this channel
-                return (chan, blank)
+                data_block = self.headstage_buffer.copy() # copy the last good headstage data for this channel
             else:
-                self.headstage_buffer = data_block[2][::25,:] # save this good hs data for later if blanking is needed
-                return next(self.gen)
+                self.headstage_buffer = data_block.copy() # save this good hs data for later if blanking is needed
+            self.gen = multi_chan_generator(data_block, self.channels, downsample=25)
+            return next(self.gen)
     
 def make_source_class(cls, trigger_ach):
     

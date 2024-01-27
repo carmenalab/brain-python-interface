@@ -294,7 +294,7 @@ def start_experiment(request, save=True, execute=True):
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         feats = Feature.getall(feature_names)
-        kwargs = dict(subj=entry.subject.id, base_class=task.get(),
+        kwargs = dict(subj=entry.subject.id, subject_name=subject_name, base_class=task.get(),
             feats=feats, params=params)
         metadata = Parameters.from_html(data['metadata'])
         entry.metadata = metadata.to_json()

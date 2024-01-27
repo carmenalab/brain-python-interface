@@ -2,7 +2,7 @@
 Base tasks for generic point-to-point reaching
 '''
 import numpy as np
-from riglib.stereo_opengl.primitives import Cable, Sphere, Cube
+from riglib.stereo_opengl.primitives import Cable, Sphere, Cube, Torus
 from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cube
 from riglib.stereo_opengl.models import FlatMesh, Group
 from riglib.stereo_opengl.textures import Texture, TexModel
@@ -13,6 +13,7 @@ from riglib.stereo_opengl.utils import cloudy_tex
 sec_per_min = 60.0
 RED = (1,0,0,.5)
 GREEN = (0,1,0,0.5)
+BLUE = (0.,0.,1.,0.75)
 GOLD = (1., 0.843, 0., 0.5)
 YELLOW = (1,1,0,0.75)
 mm_per_cm = 1./10
@@ -22,6 +23,7 @@ target_colors = {
     "yellow": (1,1,0,0.75),
     "green":(0., 1., 0., 0.75),
     "blue":(0.,0.,1.,0.75),
+    "cyan":(0.,1.,1.,0.75),
     "magenta": (1,0,1,0.75),
     "pink": (1,0.5,1,0.75),
     "purple":(0.608,0.188,1,0.75),
@@ -70,6 +72,9 @@ class VirtualCircularTarget(CircularTarget):
     def cue_trial_start(self):
         self.sphere.color = self.target_color
         self.show()
+
+    def cue_fixation(self):
+        self.sphere.color = BLUE
 
     def cue_trial_end_success(self):
         self.sphere.color = GREEN
@@ -220,3 +225,27 @@ class VirtualCableTarget(CableTarget):
     def get_position(self):
         return self.cable.xfm.move
 
+class VirtualTorusTarget(VirtualCircularTarget):
+
+    def __init__(self, inner_radius=2, outer_radius=3, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
+        self.target_color = target_color
+        self.major_radius = np.mean([inner_radius, outer_radius])
+        self.minor_radius = np.abs(outer_radius - inner_radius)
+        self.target_color = target_color
+        self.position = starting_pos
+        self.int_position = starting_pos
+        self._pickle_init()
+
+    def _pickle_init(self):
+        self.sphere = Torus(major_radius=self.major_radius, minor_radius=self.minor_radius, color=self.target_color)
+        self.graphics_models = [self.sphere]
+        self.sphere.translate(*self.position)
+        self.sphere.rotate_x(90)
+
+    def pt_inside(self, pt):
+        '''
+        Test if a point is inside the target
+        '''
+        pos = self.sphere.xfm.move
+        # Not yet implmented. Hopefully not needed.
+        return False

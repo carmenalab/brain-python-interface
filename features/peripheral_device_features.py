@@ -2,8 +2,10 @@
 Peripheral interface device features
 '''
 
+import types
 import numpy as np
 import pygame
+from riglib import gpio
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -184,6 +186,44 @@ class Button(object):
         import pygame
         pygame.event.clear()
 
+class EyeControl(object):
+    '''
+    this class implements a python cursor control task. This is just for testing eye related task. 
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Eye(np.array(self.starting_pos[::2]))
+
+class Eye(object):
+    '''
+    Pretend to be a data source. This is just for testing eye related task. 
+    '''
+    
+    def __init__(self, start_pos):
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
+        self.calibration = np.array([2,0.2]) # TODO load calibration data
+
+    def get(self):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYUP:
+                if event.type == pygame.K_q:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_LEFT:
+                    self.pos[0] -= self.move_step
+                if event.key == pygame.K_RIGHT:
+                    self.pos[0] += self.move_step
+                if event.key == pygame.K_UP:
+                    self.pos[1] += self.move_step
+                if event.key == pygame.K_DOWN:
+                    self.pos[1] -= self.move_step
+
+        calibrated_pos = self.calibration*self.pos
+        return [calibrated_pos]
 
 class KeyboardControl(object):
     '''
@@ -247,3 +287,15 @@ class Mouse():
         self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
         self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
         return [self.pos]
+    
+class ForceControl():
+    '''
+    Read the voltage from pin 0 on connected arduino at '/dev/forcesensor'
+    '''
+    def init(self, *args, **kwargs):
+        if hasattr(super(), 'init'):
+            super().init(*args, **kwargs)
+        self.joystick = gpio.ArduinoGPIO('/dev/forcesensor', enable_analog=True)
+        def get(self):
+            return self.analog_read(0)
+        self.joystick.get = types.MethodType(get, self.joystick)
