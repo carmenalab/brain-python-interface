@@ -74,7 +74,6 @@ rig1_sync_params_arduino.update(dict(
     screen_sync_dch = 39,
     recording_pin = 11,
     recording_dch = 40,
-
 ))
 rig2_sync_params_arduino = copy.copy(rig1_sync_params_arduino)
 rig2_sync_params_arduino.update(dict(
@@ -84,7 +83,9 @@ rig2_sync_params_arduino.update(dict(
     screen_sync_dch = 51,
     screen_measure_dch = [6],
     screen_measure_ach = [6],
-    reward_measure_ach = [1],    
+    reward_measure_ach = [1],
+    right_eye_ach = [26, 27],
+    left_eye_ach = [24, 25],
     recording_dch = 52,
 ))
 arduino_sync_params = None
