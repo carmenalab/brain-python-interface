@@ -53,16 +53,17 @@ class RewardSystem(traits.HasTraits):
     def manual_reward(duration=0.5, static=True):
         from riglib import reward
         reward_sys = reward.open()
-        float_dur = float(duration) # these parameters always end up being strings
+        float_dur = float(duration)  # these parameters always end up being strings
         reward_sys.async_drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
 class PelletReward(RewardSystem):
     '''
-    
+    Trigger pellet rewards.    
     '''
-    
+    pellets_per_reward = traits.Int(1, desc='The number of pellets to dispense per reward.')      
+
     def __init__(self, *args, **kwargs):
         from riglib.tablet_reward import RemoteReward
         super(RewardSystem, self).__init__(*args, **kwargs)
@@ -73,8 +74,11 @@ class PelletReward(RewardSystem):
         if hasattr(super(RewardSystem, self), '_start_reward'):
             super(RewardSystem, self)._start_reward()
         self.reportstats['Reward #'] += 1
+        
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-            self.reward.trigger()
+            for _ in range(self.pellets_per_reward): # call trigger num of pellets_per_reward time
+                self.reward.trigger()
+                time.sleep(0.5) # wait for 0.5 seconds
 
     def _end_reward(self):
         if hasattr(super(RewardSystem, self), '_end_reward'):
