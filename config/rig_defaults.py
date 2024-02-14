@@ -13,6 +13,7 @@ screen_half_height = 12
 default_db = 'local'
 secret_dbnames = []
 reward_address = '/dev/rewardsystem'
+force_sensor_address = '/dev/forcesensor'
 reward_digital_pin = 12
 sync_events = dict(
     EXP_START               = 0x1,
