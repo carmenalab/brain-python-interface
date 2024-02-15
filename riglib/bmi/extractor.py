@@ -6,6 +6,7 @@ import numpy as np
 from scipy.signal import butter, lfilter
 import os
 import nitime.algorithms as tsa
+import aopy
 
 class FeatureExtractor(object):
     '''
@@ -410,7 +411,7 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['win_len']  = self.win_len
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
-
+        self.npk = aopy.precondition.convert_taper_parameters(win_len, NW/win_len)
    
         extractor_kwargs['no_log']  = 'no_log' in kwargs and kwargs['no_log']==True #remove log calculation
         extractor_kwargs['no_mean'] = 'no_mean' in kwargs and kwargs['no_mean']==True #r
@@ -448,6 +449,37 @@ class LFPMTMPowerExtractor(object):
         '''
         return self.source.get(self.n_pts, self.channels)
 
+    # def extract_features(self, cont_samples):
+    #     '''
+    #     Extract spectral features from a block of time series samples
+
+    #     Parameters
+    #     ----------
+    #     cont_samples : np.ndarray of shape (n_channels, n_samples)
+    #         Raw voltage time series (one per channel) from which to extract spectral features 
+
+    #     Returns
+    #     -------
+    #     lfp_power : np.ndarray of shape (n_channels * n_features, 1)
+    #         Multi-band power estimates for each channel, for each band specified when the feature extractor was instantiated.
+    #     '''
+    #     psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
+        
+    #     if ('no_mean' in self.extractor_kwargs) and (self.extractor_kwargs['no_mean'] is True):
+    #         return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
+
+    #     else:
+    #         # compute average power of each band of interest
+    #         n_chan = len(self.channels)
+    #         lfp_power = np.zeros((n_chan * len(self.bands), 1))
+    #         for idx, band in enumerate(self.bands):
+    #             if self.extractor_kwargs['no_log']:
+    #                 lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1)
+    #             else:
+    #                 lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
+            
+    #         return lfp_power
+        
     def extract_features(self, cont_samples):
         '''
         Extract spectral features from a block of time series samples
@@ -462,22 +494,20 @@ class LFPMTMPowerExtractor(object):
         lfp_power : np.ndarray of shape (n_channels * n_features, 1)
             Multi-band power estimates for each channel, for each band specified when the feature extractor was instantiated.
         '''
-        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
-        
+        assert int(self.win_len * self.fs) == cont_samples.shape[1]
+
+        freqs, time, psd_est = aopy.analysis.calc_mt_tfr(cont_samples.T, *self.npk, self.fs, 1)
+
         if ('no_mean' in self.extractor_kwargs) and (self.extractor_kwargs['no_mean'] is True):
             return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
 
         else:
             # compute average power of each band of interest
-            n_chan = len(self.channels)
-            lfp_power = np.zeros((n_chan * len(self.bands), 1))
-            for idx, band in enumerate(self.bands):
-                if self.extractor_kwargs['no_log']:
-                    lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1)
-                else:
-                    lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
-            
-            return lfp_power
+            lfp_power = aopy.analysis.get_tfr_feats(freqs, psd_est, self.bands, not self.extractor_kwargs['no_log'], epsilon=self.epsilon)
+            if lfp_power.ndim > 1:
+                return lfp_power.reshape(lfp_power.shape[0]*lfp_power.shape[1], 1)
+            else:
+                return lfp_power.reshape(lfp_power.size, 1)
 
     def __call__(self, start_time, *args, **kwargs):
         '''
@@ -594,6 +624,7 @@ class LFPMTMPowerExtractor(object):
         #   and reset the units variable
 
         return lfp_power, units, extractor_kwargs
+
 
 #########################################################
 ##### Reconstruction extractors, used in test cases #####

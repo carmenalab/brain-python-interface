@@ -14,8 +14,7 @@ class Basic(singleton.Singleton):
 
     def __init__(self):
         super().__init__()
-        com_port = 'COM4'  # specify the port, based on windows/Unix, can find it on IDE or terminal
-        self.board = ArduinoGPIO(port=com_port)
+        self.board = ArduinoGPIO() # let the computer find the arduino. this won't work with more than one arduino!
         self.board.write(12,1)
 
     def dispense(self):  # call this function to drain the reward system

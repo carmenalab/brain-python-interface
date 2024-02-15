@@ -25,6 +25,7 @@
   var feats = new Features();
   var collections = new Collections();
   $(document).ready(function() {
+    console.log("TEST");
     $("table#main tr").each(function() {
       // Register a click callback for each row of the 'main' table
       // If you click on the very top row, the id is set to "newentry"
@@ -67,7 +68,7 @@
       function () {
         te.toggle_template();
       }
-    )
+    );
 
     // these are wrapped in a function because 'te' is null to start
     $("#startbtn").click(function() { te.start();});
@@ -218,6 +219,35 @@
     $("#newentry_today").html("Today");
     $('#newentry_today').css('color', 'black');
   }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var dispenseBtn = document.getElementById('dispenseBtn');
+
+    dispenseBtn.addEventListener('click', function() {
+      // use fetch to send a POST request to server
+      fetch('http://localhost:8080', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'dispenseTabletReward' }),
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // handle response from the server if needed
+        console.log('Server response:', data);
+      })
+      .catch(error => {
+        // handle errors
+        console.error('There was a problem with the fetch operation:', error);
+      });
+    });
+  });
 </script>
 </head>
 
@@ -433,10 +463,12 @@
               </fieldset>
 
               <fieldset id="controls">
+                <button id="dispenseBtn" type="button">Dispense manual reward</button>
                 <legend>Controls</legend>
                 <table id="controls_table">
                 </table>
               </fieldset>
+              
 
               <fieldset id="notes">
                 <legend>Notes</legend>

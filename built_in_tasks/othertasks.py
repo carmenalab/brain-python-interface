@@ -73,7 +73,7 @@ class Conditions(Sequence):
 
 class LaserConditions(Conditions):
 
-    sequence_generators = ['single_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
+    sequence_generators = ['single_laser_pulse', 'dual_laser_pulse', 'single_laser_square_wave', 'dual_laser_square_wave']
     exclude_parent_traits = ['trial_time']
 
     def __init__(self, *args, **kwargs):
@@ -104,6 +104,10 @@ class LaserConditions(Conditions):
         self.trial_index, self.laser_powers, self.laser_edges = self.next_trial
         if len(self.laser_powers) < len(self.lasers) or len(self.laser_edges) < len(self.lasers):
             raise AttributeError("Not enough laser sequences for the number of lasers enabled")
+        
+        # Set laser power
+        for idx in range(len(self.lasers)):
+            self.lasers[idx].set_power(self.laser_powers[idx])
 
         # Send record of trial to sinks
         self.trial_record['trial'] = self.calc_trial_num()
@@ -120,9 +124,7 @@ class LaserConditions(Conditions):
         for idx in range(len(self.lasers)):
             laser = self.lasers[idx]
             edges = self.laser_edges[idx]
-            # set laser power
-            power = self.laser_powers[idx]
-            laser.set_power(power)
+
             # Trigger digital wave
             wave = DigitalWave(laser, mask=1<<laser.port)
             wave.set_edges(edges, True)
@@ -168,6 +170,41 @@ class LaserConditions(Conditions):
             idx, dur_seq, pow_seq = Conditions.gen_conditions(nreps, duration, power, ascend=ascending)
         edge_seq = map(lambda dur: [0, dur], dur_seq)
         return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
+
+    @staticmethod
+    def dual_laser_pulse(nreps=100, dur_1=[0.005], power_1=[1], dur_2=[0.005], power_2=[1], uniformsampling=True, ascending=False):
+        '''
+        Generates a sequence of laser pulse trains.
+
+        Parameters
+        ----------
+        nreps : int
+            The number of repetitions of each unique condition.
+        duration: list of floats
+            The duration of each pulse. Can be a list, randomly sampled
+        power : list of floats
+            Power for each pulse. Can be a list, randomly sampled
+
+        Returns
+        -------
+        seq : (nreps*len(duration)*len(power) x 3) tuple of trial indices, laser powers, and edge sequences
+
+        '''
+        dur_1 = make_list_of_float(dur_1)
+        dur_2 = make_list_of_float(dur_2)
+        power_1 = make_list_of_float(power_1)
+        power_2 = make_list_of_float(power_2)
+        if uniformsampling:
+            idx, dur_1_seq, dur_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_random_conditions(nreps, dur_1, dur_2, power_1, power_2)
+        else:
+            idx, dur_1_seq, dur_2_seq, power_1_seq, power_2_seq = \
+            Conditions.gen_conditions(nreps, dur_1, dur_2, power_1, power_2, ascend=ascending)
+        edge_1_seq = map(lambda dur: [0, dur], dur_1_seq)
+        edge_2_seq = map(lambda dur: [0, dur], dur_2_seq)
+        return list(zip(idx, [[p1, p2] for p1, p2 in zip(power_1_seq, power_2_seq)], 
+                             [[e1, e2] for e1, e2 in zip(edge_1_seq, edge_2_seq)]))
+
 
     @staticmethod
     def single_laser_square_wave(nreps=100, freq=[20], duration=[0.5], power=[1], uniformsampling=True, ascending=False):

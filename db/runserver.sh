@@ -12,6 +12,11 @@ elif [ "$HOST" = "pagaiisland-surface" ]; then
     export DISPLAY=localhost:0
     export LIBGL_ALWAYS_INDIRECT=0
     echo "success"
+elif [ "$HOST" = "booted-server" ]; then
+    export DISPLAY=':1'
+    Xvnc :1 -securityTypes None -geometry 1920x1080 -nocursor &
+    eval "$(conda shell.bash hook)"
+    conda activate bmi3d
 fi
 
 # Find the BMI3D directory
@@ -92,7 +97,6 @@ if  test -f "$BMI3D/env/bin/activate"; then
 else
     eval "$(conda shell.bash hook)"
     conda activate bmi3d
-    echo "No environment found."
 fi
 
 trap "exit" INT TERM ERR
@@ -114,3 +118,5 @@ if [ "$HOST" = "pagaiisland2" ] || [ "$HOST" = "siberut-bmi" ]; then
 fi
 
 wait
+
+sleep 10

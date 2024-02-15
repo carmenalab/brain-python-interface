@@ -305,6 +305,21 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     def reset_cursor(self):
         self.decoder.filt.state.mean = self.init_decoder_mean.copy()
         self.hdf.sendMsg("reset")
+        
+    @control_decorator
+    def toggle_fixed(self):
+        # This is a temporary solution - LRS Jan 2024
+        self.decoder.filt.fixed = not self.decoder.filt.fixed
+        self.hdf.sendMsg(f"fixed = {self.decoder.filt.fixed}")
+        print(f"fixed = {self.decoder.filt.fixed}")
+        print(f"Mean: {self.decoder.filt.attr['offset']}")
+        print(f"Std: {self.decoder.filt.attr['scale']}")
+
+    @control_decorator
+    def toggle_clda(self):
+        self.learn_flag = not self.learn_flag
+        self.hdf.sendMsg(f"clda = {self.learn_flag}")
+        print(f"clda = {self.learn_flag}")
 
 class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.

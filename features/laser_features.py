@@ -170,6 +170,7 @@ class LaserState(traits.HasTraits):
     '''
 
     laser_trigger_state = traits.String("wait", desc="State machine state that triggers laser")
+    laser_end_state = traits.String("", desc="Optional state machine state that ends laser stimulation")
     laser_stims_per_trial = traits.Int(1, desc="Number of stimulations per laser per trial")
     laser_power = traits.List([1.,], desc="Laser power (between 0 and 1) for each active laser")
     laser_pulse_width = traits.List([0.005,], desc="List of possible pulse widths in seconds")
@@ -180,7 +181,6 @@ class LaserState(traits.HasTraits):
     laser_rand_start = traits.Bool(True, desc="Randomize the timing of the first laser pulse")
     laser_rand_order = traits.Bool(True, desc="Randomize the order of the laser channels")
 
-    hidden_traits = ['laser_trigger_state']
 
     def __init__(self, *args, **kwargs):
         self.laser_threads = []
@@ -213,6 +213,11 @@ class LaserState(traits.HasTraits):
 
     def start_state(self, state):
         super().start_state(state)
+        if state == self.laser_end_state:
+            for wave in self.laser_waves:
+                wave.stop()
+            return
+
         if state != self.laser_trigger_state:
             return
         
