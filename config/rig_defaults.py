@@ -98,8 +98,8 @@ if hostname == 'pagaiisland2':
     window_size = (2560, 1440)
     screen_dist = 28
     screen_half_height = 10.75
-    default_db = 'rig1'
-    secret_dbnames = ['rig1', 'test']
+    default_db = 'booth'
+    secret_dbnames = ['booth', 'test']
     arduino_sync_params = rig1_sync_params_arduino
 elif hostname == 'siberut-bmi':
     optitrack_address = '10.155.204.10'
@@ -107,8 +107,8 @@ elif hostname == 'siberut-bmi':
     optitrack_sync_dch = 53 # 0-index
     screen_dist = 28
     screen_half_height = 10.25
-    default_db = 'rig2'
-    secret_dbnames = ['rig2', 'test']
+    default_db = 'booth'
+    secret_dbnames = ['booth', 'test']
     reward_digital_pin = 2
     arduino_sync_params = rig2_sync_params_arduino
 elif hostname == 'booted-server':
@@ -116,10 +116,9 @@ elif hostname == 'booted-server':
     default_db = 'tablet'
     secret_dbnames = ['tablet']
 elif hostname in ['moor', 'crab-eating']:
-    default_db = 'rig1'
+    default_db = 'booth'
     secret_dbnames = [
-        'rig1',
-        'rig2',
+        'booth',
         'tablet',
         'test',
     ],
