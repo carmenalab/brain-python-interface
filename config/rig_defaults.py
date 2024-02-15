@@ -121,7 +121,7 @@ elif hostname in ['moor', 'crab-eating']:
         'booth',
         'tablet',
         'test',
-    ],
+    ]
 
 # Organize the settings
 rig_settings = {
