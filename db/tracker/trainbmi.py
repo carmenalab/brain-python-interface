@@ -173,7 +173,7 @@ def cache_and_train(*args, **kwargs):
     else:
         make_bmi.delay(*args, **kwargs)
 
-def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
+def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_', dbname='default'):
     '''
     Save a decoder that is created by manipulating the parameters of an older decoder
 
@@ -200,7 +200,7 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     new_decoder_name = orig_decoder_record.name + suffix
     training_block_id = orig_decoder_record.entry_id
     print("Saving new decoder:", new_decoder_name)
-    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname, dbname=dbname)
 
 ## Functions to manipulate existing (KF)Decoders. These belong elsewhere
 

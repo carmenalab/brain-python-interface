@@ -630,6 +630,7 @@ class TaskEntry(models.Model):
     sequence = models.ForeignKey(Sequence, blank=True, null=True, on_delete=models.PROTECT)
     project = models.TextField()
     session = models.TextField()
+    rig_name = models.TextField(default="pagaiisland2")
 
     params = models.TextField()
     report = models.TextField()
@@ -1136,7 +1137,7 @@ class TaskEntry(models.Model):
         # Add any task metadata
         hdf['/'].attrs["task_name"] = self.task.name
         hdf['/'].attrs["features"] = [f.name for f in self.feats.all()]
-        hdf['/'].attrs["rig_name"] = KeyValueStore.get('rig_name', 'unknown')
+        hdf['/'].attrs["rig_name"] = self.rig_name
         hdf['/'].attrs["block_number"] = self.id
         hdf['/'].attrs["subject"] = self.subject.name
         hdf['/'].attrs["experimenter"] = self.experimenter.name

@@ -13,10 +13,12 @@ from django.http import HttpResponse
 
 from . import exp_tracker
 
+from config.rig_defaults import rig_settings
+
 def main(request):
     return render(request, "main.html", dict())
 
-def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None, show_hidden=False):
+def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None, show_all_rigs=False, show_hidden=False):
     from . import models
     # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
@@ -24,6 +26,8 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
     filter_kwargs = {}
     if not show_hidden:
         filter_kwargs['visible'] = True
+    if not show_all_rigs:
+        filter_kwargs['rig_name'] = rig_settings['name']
     if not (subject is None) and isinstance(subject, str):
         filter_kwargs['subject__name'] = subject
     if not (task is None) and isinstance(task, str):
@@ -76,6 +80,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         n_entries=len(entries),
         show_hidden=show_hidden,
         n_hidden=len([e for e in entries if e.visible==False]),
+        show_all_rigs=show_all_rigs,
     )
 
     try:
@@ -107,6 +112,7 @@ def list_exp_history(request, **kwargs):
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
     kwargs['show_hidden'] = request.GET.get('show_hidden') != None
+    kwargs['show_all_rigs'] = request.GET.get('show_all_rigs') != None
 
     fields = _list_exp_history(**kwargs)
     fields['hostname'] = request.get_host()
@@ -175,12 +181,11 @@ def setup_parameters(request):
         path = models.KeyValueStore.get('data_path', '--', dbname=db)
         database_objs.append({"name":db, "path":path})
 
-    rig_name = models.KeyValueStore.get("rig_name", "")
     recording_sys = models.KeyValueStore.get("recording_sys")
     recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
     return render(request, "setup_parameters.html",
-        dict(rig_name=rig_name, systems=systems, databases=database_objs, 
+        dict(systems=systems, databases=database_objs, 
             recording_sys=recording_sys,
             recording_sys_options=recording_sys_options))
 

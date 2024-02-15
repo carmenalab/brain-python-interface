@@ -13,6 +13,8 @@ from . import singleton
 import time
 import os
 
+from config.rig_defaults import reward as reward_settings
+
 log_path = os.path.join(os.path.dirname(__file__), '../log/reward.log')
 
 class Basic(singleton.Singleton):
@@ -22,9 +24,9 @@ class Basic(singleton.Singleton):
 
     def __init__(self):
         super().__init__()
-        com_port = '/dev/rewardsystem'  # specify the port, based on windows/Unix, can find it on IDE or terminal
+        com_port = reward_settings['address']  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = ArduinoGPIO(port=com_port)
-        self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
+        self.reward_pin = reward_settings['digital_pin'] # pin on the arduino which should be connected to the reward system
         self.off()
         print('Reward system ready.')
 

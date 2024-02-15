@@ -126,6 +126,7 @@ class OculomaticPlayback(traits.HasTraits):
         playback.start()
         super().run()
 
+
 class EyeData(traits.HasTraits):
     '''
     Pulls data from the eyetracking system and make it available on self.eyedata

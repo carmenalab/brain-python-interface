@@ -12,6 +12,7 @@ import traceback
 import numpy as np
 from collections import OrderedDict
 
+from config.rig_defaults import rig_settings
 from . import traits
 from .. import fsm
 from ..fsm import FSMTable, StateTransitions, ThreadedFSM

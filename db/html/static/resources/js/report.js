@@ -66,7 +66,7 @@ Report.prototype.update = function(info) {
     } else {
         for (var stat in info) {
             if (!this.boxes[stat]) { // if we haven't already made a table row for this stat
-                if (!stat.match("status|task|subj|date|idx")) { // if this is not one of the stats we ignore because it's reported elsewhere
+                if (!stat.match("rig_name|status|task|subj|date|idx")) { // if this is not one of the stats we ignore because it's reported elsewhere
                     var row = document.createElement("tr");
 
                     // make a column in the row for the stat name

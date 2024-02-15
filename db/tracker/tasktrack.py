@@ -159,7 +159,6 @@ class Track(singleton.Singleton):
             models.DataFile.objects.get(entry__id=te.id, system__name="hdf")
             metadata = dict(
                 task_name = te.task.name,
-                rig_name = models.KeyValueStore.get('rig_name', 'unknown'),
                 block_number = te.id,
             )
 

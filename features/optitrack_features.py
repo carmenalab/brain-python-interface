@@ -7,9 +7,7 @@ from datetime import datetime
 import time
 import numpy as np
 import os
-
-DEFAULT_OFFSET = [0, -60, -30] # optitrack cm [forward, up, right]
-DEFAULT_SCALE = 1 # optitrack cm --> screen cm
+from config.rig_defaults import optitrack as defaults
 
 ########################################################################################################
 # Optitrack datasources
@@ -24,8 +22,11 @@ class Optitrack(traits.HasTraits):
 
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     smooth_features = traits.Int(1, desc="How many features to average")
-    scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
-    offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
+    scale = traits.Float(defaults['scale'], desc="Control scale factor")
+    offset = traits.Array(value=defaults['offset'], desc="Control offset")
+    optitrack_ip = defaults['address']
+    optitrack_save_path = defaults['save_path']
+    optitrack_sync_dch = defaults['sync_dch']
 
     hidden_traits = ['optitrack_feature', 'smooth_features']
 
@@ -39,15 +40,14 @@ class Optitrack(traits.HasTraits):
         # Start the natnet client and recording
         import natnet
         now = datetime.now()
-        local_path = "C:/Users/Orsborn Lab/Documents"
         session = "OptiTrack/Session " + now.strftime("%Y-%m-%d")
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         logger = Logger(take)
         try:
-            client = natnet.Client.connect(logger=logger)
+            client = natnet.Client.connect(server=self.optitrack_ip, logger=logger, timeout=1)
             if self.saveid is not None:
                 take += " (%d)" % self.saveid
-                client.set_session(os.path.join(local_path, session))
+                client.set_session(os.path.join(self.optitrack_save_path, session))
                 client.set_take(take)
                 self.filename = os.path.join(session, take + '.tak')
                 client._send_command_and_wait("LiveMode")
