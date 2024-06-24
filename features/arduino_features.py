@@ -145,7 +145,7 @@ class SerialDIORowByte(object):
                 database.save_data(df, self.db_sys_name, saveid, True, False, ext, **self.dbq_kwargs)
 
     @classmethod
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
@@ -157,7 +157,7 @@ class SerialDIORowByte(object):
             time.sleep(3)
 
             port.close()
-            super(SerialDIORowByte, cls).pre_init(saveid=saveid)
+            super(SerialDIORowByte, cls).pre_init(saveid=saveid, **kwargs)
 
 class PlexonSerialDIORowByte(SerialDIORowByte):
     db_sys_name = "plexon"
@@ -349,7 +349,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         """
 
     @classmethod
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
@@ -362,7 +362,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
             port.close()
 
             time.sleep(3)
-            super(TDTSerialDIORowByte, cls).pre_init(saveid=saveid)
+            super(TDTSerialDIORowByte, cls).pre_init(saveid=saveid, **kwargs)
 
     @property
     def data_files(self):

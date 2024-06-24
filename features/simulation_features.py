@@ -223,6 +223,38 @@ class SimCosineTunedEnc(SimNeuralEnc):
             n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
         self._add_feature_extractor_dtype()
 
+class SimNormCosineTunedEnc(SimNeuralEnc):
+
+    def _init_neural_encoder(self):
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
+        self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=True, return_ts=False, 
+            DT=self.update_rate, tick=self.update_rate, gain=self.fov)
+    
+    def create_feature_extractor(self):
+        '''
+        Create the feature extractor object
+        '''
+        self.extractor = extractor.SimDirectObsExtractor(self.fb_ctrl, self.encoder, 
+            n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
+        self._add_feature_extractor_dtype()
+
+class SimLFPCosineTunedEnc(SimNeuralEnc):
+
+    bands = [(51, 100)]
+
+    def _init_neural_encoder(self):
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
+        self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=False, return_ts=False, 
+            DT=self.update_rate, tick=self.update_rate, n_bands=len(self.bands), gain=self.fov)
+    
+    def create_feature_extractor(self):
+        '''
+        Create the feature extractor object
+        '''
+        self.extractor = extractor.SimPowerExtractor(self.fb_ctrl, self.encoder, 
+            channels=self.decoder.channels, bands=self.bands, task=self)
+        self._add_feature_extractor_dtype()
+
 class SimFAEnc(SimCosineTunedEnc):
     def __init__(self, *args, **kwargs):
         self.FACosEnc_kwargs = kwargs.pop('SimFAEnc_kwargs', dict())

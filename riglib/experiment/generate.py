@@ -63,7 +63,6 @@ def runseq(exp, seq=None, reps=1):
             for s in seq:
                 yield exp.trial_types[s]
     else:
-        print("runseq")
         for _ in range(reps):
             for s in seq:
                 yield s

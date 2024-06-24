@@ -2,15 +2,8 @@
 Peripheral interface device features
 '''
 
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
-import fnmatch
-import os
-import subprocess
-from riglib.experiment import traits
+import pygame
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -191,3 +184,67 @@ class Button(object):
         super(Button, self)._while_wait()
         import pygame
         pygame.event.clear()
+
+
+class KeyboardControl(object):
+    '''
+    this class implements a python cursor control task for human
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Keyboard(np.array(self.starting_pos[::2]))
+
+class Keyboard():
+    '''
+    Pretend to be a data source
+    '''
+
+    def __init__(self, start_pos):
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
+
+    def get(self):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYUP:
+                if event.type == pygame.K_q:
+                    pygame.quit()
+                    quit()
+                if event.key == pygame.K_LEFT:
+                    self.pos[0] -= self.move_step
+                if event.key == pygame.K_RIGHT:
+                    self.pos[0] += self.move_step
+                if event.key == pygame.K_UP:
+                    self.pos[1] += self.move_step
+                if event.key == pygame.K_DOWN:
+                    self.pos[1] -= self.move_step
+        return [self.pos]
+
+class MouseControl(KeyboardControl):
+    '''
+    this class implements a python cursor control task for human
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array(self.starting_pos[::2]))
+
+class Mouse():
+    '''
+    Pretend to be a data source
+    '''
+
+    def __init__(self, window_size, screen_cm, start_pos):
+        self.window_size = window_size
+        self.screen_cm = screen_cm
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+
+    def get(self):
+        pos = pygame.mouse.get_pos()
+        self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
+        self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
+        return [self.pos]

@@ -152,7 +152,7 @@ class RelayPlexon(object):
             print('\n\nPlexon file not found properly! It will have to be manually linked!\n\n')
 
     @classmethod
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
@@ -168,7 +168,7 @@ class RelayPlexon(object):
             comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
 
             time.sleep(3)
-            super(RelayPlexon, cls).pre_init(saveid=saveid)
+            super(RelayPlexon, cls).pre_init(saveid=saveid, **kwargs)
 
 
 class RelayPlexByte(RelayPlexon):

@@ -1,0 +1,392 @@
+         25919 function calls (24791 primitive calls) in 1.734 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      410    1.138    0.003    1.138    0.003 {method 'blit' of 'pygame.Surface' objects}
+       82    0.467    0.006    0.467    0.006 {built-in method pygame.display.update}
+        1    0.027    0.027    0.027    0.027 {built-in method pygame.display.set_mode}
+        1    0.017    0.017    0.081    0.081 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:271(screen_init)
+        2    0.014    0.007    0.014    0.007 {method 'convert' of 'pygame.Surface' objects}
+        1    0.012    0.012    0.012    0.012 {built-in method pygame.base.init}
+        4    0.009    0.002    0.009    0.002 {method 'fill' of 'pygame.Surface' objects}
+        1    0.008    0.008    0.008    0.008 {built-in method pygame.display.quit}
+       82    0.005    0.000    0.005    0.000 {method 'tick' of 'Clock' objects}
+     1803    0.004    0.000    0.004    0.000 {built-in method numpy.array}
+        2    0.003    0.002    0.006    0.003 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/primitives.py:84(__init__)
+2383/1258    0.003    0.000    0.013    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+      163    0.002    0.000    0.017    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:341(draw_model)
+      163    0.002    0.000    0.002    0.000 {built-in method pygame.draw.circle}
+      175    0.001    0.000    0.001    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+       82    0.001    0.000    1.623    0.020 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:400(draw_world)
+      489    0.001    0.000    0.009    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:328(pos2pix)
+       82    0.001    0.000    1.632    0.020 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:300(_cycle)
+       81    0.001    0.000    0.003    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:345(_test_enter_target)
+      494    0.001    0.000    0.003    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:25(atleast_1d)
+       81    0.001    0.000    0.001    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/linalg/linalg.py:2316(norm)
+      983    0.001    0.000    0.001    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+       82    0.001    0.000    1.630    0.020 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:170(_cycle)
+      494    0.001    0.000    0.005    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:286(hstack)
+       82    0.001    0.000    0.001    0.000 {built-in method pygame.event.get}
+      167    0.001    0.000    0.002    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:73(_wrapreduction)
+     1089    0.001    0.000    0.001    0.000 {built-in method builtins.hasattr}
+      163    0.001    0.000    0.003    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:338(get_surf)
+       82    0.001    0.000    1.646    0.020 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:169(fsm_tick)
+      244    0.001    0.000    0.004    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:195(test_state_transition_event)
+      677    0.000    0.000    0.000    0.000 {built-in method builtins.getattr}
+      163    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:345(<listcomp>)
+       81    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:156(_test_stop)
+       65    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:3021(__prefix_trait__)
+      494    0.000    0.000    0.006    0.000 <__array_function__ internals>:2(hstack)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:58(__iter__)
+       82    0.000    0.000    0.005    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:274(_cycle)
+      163    0.000    0.000    0.003    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:2676(amin)
+       82    0.000    0.000    0.005    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:354(_cycle)
+        1    0.000    0.000    0.000    0.000 {built-in method pygame.mouse.set_visible}
+       12    0.000    0.000    0.001    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1421(cross)
+      573    0.000    0.000    0.001    0.000 <__array_function__ internals>:2(dot)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/manualcontrolmultitasks.py:123(move_effector)
+      494    0.000    0.000    0.003    0.000 <__array_function__ internals>:2(atleast_1d)
+      499    0.000    0.000    0.001    0.000 <__array_function__ internals>:2(concatenate)
+     1008    0.000    0.000    0.003    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_asarray.py:88(asanyarray)
+      498    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:220(_vhstack_dispatcher)
+        8    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:47(__mul__)
+       82    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:149(_get_event)
+       83    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:590(calc_trial_num)
+       81    0.000    0.000    0.000    0.000 {method 'ravel' of 'numpy.ndarray' objects}
+      498    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:209(_arrays_for_stack_dispatcher)
+       84    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1009(_handle_fromlist)
+      163    0.000    0.000    0.003    0.000 <__array_function__ internals>:2(amin)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:280(get_data_to_save)
+     1077    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+      814    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+      167    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:74(<dictcomp>)
+      252    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:263(get_time)
+        1    0.000    0.000    1.647    1.647 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:120(run)
+     1086    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+       36    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1340(moveaxis)
+       83    0.000    0.000    0.000    0.000 {method 'copy' of 'numpy.ndarray' objects}
+       83    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:594(<listcomp>)
+       81    0.000    0.000    0.002    0.000 <__array_function__ internals>:2(norm)
+        2    0.000    0.000    0.000    0.000 {built-in method pygame.time.Clock}
+       72    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1277(normalize_axis_tuple)
+       98    0.000    0.000    0.000    0.000 {built-in method numpy.empty}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:371(update_traits_class_dict)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/sink.py:119(send)
+       84    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:26(__getitem__)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/function_base.py:26(linspace)
+      252    0.000    0.000    0.000    0.000 {built-in method time.time}
+        1    0.000    0.000    0.000    0.000 {numpy.random._generator.default_rng}
+      162    0.000    0.000    0.000    0.000 {built-in method builtins.issubclass}
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/trait_notifiers.py:325(__call__)
+      573    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/multiarray.py:707(dot)
+      499    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/multiarray.py:145(concatenate)
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.print}
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:216(exec_state_specific_actions)
+       82    0.000    0.000    0.000    0.000 {method 'keys' of 'collections.OrderedDict' objects}
+       45    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:41(__setattr__)
+       80    0.000    0.000    0.000    0.000 {built-in method numpy.zeros}
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/manualcontrolmultitasks.py:106(_get_manual_position)
+       81    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:368(_test_stop)
+       85    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:153(_get_def)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:338(update_plant_visibility)
+      176    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+        4    0.000    0.000    0.000    0.000 {built-in method posix.stat}
+        1    0.000    0.000    0.001    0.001 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:63(__init__)
+      105    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_asarray.py:16(asarray)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:431(out_2D)
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:298(_add_event_handlers)
+       36    0.000    0.000    0.000    0.000 {built-in method builtins.sorted}
+       81    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:171(_test_timeout)
+        1    0.000    0.000    0.006    0.006 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:257(__init__)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:22(norm)
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:1033(_trait_added_changed)
+      494    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:21(_atleast_1d_dispatcher)
+        1    0.000    0.000    0.000    0.000 {built-in method __new__ of type object at 0x8a7ee0}
+       81    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/linalg/linalg.py:121(isComplexType)
+        1    0.000    0.000    0.000    0.000 {built-in method marshal.loads}
+        1    0.000    0.000    1.728    1.728 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:326(run)
+       52    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:33(__getattr__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:115(__init__)
+      130    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:145(_get_method)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/lib/twodim_base.py:216(diag)
+      108    0.000    0.000    0.000    0.000 {built-in method numpy.core._multiarray_umath.normalize_axis_index}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1356(find_spec)
+        5    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:188(translate)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/contextlib.py:71(inner)
+      163    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:2671(_amin_dispatcher)
+       81    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:218(get_endpoint_pos)
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:2811(trait)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:758(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:914(get_data)
+       72    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1327(<listcomp>)
+        2    0.000    0.000    0.006    0.003 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:50(_pickle_init)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:239(_bound)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:397(_draw_other)
+        7    0.000    0.000    0.000    0.000 {built-in method numpy.arange}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:175(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:161(init)
+        4    0.000    0.000    0.002    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:83(atleast_2d)
+       65    0.000    0.000    0.000    0.000 {method '_trait' of 'traits.ctraits.CHasTraits' objects}
+        1    0.000    0.000    0.000    0.000 {method 'shuffle' of 'numpy.random._generator.Generator' objects}
+       36    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(moveaxis)
+        4    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:173(__mul__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:466(centerout_2D)
+      155    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+       81    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/linalg/linalg.py:2312(_norm_dispatcher)
+       16    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/posixpath.py:104(split)
+        1    0.000    0.000    0.000    0.000 {built-in method io.open}
+        7    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:165(__init__)
+        3    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:12(__init__)
+       36    0.000    0.000    0.000    0.000 {method 'transpose' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:157(_get_module_lock)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:882(_find_spec)
+        7    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/xfm.py:10(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:85(__init__)
+       82    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:420(requeue)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:793(get_code)
+      2/1    0.000    0.000    0.000    0.000 {built-in method _abc._abc_subclasscheck}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/pygame/pkgdata.py:18(<module>)
+        8    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:49(_recache_xfm)
+        5    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:80(translate)
+        2    0.000    0.000    0.009    0.004 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:220(trigger_event)
+       16    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:2356(_is_zip_egg)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:157(<listcomp>)
+        3    0.000    0.000    0.009    0.003 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:364(set_state)
+        1    0.000    0.000    0.001    0.001 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:644(__init__)
+       56    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/ctrait.py:116(property_fields)
+       12    0.000    0.000    0.001    0.000 <__array_function__ internals>:2(cross)
+        4    0.000    0.000    0.002    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:224(vstack)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:978(_find_and_load)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:70(_start_wait)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_ufunc_config.py:39(seterr)
+      4/3    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:215(draw)
+        3    0.000    0.000    0.009    0.003 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:210(start_state)
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:3069(<listcomp>)
+        1    0.000    0.000    0.006    0.006 /home/pagaiisland/leo/bmi3d/built_in_tasks/manualcontrolmultitasks.py:52(__init__)
+       36    0.000    0.000    0.000    0.000 {method 'insert' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 {method 'read' of '_io.FileIO' objects}
+        3    0.000    0.000    0.009    0.003 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:241(set_state)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:3149(_find_adapter)
+        1    0.000    0.000    1.728    1.728 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:332(run)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:63(drive_to_new_pos)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:159(ones)
+        8    0.000    0.000    0.000    0.000 {method 'sum' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:948(_find_and_load_unlocked)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:363(_start_wait)
+        1    0.000    0.000    0.001    0.001 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:124(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:339(__init__)
+       18    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1562(_parents)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:338(__new__)
+       65    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/trait_notifiers.py:384(<lambda>)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:216(__init__)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/posixpath.py:154(dirname)
+        1    0.000    0.000    0.007    0.007 test_tasks.py:11(init_exp)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:58(<listcomp>)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:271(cache_from_source)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:374(_start_target)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:338(get_provider)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1476(_validate_resource_path)
+       16    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:2349(_is_egg_path)
+       28    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:651(<listcomp>)
+       28    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/ctrait.py:85(trait_type)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/ntpath.py:122(splitdrive)
+        4    0.000    0.000    0.000    0.000 {method 'astype' of 'numpy.ndarray' objects}
+        4    0.000    0.000    0.000    0.000 {method 'any' of 'numpy.generic' objects}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:78(acquire)
+        8    0.000    0.000    0.000    0.000 {method 'rpartition' of 'str' objects}
+       35    0.000    0.000    0.000    0.000 {method 'endswith' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method posix.putenv}
+        1    0.000    0.000    0.000    0.000 {built-in method posix.urandom}
+        2    0.000    0.000    0.000    0.000 {method 'set_colorkey' of 'pygame.Surface' objects}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1470(_fn)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1576(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:672(_start_wait)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:89(_parse_next_trial)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:95(_start_target)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/random.py:679(getrandbits)
+        2    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(diag)
+        4    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(linspace)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_ufunc_config.py:139(geterr)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:2236(any)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/ntpath.py:67(isabs)
+       12    0.000    0.000    0.000    0.000 {built-in method numpy.promote_types}
+        4    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(copyto)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/os.py:681(__setitem__)
+       22    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/posixpath.py:41(_get_sep)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:523(_compile_bytecode)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:574(spec_from_file_location)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1240(_get_spec)
+        3    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:51(_r_long)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:504(_init_module_attrs)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:663(_load_unlocked)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:56(_path_join)
+        4    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+       18    0.000    0.000    0.000    0.000 {method 'rfind' of 'str' objects}
+       28    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.round}
+       29    0.000    0.000    0.000    0.000 {built-in method posix.fspath}
+       76    0.000    0.000    0.000    0.000 {built-in method _operator.index}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:117(detach)
+        4    0.000    0.000    0.000    0.000 {method 'get_size' of 'pygame.Surface' objects}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1375(__init__)
+       16    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:2364(_is_unpacked_egg)
+        7    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:200(add_dtype)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:289(_add_notifiers)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/__init__.py:70(make)
+        4    0.000    0.000    0.002    0.000 <__array_function__ internals>:2(atleast_2d)
+        4    0.000    0.000    0.002    0.000 <__array_function__ internals>:2(vstack)
+        4    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(any)
+        4    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(result_type)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:722(exec_module)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:369(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:369(_get_cached)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:143(__init__)
+        2    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        4    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}
+       32    0.000    0.000    0.000    0.000 {method 'lower' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.setattr}
+        6    0.000    0.000    0.000    0.000 {built-in method _imp.acquire_lock}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/singleton.py:12(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:292(init)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1116(resource_exists)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1132(resource_stream)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1388(has_resource)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1580(_setup_prefix)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1605(get_resource_stream)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:130(_clone_trait)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:67(hide)
+        1    0.000    0.000    0.008    0.008 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:153(_start_None)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:499(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_ufunc_config.py:441(__enter__)
+        5    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(ndim)
+       36    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1336(_moveaxis_dispatcher)
+       36    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1403(<listcomp>)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1786(isscalar)
+        2    0.000    0.000    0.000    0.000 {built-in method numpy.seterrobj}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/manualcontrolmultitasks.py:58(init)
+        4    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/os.py:751(encode)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:438(_classify_pyc)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:951(path_stats)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:318(__exit__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:576(module_from_spec)
+        3    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:74(_path_stat)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:35(_new_module)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:58(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:103(release)
+        7    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:222(_verbose_message)
+        4    0.000    0.000    0.000    0.000 {built-in method from_bytes}
+        8    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        6    0.000    0.000    0.000    0.000 {built-in method _imp.release_lock}
+        1    0.000    0.000    0.000    0.000 {built-in method _abc._abc_instancecheck}
+        3    0.000    0.000    0.000    0.000 {built-in method _thread.allocate_lock}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/pygame/pkgdata.py:34(getResource)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/sink.py:51(reset)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/singleton.py:5(get_instance)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:228(set_intrinsic_coordinates)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:221(set_endpoint_pos)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:112(attach)
+        3    0.000    0.000    0.001    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/models.py:130(add)
+        2    0.000    0.000    0.000    0.000 {method 'set_alpha' of 'pygame.Surface' objects}
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:204(end_state)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:405(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:230(_get_instance_handlers)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:90(reset)
+        3    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/stereo_opengl/window.py:125(add_model)
+        2    0.000    0.000    0.006    0.003 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:42(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/_weakrefset.py:81(add)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:1206(current_thread)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_ufunc_config.py:446(__exit__)
+        5    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:3033(_ndim_dispatcher)
+        5    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:3037(ndim)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_methods.py:44(_any)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/posixpath.py:64(isabs)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/posixpath.py:75(join)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/_virtualenv.py:54(find_spec)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/abc.py:137(__instancecheck__)
+      2/1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/abc.py:141(__subclasscheck__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1203(_path_importer_cache)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1272(find_spec)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1351(_get_spec)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:307(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:403(cached)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:792(find_spec)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:62(_path_split)
+        4    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:859(__exit__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:401(_check_name_wrapper)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:147(__enter__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:176(cb)
+        2    0.000    0.000    0.000    0.000 {method 'remove' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 {method 'sort' of 'list' objects}
+        2    0.000    0.000    0.000    0.000 {method 'replace' of 'str' objects}
+        4    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.any}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.exec}
+        1    0.000    0.000    0.000    0.000 {built-in method _imp.is_frozen}
+        1    0.000    0.000    0.000    0.000 {built-in method _imp._fix_co_filename}
+        3    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        8    0.000    0.000    0.000    0.000 {method 'get' of 'mappingproxy' objects}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/sink.py:46(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/sink.py:83(register)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:3139(_always_object)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/pkg_resources/__init__.py:1596(_has)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/fsm/fsm/fsm.py:55(__getitem__)
+        7    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/experiment/experiment.py:206(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:2927(class_traits)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:3306(_init_trait_observers)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:3318(_post_init_trait_observers)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:194(is_unbound_method_type)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:70(show)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/trait_notifiers.py:310(__init__)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_graphics.py:55(move_to_position)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/lib/twodim_base.py:212(_diag_dispatcher)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:728(_newname)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/fromnumeric.py:2232(_any_dispatcher)
+        8    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/_methods.py:36(_sum)
+       12    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/numeric.py:1417(_cross_dispatcher)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/inspect.py:478(getmro)
+        4    0.000    0.000    0.000    0.000 {method 'squeeze' of 'numpy.ndarray' objects}
+        4    0.000    0.000    0.000    0.000 {built-in method numpy.geterrobj}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:884(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:909(get_filename)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:311(__enter__)
+        4    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:321(<genexpr>)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:416(parent)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:84(_path_is_mode_type)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:93(_path_isfile)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:151(__exit__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:211(_call_with_frames_removed)
+        1    0.000    0.000    0.000    0.000 {method 'copy' of 'list' objects}
+        3    0.000    0.000    0.000    0.000 {method 'pop' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 {method 'keys' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.abs}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:165(stop)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/riglib/plants.py:159(start)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:164(_test_start_trial)
+        1    0.000    0.000    0.000    0.000 {method 'get_fps' of 'Clock' objects}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/pygame/compat.py:74(get_BytesIO)
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:410(<listcomp>)
+        2    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/env/lib/python3.7/site-packages/traits/has_traits.py:592(<lambda>)
+       56    0.000    0.000    0.000    0.000 {method '_get_property' of 'traits.ctraits.cTrait' objects}
+        1    0.000    0.000    0.000    0.000 {method 'clone' of 'traits.ctraits.cTrait' objects}
+        1    0.000    0.000    0.000    0.000 {method '_notifiers' of 'traits.ctraits.cTrait' objects}
+        1    0.000    0.000    0.000    0.000 /home/pagaiisland/leo/bmi3d/built_in_tasks/target_capture_task.py:99(_end_target)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/threading.py:1096(daemon)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/function_base.py:21(_linspace_dispatcher)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/shape_base.py:79(_atleast_2d_dispatcher)
+        2    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/ntpath.py:34(_get_bothseps)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/multiarray.py:635(result_type)
+        4    0.000    0.000    0.000    0.000 /home/pagaiisland/.local/lib/python3.7/site-packages/numpy/core/multiarray.py:1043(copyto)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/contextlib.py:58(_recreate_cm)
+        1    0.000    0.000    0.000    0.000 /usr/local/lib/python3.7/genericpath.py:16(exists)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:471(_validate_timestamp_pyc)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:719(create_module)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:424(has_location)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:719(find_spec)
+        4    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:855(__enter__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:40(_relax_case)
+
+

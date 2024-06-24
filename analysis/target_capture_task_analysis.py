@@ -8,10 +8,8 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict, defaultdict
 import os
 import tables
-from itertools import izip
 
 from riglib.bmi import robot_arms, train, kfdecoder, ppfdecoder
-from db.tracker import models
 from db import dbfunctions
 from db import dbfunctions as dbfn
 
@@ -52,43 +50,40 @@ class ManualControlMultiTaskEntry(dbfunctions.TaskEntry):
         super(ManualControlMultiTaskEntry, self).__init__(*args, **kwargs)
 
         try:
-            task_msgs = self.hdf.root.task_msgs[:]
-            # Ignore the last message if it's the "None" transition used to stop the task
-            if task_msgs[-1]['msg'] == 'None':
-                task_msgs = task_msgs[:-1]
-
-            # ignore "update bmi" messages. These have been removed in later datasets
-            task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
-
-            target_index = self.hdf.root.task[:]['target_index'].ravel()
-            task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
-            task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
-            for k in range(len(task_msgs)):
-                task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                task_msgs_ext[k]['time'] = task_msgs[k]['time']
-                try:
-                    task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
-                except:
-                    task_msgs_ext[k]['target_index'] = np.nan
-
-            self.task_msgs = task_msgs_ext
-
-            ## Split the task messages into separate trials
+            # Split the task messages into separate trials
             # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
-            trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
+            trial_start = np.logical_or(self.task_msgs['msg'] == b'wait', np.logical_and(self.task_msgs['msg'] == b'targ_transition', self.task_msgs['target_index'] == -1))
             trial_start_inds, = np.nonzero(trial_start)
             trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
             self.trial_msgs = []
-            for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+            for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
                 self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
+            
+            # Organize frame data
+            frame_data = self.hdf.root.task[:]
+            frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('manual_input', ('f8', 3))])
+            if 'sync_square' in frame_data.dtype.names:
+                frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('sync', '?')])
+            frame_data_ext = np.zeros(len(frame_data), dtype=frame_data_dtype)
+            for k in range(len(frame_data)):
+                frame_data_ext[k]['cursor'] = frame_data[k]['cursor']
+                frame_data_ext[k]['manual_input'] = frame_data[k]['manual_input']
+                if 'sync_square' in frame_data.dtype.names:
+                    frame_data_ext[k]['sync'] = frame_data[k]['sync_square']
+            self.frame_data = frame_data_ext
+
         except:
-            print "Couldn't process HDF file. Is it copied?"
+            print("Couldn't process HDF file. Is it copied?")
             import traceback
             traceback.print_exc()
 
-        if 'target_radius' not in self.params:
+        if 'target_radius' in self.params:
+            self.target_radius = self.params['target_radius']
+        else:
             self.target_radius = 2.
-        if 'cursor_radius' not in self.params:
+        if 'cursor_radius' in self.params:
+            self.cursor_radius = self.params['cursor_radius']
+        else:
             self.cursor_radius = 0.4
 
         ### Update rate of task
@@ -781,16 +776,16 @@ def summarize_bmi_performance(date, **kwargs):
     '''
     for block in dbfn.get_bmi_blocks(date, **kwargs):
         te = _get_te(block)
-        print te
-        print te.summary()
+        print(te)
+        print(te.summary())
 
 def summarize_performance(blocks, **kwargs):
     ''' For a given date, print out a summary of the BMI performance
     '''
     for block in blocks:
         te = _get_te(block)
-        print te
-        print te.summary()
+        print(te)
+        print(te.summary())
 
 def compare_perc_correct(te1, te2):
     from scipy import stats
@@ -798,7 +793,7 @@ def compare_perc_correct(te1, te2):
     end_types2 = te2.get_trial_end_types()
     n_hold_errors = np.sum(end_types['hold_error'][1:]) # No. of hold errors, excluding the first target in the trial target sequence
     def fn(end_types): return (end_types['success'], n_hold_errors)
-    print fn(end_types1)
+    print(fn(end_types1))
     return stats.chi2_contingency(np.array([fn(end_types1), fn(end_types2)]))
 
 
@@ -816,7 +811,7 @@ def dir_change(hdf, step=6):
 
     vel_angle_diff_concat = np.hstack(vel_angle_diff)
     mean = circmean(np.abs(vel_angle_diff_concat), high=2*np.pi, low=-2*np.pi)
-    print mean
+    print(mean)
     return vel_angle_diff, mean
 
 def edge_detect(vec, edge_type='pos'):
@@ -1011,8 +1006,8 @@ def get_workspace_size(task_entry):
     '''
     hdf = get_hdf(task_entry)
     targets = hdf.root.task[:]['target']
-    print targets.min(axis=0)
-    print targets.max(axis=0)
+    print(targets.min(axis=0))
+    print(targets.max(axis=0))
 
 def plot_dist_to_targ(task_entry, reach_trajectories=None, targ_dist=10., plot_all=False, ax=None, target=None, update_rate=60., decoder_rate=10., **kwargs):
     task_entry = dbfn.lookup_task_entries(task_entry)

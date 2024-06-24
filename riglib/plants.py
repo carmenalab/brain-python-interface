@@ -19,7 +19,11 @@ from collections import namedtuple
 
 from utils.constants import *
 from riglib import source
-import robot
+try:
+    import robot
+except ImportError:
+    import warnings
+    warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")
 
 import struct
 from riglib.bmi.robot_arms import KinematicChain
@@ -202,7 +206,6 @@ class CursorPlant(Plant):
     def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), vel_wall=True, **kwargs):
         self.endpt_bounds = endpt_bounds
         self.position = starting_pos
-        self.starting_pos = starting_pos
         self.cursor_radius = cursor_radius
         self.cursor_color = cursor_color
         self._pickle_init()
@@ -216,18 +219,30 @@ class CursorPlant(Plant):
     def draw(self):
         self.cursor.translate(*self.position, reset=True)
 
+    def set_color(self, color):
+        self.cursor_color = color
+        self.cursor.color = color
+
+    def set_bounds(self, bounds):
+        self.endpt_bounds = bounds
+
+    def set_cursor_radius(self, radius):
+        self.cursor_radius = radius
+        self.cursor = Sphere(radius=radius, color=self.cursor_color)
+        self.graphics_models = [self.cursor]
+
     def get_endpoint_pos(self):
         return self.position
 
     def set_endpoint_pos(self, pt, **kwargs):
-        self.position = pt
+        self.set_intrinsic_coordinates(pt)
         self.draw()
 
     def get_intrinsic_coordinates(self):
         return self.position
 
     def set_intrinsic_coordinates(self, pt):
-        self.position = pt
+        self.position = self._bound(pt, [])[0]
         self.draw()
 
     def set_visibility(self, visible):
@@ -240,6 +255,9 @@ class CursorPlant(Plant):
     def _bound(self, pos, vel):
         pos = pos.copy()
         vel = vel.copy()
+        if len(vel) == 0:
+            vel_wall = self.vel_wall # don't worry about vel if it's empty
+            self.vel_wall = False
         if self.endpt_bounds is not None:
             if pos[0] < self.endpt_bounds[0]:
                 pos[0] = self.endpt_bounds[0]
@@ -261,6 +279,8 @@ class CursorPlant(Plant):
             if pos[2] > self.endpt_bounds[5]:
                 pos[2] = self.endpt_bounds[5]
                 if self.vel_wall: vel[2] = 0
+        if len(vel) == 0:
+            self.vel_wall = vel_wall # restore previous value
         return pos, vel
 
     def drive(self, decoder):
@@ -441,6 +461,7 @@ class RobotArmGen2D(Plant):
 
         self.base_loc = base_loc
 
+        self.link_colors = link_colors
         self.chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
         self.cursor = Sphere(radius=arm_radius/2, color=link_colors)
         self.graphics_models = [self.chain.link_groups[0], self.cursor]
@@ -457,6 +478,22 @@ class RobotArmGen2D(Plant):
     @property
     def kin_chain_class(self):
         return robot_arms.PlanarXZKinematicChain
+
+    def set_color(self, color):
+        self.link_colors = color
+        self.cursor.color = color
+
+    def set_bounds(self, bounds):
+        '''
+        For compatibility with other cursor plants
+        '''
+        pass 
+
+    def set_cursor_radius(self, radius):
+        self.cursor_radius = radius
+        del self.cursor
+        self.cursor = Sphere(radius=radius, color=self.link_colors)
+        self.graphics_models[1] = self.cursor
 
     def get_endpoint_pos(self):
         '''

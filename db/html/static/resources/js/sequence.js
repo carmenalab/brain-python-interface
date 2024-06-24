@@ -28,40 +28,36 @@ function Sequence() {
     var params = new Parameters();
     this.params = params
 
-    // add the empty HTML table to the Sequence field (parameters will be populated into rows of the table once they are known, later)
-    $("#seqparams").append(this.params.obj);
+    // add the empty HTML form and table to the Sequence field 
+    // parameters will be populated into rows of the table once they are known, later
+    var form = $("<form action='javascript:te.sequence.add_sequence()'></form>")
+    $(form).append(this.params.obj);
+    $("#seqparams").html(form);
 
-    this._handle_chgen = function() {
+    var _this = this;
+    _handle_set_new_name = function() { 
+        $("#seqlist option[value=\"new\"]").attr("name", _this._make_name());
+    };
+    this._handle_set_new_name = _handle_set_new_name
+    _handle_chgen = function() {
+        // Used to get the default values for making new generators
         $.getJSON("/ajax/gen_info/"+this.value+"/",
             {},
             function(info) {
                 params.update(info.params);
+                _handle_set_new_name();
+                $("#seqparams input").change(_handle_set_new_name);
+
+                // Disable entry unless we're looking at a new sequence
+                if ($("#seqlist").val() != "new") {
+                    $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                    $('#seqadd').hide();
+                }
             }
         );
     }
-    $("#seqgen").change(this._handle_chgen);
-
-    $("#seqparams").click(
-        // if you click on the parameters table and the drop-down list of
-        // available sequences (not generators) is enabled, then enable editing
-        function() {
-            if ($("#seqlist").attr("disabled") != "disabled")
-                this.edit();
-        }.bind(this)
-    );
+    $("#seqgen").change(_handle_chgen);
     this.options = {};
-}
-
-Sequence.prototype.seqlist_make_default_list = function() {
-    $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
-}
-
-Sequence.prototype.seqlist_make_input_field = function(curname) {
-    $("#seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' value='"+curname+"' />");
-}
-
-Sequence.prototype.seqlist_type = function() {
-    return $('#seqlist').prop('tagName').toLowerCase()
 }
 
 /* Update the Sequence fieldset
@@ -75,12 +71,17 @@ Sequence.prototype.update = function(info) {
     // number of objects probably depends on whether exp_info or task_info server fn is called
     $("#seqlist").unbind("change");
 
+    // save previous selection
+    var prev = $("#seqlist :selected").val()
+
     // remove all the existing options
     for (var id in this.options)
         $(this.options[id]).remove()
 
     // make sure seqlist is a 'select'
-    this.seqlist_make_default_list();
+    $("#seqlist").replaceWith(
+        "<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>"
+    );
 
     // populate the list of available sequences already in the database
     this.options = {};
@@ -95,13 +96,25 @@ Sequence.prototype.update = function(info) {
     }
 
     if (Object.keys(info).length > 0) {
-        $("#seqgen").val(info[id].generator[0]);
-        $("#seqlist").val(id);
+
+        
+        if (!(prev in info)) {
+        
+            // Select the last (most recent) available sequence if none was selected
+            $("#seqgen").val(info[id].generator[0]);
+            $("#seqlist").val(id);
+
+        } else {
+
+            // Keep the previous selection
+            $("#seqgen").val(info[prev].generator[0]);
+            $("#seqlist").val(prev);
+        }
 
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
 
-        //Bind the sequence list updating function
+        // Bind the sequence list updating function
         var seq_obj = this;
         this._handle_chlist = function () {
             var id = this.value; // 'this' is bound to the options list when it's used inside the callback below
@@ -112,23 +125,23 @@ Sequence.prototype.update = function(info) {
                 // the selected sequence is a previously used sequence, so populate the parameters from the db
                 seq_obj.params.update(info[id].params);
 
-                // disable editing in the table
-                $("#seqparams input").attr("disabled", "disabled");
-
                 // change the value of the generator drop-down list to the generator for this sequence.
                 $('#seqgen').val(info[id].generator[0]);
 
                 // mark the static checkbox, if the sequence was static
                 $("#seqstatic").attr("checked", info[id].static);
+
+                // disable editing in the table
+                $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                $('#seqadd').hide();
             }
         };
         $("#seqlist").change(this._handle_chlist);
-        $("#seqgen").change(this._handle_chgen);
-
-        $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
+        $("#seqlist").change();
+        $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+        $("#seqadd").hide();
     } else {
         this.edit();
-        $("#seqgen").change();
     }
 }
 
@@ -147,86 +160,126 @@ Sequence.prototype.destroy = function() {
     this.destroy_parameters();
     $("#seqlist").unbind("change");
     $("#seqgen").unbind("change");
-
-    this.seqlist_make_default_list();
 }
 
 Sequence.prototype._make_name = function() {
     // Make name for generator
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
-    var d = new Date();
-    var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
+    // var d = new Date();
+    // var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
-    $("#sequence #seqparams input").each(
-        function() {
-            txt.push(this.name+"="+this.value);
-        }
-    )
-    return gen+":["+txt.join(", ")+"]-" + datestr
+    var data = this.params.to_json();
+    for (let key in data) {
+        if (Array.isArray(data[key]))
+            txt.push(key+"="+data[key].join(' '));
+        else
+            txt.push(key+"="+data[key]);
+    }
+    var static = ($("#seqstatic").prop("checked")) ? "static" : ""
+    // return gen+":["+txt.join(", ")+"]-" + datestr
+    return gen+":["+txt.join(", ")+"]"+static
 }
 
 Sequence.prototype.edit = function() {
-    var _this = this;
-    var curname = this._make_name();
-    this.seqlist_make_input_field(curname);
-
-    $("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
-
-    this._handle_setname = function() { $
-        ("#seqlist").attr("value", _this._make_name());
-    };
-    this._handle_chgen = function() {
-        _this._handle_setname();
-        $("#seqparams input").bind("blur.setname", _this._handle_setname );
-    };
-    $("#seqgen").change(this._handle_chgen);
-    $("#seqparams input").bind("blur.setname", _this._handle_setname );
-    this._handle_blurlist = function() {
-        if (this.value != _this._make_name())
-            $("#seqparams input").unbind("blur.setname", _this._handle_setname);
-    };
-    $("#seqlist").blur(this._handle_blurlist);
+    $("#seqlist").val("new");
+    $("#seqparams input").val("");
+    this._handle_set_new_name();
+    $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
+    $("#seqgen").change();
+    $('#seqadd').show();
 }
 
+Sequence.prototype.add_sequence = function() {
+    var form = {};
+    form['task'] = parseInt($("#tasks").attr("value"));
+    form['sequence'] = JSON.stringify(this.get_data());
+
+    var _this=this;
+    $.post('/exp_log/ajax/add_sequence', form, function(resp) {
+        if (resp.id) {
+
+            // Set the correct sequence so we can remember it later
+            if ($("#seqlist option[value='"+resp.id+"']").length > 0) {
+                // Maybe this had already existed, try to switch to it
+                $("#seqlist").val(resp.id);
+                log("Switched to existing sequence", 2)
+            } else {
+                // Add the new sequence to the list and select it
+                opt = document.createElement("option");
+                opt.innerHTML = resp.name;
+                opt.value = resp.id;
+                _this.options[resp.id] = opt;
+                $("#seqlist").append(opt);
+                $("#seqlist").val(resp.id)
+                log("Added new sequence", 2)
+            }
+
+            // Then reload the seq info
+            te._task_query(function(){}, false, false);
+        } else {
+            log("Problem adding sequence", 5)
+        }
+    });
+}
 
 Sequence.prototype.enable = function() {
     // only enable the drop-down of the old sequences
     $("#seqlist").removeAttr("disabled");
+    if ($("#seqlist").val() == "new") {
+        $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
+        $('#seqadd').show();    
+    }
 }
 Sequence.prototype.disable = function() {
     // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
-    $("#seqlist, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
+    $("#seqlist, #seqparams, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
     $('#show_params').attr("disabled", false);
+    $("#seqadd").hide();
 }
 
 
 Sequence.prototype.get_data = function() {
     // Get data describing the sequence/generator parameters, to be POSTed to the webserver
-    if (this.seqlist_type() == "input") {
+    var val = $("#seqlist").val();
+    var name = $("#seqlist option[value=\"new\"]").attr("name");
+    var id = null
+
+    // Try to match the name to a previous sequence
+    $("#seqlist option").each(function(){
+        if ($(this).html() == name) id = parseInt($(this).val());
+    });
+    
+    if (val == "new" && id != null) {
+        // old sequence exists, just a duplicate of a previous ID
+        return id;
+    } else if (val == "new") {
         // send data about the generator params to the server and create a new sequence
         var data = {};
-        data['name']        = $("#seqlist").val();
+        data['name']        = name;
         data['generator']   = $("#seqgen").val();
         data['params']      = this.params.to_json();
         data['static']      = $("#seqstatic").prop("checked");
         return data;
     } else {
         // running an old sequence, so just send the database ID
-        return parseInt($("#sequence #seqlist").val());
+        return parseInt(val);
     }
 }
 
 Sequence.prototype.update_available_generators = function(gens) {
-    // example gens: { 1: "gen_fn1", 2: "gen_fn2" }
-    if (Object.keys(gens).length > 0) {
-        $('#seqgen').empty();
-        $.each(gens, function(key, value) {
+    if (this.gens && JSON.stringify(gens)==JSON.stringify(this.gens)) return; // don't update if it's the same as before
+    this.gens = gens
+    // example gens: [[1, "gen_fn1"], [2, "gen_fn2"]]
+    if (gens.length > 0) {
+        $('#seqgen').empty(); // TODO no need to destroy all of them since they're already populated. just filter out the unused ones
+        for (var i=0; i<gens.length; i++) {
             $('#seqgen')
-            .append($('<option>', { value : key })
-            .text(value));
-        });
+            .append($('<option>', { value : gens[i][0]})
+            .text(gens[i][1]));
+        }
     }
+    $('#seqlist').change();
 }
 
 if (typeof(module) !== 'undefined' && module.exports) {

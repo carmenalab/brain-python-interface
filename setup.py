@@ -2,8 +2,8 @@ import setuptools
 
 setuptools.setup(
     name="bmi3d",
-    version="0.1.0",
-    author="people",
+    version="0.2.0",
+    author="Lots of people",
     description="electrophysiology experimental rig library",
     packages=setuptools.find_packages(),
     classifiers=[
@@ -32,5 +32,6 @@ setuptools.setup(
         "pyserial",
         "h5py",
         "ipdb",
+        "aopy"
     ]
 )

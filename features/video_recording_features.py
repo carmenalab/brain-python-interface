@@ -9,36 +9,8 @@ import traceback
 import numpy as np
 import fnmatch
 import os
-import subprocess
-import multiprocessing as mp 
 from riglib.experiment import traits
-
-###### CONSTANTS
-sec_per_min = 60
-
-
-
-
-class MultiprocShellCommand(mp.Process):
-    '''
-    Execute a blocking shell command in a separate process
-    '''
-    def __init__(self, cmd, *args, **kwargs):
-        self.cmd = cmd
-        self.done = mp.Event()
-        super(MultiprocShellCommand, self).__init__(*args, **kwargs)
-
-    def run(self):
-        '''
-        Docstring
-        '''
-        import os
-        os.popen(self.cmd)
-        self.done.set()
-
-    def is_done(self):
-        return self.done.is_set()
-
+from riglib.mp_calc import MultiprocShellCommand
 
 class SingleChannelVideo(traits.HasTraits):
     def __init__(self, *args, **kwargs):

@@ -18,6 +18,10 @@
     background-color:#FDD; 
 }
 
+td[colspan]:not([colspan="1"]) {
+    text-align: center;
+}
+
 
 div.clear { clear:both; }
 
@@ -33,6 +37,9 @@ table#main {
 	width:100%;
 	/*border-collapse:collapse;*/
 	border-color:#AAA;
+}
+a {
+	padding:2px;
 }
 
 table#main td{
@@ -52,9 +59,26 @@ table#main tr {
 	/*background:;*/
 }
 
+/* Top banner stays at top */
+div#banner {
+	position: relative;
+	float: none;
+	width: 640px;
+	padding: 5px;
+	box-sizing: border-box;
+}
+button#new_exp {
+	float: right;
+}
+
+div#main_box {
+	position: relative;
+	float: none;
+}
+
 /* Left hand table styling */
 div#leftpane { 
-	/*width : 500px; */
+	width : 940px;
 	overflow:auto;
 }
 
@@ -97,52 +121,59 @@ input.btn:hover {
 	box-shadow: 0px 0px 15px black;
 }
 
+table#main th {
+	border-bottom : 1px solid black;
+}
 
-
-.firstRowOfday {
-	border-top : 1px solid black;
+#newentry, .firstRowOfday {
+	border-top : 1px solid black; 
 }
 
 .colDate {
-    width : 50px;
+    width : 100px;
     background: #FFF;
 }
 
 .colTime {
-	width : 75px;
+	width : 90px;
 }
 
 .colID {
-	width : 50px;
+	width : 190px;
 }
 
 .colSubj {
-	width : 100px;
+	width : 90px;
 	font-size : 10pt;
 	font-family:Arial;
 }
-#subjects {
-	width : 100px;
-}
 
 .colTask {
-	width : 200px;
+	width : 150px;
 	text-align : left;
 }
-#tasks {
-	width : 200px;
+
+.colShortDesc {
+	width: 320px;
+}
+
+#subjects, #tasks {
+	width : auto;
 	text-align : left;
 }
 
 
 div#rightpane { 
-	margin-left : 555px; 
 	width : 900px; 
 	height : 100%;
 	position : fixed;
+	top: 0px;
 	overflow : auto;
 }
 
+div.rightpane_fields {
+	margin-bottom: 20px;
+}
 
 table#main tbody>tr:hover {
 	background:#DDD;
@@ -158,14 +189,6 @@ th { text-align:left;}
 .rowactive td { 
 	position:relative; 
 	/*z-index:1;*/
-}
-
-input[type="text"] {
-    width: 50px;
-}
-
-input[type="number"] {
-    width: 50px;
 }
 
 #report td:first-child {
@@ -197,12 +220,15 @@ fieldset {
 
 /*options class is used for div containing Features/Sequence/Parameters fieldsets*/
 .options { 
-	float:left; 
-	width:300px; 
+	width:350px; 
 }
 
-#parameters table,#sequence table {
-	/*width:100%;*/
+div#seqparams {
+	width: 100%;
+}
+
+#parameters table,#sequence table, #seqparams table, #controls table, #metadata table {
+	width:100%;
 	border-collapse:collapse;
 }
 td.param_label {
@@ -213,13 +239,22 @@ td.param_label+td {
 }
 td.param_label+td select { width:100%; }
 input[type=text], input[type=number] { 
+    width:50px;
 	border:1px solid;
 	border-color:#888;
 	padding:2px;
+	margin-right:2px;
 	border-radius:2px;
 	transition:all 0.25s ease-in-out;
 	-webkit-transition:all 0.25s ease-in-out;
 	-moz-transition:all 0.25s ease-in-out;
+}
+input.string {
+    width:120px;
+}
+
+input#seqlist {
+	width: auto;
 }
 
 /*rightside contains Report, Notes, Linked Files*/
@@ -241,15 +276,21 @@ input:invalid {
 	box-shadow:0px 0px 10px red;
 }
 
-
-
+#paramadd {
+    margin-top: 5px;
+    margin-left: 290px;
+}
+#seqadd {
+    margin-top: 5px;
+    margin-left: 255px;
+}
 
 #report table.option {
 	font-size:10pt;
 }
 
-fieldset#report {
-    max-height:500px;
+fieldset:not(#parameters, #bmi) {
+    max-height:400px;
     /*width:100%;*/
     /*width : 460px;*/
     overflow:auto;
@@ -259,31 +300,26 @@ fieldset#report {
 	/*width : 200px;*/
 }
 
+#controls button {
+	padding: 5px 10px;
+	margin-bottom: 5px;
+	font-size: 16px;
+	border: none;
+    color: white;
+}
+#controls button:enabled {
+	background-color: black;
+}
+#controls button:hover:enabled {
+	box-shadow: 0px 0px 5px black;
+}
+#controls button:disabled {
+	background-color: gray;
+}
+
 .report_table {
 	font-size:10pt;
 	width : 450px;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-input#toggle_table
-{
-  /* Double-sized Checkboxes */
-  -ms-transform: scale(2); /* IE */
-  -moz-transform: scale(2); /* FF */
-  -webkit-transform: scale(2); /* Safari and Chrome */
-  -o-transform: scale(2); /* Opera */
-  padding: 10px;
 }
 
 .checkboxtext

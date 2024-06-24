@@ -6,7 +6,6 @@ from collections import OrderedDict, defaultdict
 
 import os
 import tables
-from itertools import izip
 from riglib.bmi import robot_arms, train
 
 

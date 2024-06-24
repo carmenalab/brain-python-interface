@@ -200,8 +200,10 @@ class ZeroVelocityGoal(GoalCalculator):
             target_vel = np.zeros_like(target_pos)
             offset_val = 1
             target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
-        else:
+        elif len(target_pos) == n_pos_vel_states:
             target_state = np.hstack([target_pos, 1]).reshape(-1, 1)
+        else:
+            target_state = np.hstack(target_pos).reshape(-1, 1) # don't add offset
         error = 0
         return (target_state, error), True
 

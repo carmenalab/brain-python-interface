@@ -5,7 +5,7 @@ if (typeof(require) !== 'undefined') {
     const dom = new JSDOM(`    <fieldset id="report">
           <legend>Report</legend>
           <div id="report_div">
-            <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
+            <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); debug(info);})"><br>
             <table class="option" id="report_info">
             </table>
 
@@ -40,13 +40,13 @@ function Report(callback) {
 }
 
 Report.prototype.activate = function() {
-    var on_windows = window.navigator.userAgent.indexOf("Windows") > 0;
-    if (!this.ws && !on_windows) {  // some websocket issues on windows..
+    //var on_windows = window.navigator.userAgent.indexOf("Windows") > 0;
+    if (!this.ws) {  // && !on_windows) { some websocket issues on windows..
         // Create a new JS WebSocket object
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
 
         this.ws.onmessage = function(evt) {
-            console.log(evt.data);
+            debug(evt.data);
             var report = JSON.parse(evt.data);
             this.update(report);
         }.bind(this);
@@ -55,7 +55,7 @@ Report.prototype.activate = function() {
 
 Report.prototype.update = function(info) {
     // run the 'notify' callback every time this function is provided with info
-    if (typeof(this.notify) == "function" && info)
+    if (typeof(this.notify) == "function" && !$.isEmptyObject(info))
         this.notify(info);
 
     if (info.status && info.status == "error") { // received an error message through the websocket

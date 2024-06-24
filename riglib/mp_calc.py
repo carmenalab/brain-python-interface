@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import time
-
+import os
+import subprocess
 import numpy as np
 import queue
 
@@ -218,3 +219,23 @@ class FuncProxy(object):
         '''
         if self.multiproc:
             self.calculator.stop()
+
+class MultiprocShellCommand(mp.Process):
+    '''
+    Execute a blocking shell command in a separate process
+    '''
+    def __init__(self, cmd, *args, **kwargs):
+        self.cmd = cmd
+        self.done = mp.Event()
+        super(MultiprocShellCommand, self).__init__(*args, **kwargs)
+
+    def run(self):
+        '''
+        Docstring
+        '''
+        import os
+        os.popen(self.cmd)
+        self.done.set()
+
+    def is_done(self):
+        return self.done.is_set()

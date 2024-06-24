@@ -2,36 +2,32 @@
 
 {% block content %}
 
-  <h2>Tasks</h2>
-  <table class="table table-hover table-sm" style="width: auto;" id="task-table">
-    <thead>
-      <tr>
-        <th>Index</th><th>Task name</th><th>Python path (must be importable)</th>
-      </tr>
-    </thead>
-
-    <!-- Row to add new tasks -->
+<h2>Tasks</h2>
+<table class="table table-hover table-sm" style="width: auto;" id="task-table">
+  <thead>
     <tr>
-      <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
-      <td><input type="text" id="task_name"></td>
-      <td><input type="text" id="task_import_path">
+      <th>Index</th><th>Task name</th><th>Python path (must be importable)</th>
     </tr>
+  </thead>
 
-    {% for task in tasks %}
-    <tr>
-      <td>{{task.id}}</td>
-      <td>{{task.name}}</td>
-      <td>
-        <input type="text" id="import_path_task_{{task.id}}"
-          {% if task.import_path is None %}
-            value=""
-          {% else %}
-            value="{{task.import_path}}"
-          {% endif %}>
-        <input type="submit" value="Save" onclick="store_single_task_import_path({{task.id}})">
-      </td>
-    </tr>
-    {% endfor %}
+  <!-- Row to add new tasks -->
+  <tr id="new-task-row">
+    <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
+    <td><input type="text" id="task_name"></td>
+    <td><input type="text" id="task_import_path">
+    <td></td>
+  </tr>
+
+  {% for task in tasks %}
+  <tr id="task_{{task.id}}">
+    <td>{{task.id}}</td>
+    <td>{{task.name}}</td>
+    <td>{{task.import_path}}</td>
+    <td>
+      <input type="submit" value="Remove" onclick="remove_task({{task.id}})">
+    </td>
+  </tr>
+  {% endfor %}
 
   </table>
 

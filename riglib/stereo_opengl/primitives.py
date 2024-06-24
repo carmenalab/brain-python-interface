@@ -30,7 +30,7 @@ class Cube(TriMesh):
     def __init__(self, side_len=1 , segments=36, **kwargs):
         self.side_len = side_len
         side_len_half = side_len/2.
-        side = np.linspace(-1, 1, segments/4, endpoint=True)
+        side = np.linspace(-1, 1, int(segments/4), endpoint=True)
         
         unit1 = np.hstack(( side[:,np.newaxis], np.ones((len(side),1)), np.ones((len(side),1)) ))
         unit2 = np.hstack(( np.ones((len(side),1)), side[::-1,np.newaxis], np.ones((len(side),1)) ))

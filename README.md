@@ -21,6 +21,12 @@ Getting started
 ```bash
 sudo xargs apt-get -y install < requirements.system
 ```
+## Linux/OS X
+(none at this time)
+16.04 64bit
+
+#python version
+3.7.8
 
 ## Windows
 Visual C++ Build tools (for the 'traits' package)

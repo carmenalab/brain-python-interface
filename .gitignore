@@ -20,7 +20,6 @@ db/*.sql
 *.sql.*
 *.jpeg
 log/*
-*.ipynb
 *.doctree
 tasks/debugging.txt
 riglib/plexon/plexfile.py
@@ -46,5 +45,8 @@ riglib/fsm/fsm.egg-info/*
 env/*
 tests/*.mat
 tests/*.hdf
+tests/unit_tests/htmlcov
 *.h5
 riglib/plexon/Plexfile_utilities.egg-info/*
+*.dot
+riglib/dio/nidaq/pcidio.py

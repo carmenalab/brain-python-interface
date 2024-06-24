@@ -8,6 +8,7 @@ bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
     PPFDecoder=bmi.train.train_PPFDecoder,
     OneDimLFPDecoder=bmi.train.create_onedimLFP,
+    LinearDecoder=bmi.train.create_lindecoder,
 )
 
 bmi_training_pos_vars = [
@@ -43,6 +44,7 @@ bmi_state_space_models=dict(
 extractors = dict(
     spikecounts = extractor.BinnedSpikeCountsExtractor,
     LFPpowerMTM = extractor.LFPMTMPowerExtractor,
+    direct = extractor.DirectObsExtractor,
 )
 
 kin_extractors = dict(

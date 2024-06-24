@@ -381,3 +381,18 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
         joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
         return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
 
+class PosFeedbackController(FeedbackController):
+    '''
+    Dumb controller that just spits back the target
+    '''
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def calc_next_state(self, current_state, target_state, mode=None):
+        return target_state
+
+    def __call__(self, current_state, target_state, mode=None):
+        return target_state
+
+    def get(self, current_state, target_state, mode=None):
+        return target_state
