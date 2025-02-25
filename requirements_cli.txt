@@ -1,5 +1,5 @@
 wheel==0.34.2
-numpy==1.19.0
+numpy==1.22.0
 scipy==1.5.1
 matplotlib==3.2.2
 numexpr==2.7.1
