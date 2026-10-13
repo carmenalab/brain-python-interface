@@ -77,10 +77,10 @@ class TargetTracking(Sequence):
         self.repeat_freq_set = False
         self.gen_index = -1
 
-        if self.velocity_control:
-            print('VELOCITY CONTROL')
-        else:
-            print('POSITION CONTROL') # default is position control - see manualcontrolmixin
+        #if self.velocity_control:
+        #    print('VELOCITY CONTROL')
+        #else:
+        #    print('POSITION CONTROL') # default is position control - see manualcontrolmixin
         self.pos_offset = [0,0,0]
         self.vel_offset = [0,0,0]
 
@@ -434,9 +434,9 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.lookahead = int(self.fps * self.lookahead_time) # convert to frames
         self.lookahead_scale = (0.5 * self.screen_cm[0]) / (self.lookahead) # cm per frame
         self.original_limit1d = self.limit1d # keep track of original settable trait
-        if not hasattr(self, 'velocity_control'):
+        if not hasattr(self, "velocity_control"):
             self.velocity_control = False
-
+        
         if not self.always_1d:
             self.limit1d = False # allow 2d movement before center-hold initiation
         
@@ -451,6 +451,8 @@ class ScreenTargetTracking(TargetTracking, Window):
             # This is the center target being followed by the user
             self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
             # print('INIT TRAJ')
+            # Keep a task-level copy of the target location for BMI goal calculations
+            self.target_location = np.array(self.starting_pos).copy()
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -464,7 +466,6 @@ class ScreenTargetTracking(TargetTracking, Window):
         self.add_dtype('disturbance', 'f8', (3,))
         super().init()
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
-
     def _cycle(self):
         '''
         Calls any update functions necessary and redraws screen
@@ -526,6 +527,8 @@ class ScreenTargetTracking(TargetTracking, Window):
             use_frame_index = self.frame_index
 
         self.target.move_to_position(self.targs[use_frame_index])
+        # keep `target_location` in sync for BMIControlMultiMixin.get_target_BMI_state
+        self.target_location = self.target.get_position()
         if self.trajectory_type == '1d':
             self.trajectory.move_to_position(np.array([-use_frame_index*self.lookahead_scale - self.lookahead*self.lookahead_scale,0,0]))
             # print(self.frame_index, use_frame_index, self.trajectory.get_position())
@@ -668,6 +671,7 @@ class ScreenTargetTracking(TargetTracking, Window):
         super()._start_trajectory()
         if self.frame_index == 0:
             self.target.move_to_position(self.targs[self.frame_index])
+            self.target_location = self.target.get_position()
             if self.trajectory_type == '1d':
                 self.trajectory.move_to_position(np.array([-self.lookahead*self.lookahead_scale,0,0]))
                 # print(self.trajectory.get_position())

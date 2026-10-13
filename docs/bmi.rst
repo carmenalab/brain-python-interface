@@ -99,6 +99,19 @@ or in a purely trial-based mode by specifying::
 	batch_size = np.inf
 
 
+**Updater**
+
+The Updater implements the rule to change the decoder parameters based on the batches produced by the learner. Available update rules include recursive maximum likelihood for Kalman filters and SmoothBatch with gradient descent on a regularized least-squares cost for Wiener filters.
+
+.. autoclass:: riglib.bmi.clda.KFRML
+	:members: __init__
+
+.. autoclass:: riglib.bmi.clda.WFSmoothbatch
+	:members: __init__
+
+For example, a Wiener filter decoder (``WFDecoder``) can be adapted with the ``clda_wf_smoothbatch`` feature, which pairs the ``PositionErrorLearner`` (intended velocity pointing from the cursor to the target) with the ``WFSmoothbatch`` updater.
+
+
 Simulating BMI
 --------------
 Simulations can be a useful tool for BMI design. Experimental evidence suggests that the offline accuracy of linear decoders often does not translate to good closed-loop control (e.g., [Koyama2010]_, [Ganguly_2010]_). This is perhaps due to the inherent feedback differences between BMI control during which the subject only has visual feedback, unlike arm control during which congruent proprioceptive feedback is also available. Furthermore, BMIs require the brain to solve a control problem that is different from the problem of controlling the natural arm because (1) the dynamics of the BMI plant are different from arm dynamics and (2) the BMI is controlled using a different neural pathway than the natural arm control mechanism. Therefore, we use simulations to compare the performance of different decoding algorithms instead of comparisons of offline reconstruction accuracy.

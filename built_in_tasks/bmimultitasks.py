@@ -18,6 +18,7 @@ from .target_capture_task import ScreenTargetCapture
 from .target_capture_task_xt import ScreenReachAngle
 from features.bmi_task_features import LinearlyDecreasingAssist
 from .target_graphics import target_colors
+from .target_tracking_task import ScreenTargetTracking
 
 from .target_capture_task_eye import EyeConstrainedTargetCapture
 
@@ -201,10 +202,12 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
     Cursor movement can be assisted toward target by setting assist_level > 0.
     '''
     reset = traits.Int(0, desc='reset the decoder state to the starting configuration. 1 for always, 2 for only on timeout')
+    auto_reset_time = traits.Float(0, desc='automatically reset the decoder state every N seconds. 0 for no auto-reset')
     assist_speed = traits.Float(2., desc="speed of assister in cm/s")
     assist_noise = traits.Float(0., desc="noise added to cursor speed in cm/s")
     cursor_color = traits.OptionsList("orange", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     save_zscore = traits.Bool(False, desc="save a decoder zscored from this task")
+    dist_tol_reset = traits.Float(0.001, desc="distance from the edge of the workspace to trigger auto-reset")
 
     static_states = ['reward'] # states in which the decoder is not run
 
@@ -216,6 +219,35 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        self.auto_reset_starter = None # time when the auto-reset timer started
+
+    def _cycle(self):
+        super()._cycle()
+        if self.auto_reset_time <= 0:
+            return 
+
+        rel_time = self.get_time()
+        # function to check if cursor is at edge of the workspace. Start timer & reset if it has been there longer than reset time 
+        # does not move cursor to bounds if far exceeding boundary, just counts the time 
+        if self._cursor_at_bounds():
+            if self.auto_reset_starter is None:
+                self.auto_reset_starter = rel_time #start timer using current time 
+            elif (rel_time - self.auto_reset_starter) > self.auto_reset_time: #reset if cursor has been at edge for long enough 
+                self.hdf.sendMsg("auto-reset")
+                self.reset_cursor()
+                self.auto_reset_starter = None
+        else:
+            self.auto_reset_starter = None
+     
+
+    def _cursor_at_bounds(self):  
+        pos = np.asarray(self.plant.get_endpoint_pos()).ravel()
+        bounds = np.asarray(self.cursor_bounds)      
+        lo, hi = bounds[0::2], bounds[1::2] # pair up bounds for each diimension 
+        active = hi > lo # ignore an axis that has no range 
+        at_edge = (np.abs(pos - lo) < self.dist_tol_reset) | (np.abs(pos - hi) < self.dist_tol_reset)
+        return np.any(at_edge & active)
         
     def move_effector(self, *args, **kwargs):
         pass
@@ -271,6 +303,10 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
         else:
             raise ValueError("Unrecognized decoder state space!")
 
+    
+    def move_effector(self, pos_offset=[0,0,0], vel_offset=[0,0,0]):
+        pass
+    
     def get_target_BMI_state(self, *args):
         '''
         Run the goal calculator to determine the target state of the task
@@ -374,6 +410,8 @@ class BMIControlMultiMixin(BMILoop, LinearlyDecreasingAssist):
         self.hdf.sendMsg(f"clda = {self.learn_flag}")
         print(f"clda = {self.learn_flag}")
 
+    
+
 class BMIControlMulti2DWindow(BMIControlMultiMixin, WindowDispl2D, ScreenTargetCapture):
     fps = 20.
     def __init__(self,*args, **kwargs):
@@ -413,8 +451,20 @@ class BMIControlMultiDirectionConstraint(BMIControlMultiMixin, ScreenReachAngle)
     '''
     pass
 
+
 class BMIControlMulti_ScreenTargetTracking(BMIControlMultiMixin, ScreenTargetTracking):
     '''
     BMI control in the tracking task. 
     '''
-    pass
+    
+    def move_effector(self, pos_offset=[0,0,0], vel_offset=[0,0,0]):
+        '''Runs after BMILoop.move_plant() has set the cursor to the decoded position.'''
+        pos_offset = np.asarray(pos_offset, dtype=float)
+        if not np.any(pos_offset):
+            return
+        decoded_pos = np.asarray(self.plant.get_endpoint_pos()).ravel()
+        new_pos = decoded_pos + pos_offset
+
+        bounds = np.asarray(self.cursor_bounds)       # (min0, max0, min1, max1, min2, max2)
+        new_pos = np.clip(new_pos, bounds[0::2], bounds[1::2])
+        self.plant.set_endpoint_pos(new_pos)

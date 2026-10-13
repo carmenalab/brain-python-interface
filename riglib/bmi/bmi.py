@@ -1065,6 +1065,7 @@ class BMISystem(object):
                 kwargs.update(batch_data)
                 self.updater(**kwargs)
                 self.learner.disable()
+                self.last_batch_data = batch_data
 
             new_params = None # by default, no new parameters are available
             if self.has_updater:
@@ -1073,8 +1074,8 @@ class BMISystem(object):
             # Update the decoder if new parameters are available
             if not (new_params is None):
                 self.decoder.update_params(new_params, **self.updater.update_kwargs)
-                new_params['intended_kin'] = batch_data['intended_kin']
-                new_params['spike_counts_batch'] = batch_data['spike_counts']
+                new_params['intended_kin'] = self.last_batch_data['intended_kin']
+                new_params['spike_counts_batch'] = self.last_batch_data['spike_counts']
                 new_params['target_position'] = target_state_k
 
                 self.learner.enable()

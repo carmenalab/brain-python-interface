@@ -5,8 +5,9 @@ Closed-loop decoder adaptation (CLDA) classes. There are two types of classes,
 updating 
 '''
 import multiprocessing as mp
+import queue
 import numpy as np
-from . import kfdecoder, ppfdecoder, train
+from . import kfdecoder, ppfdecoder, wfdecoder, train
 import re
 import copy
 
@@ -368,6 +369,93 @@ class OFCLearnerRotateIntendedVelocity(OFCLearner):
             return None
 
 
+class PositionErrorLearner(Learner):
+    '''
+    An intention estimator which assumes the subject intends to move straight toward the target
+    at a speed proportional to the distance from it, i.e., the intended velocity is
+
+        v_int = gain * (p_target - p_current)
+
+    This is the intention estimate of the labgraph Wiener filter CLDA (weiner_filter_L2cost.py),
+    where 'gain' here corresponds to gain/sampling_rate there. Position states of the intended
+    kinematics are set to the current position and all other states (e.g., the offset) are copied
+    from the current state, so only the velocity states carry information about the intention.
+    '''
+    def __init__(self, batch_size, gain=1., zero_tol=0.01, learn_states=None, *args, **kwargs):
+        '''
+        Constructor for PositionErrorLearner
+
+        Parameters
+        ----------
+        batch_size : int
+            Size of batch of samples to pass to the Updater to estimate new decoder parameters
+        gain : float, optional, default=1
+            Intended speed per unit of distance from the target, i.e., in units of 1/s
+        zero_tol : float, optional, default=0.01
+            If the distance to the target is at or below this tolerance, the intended velocity is zero
+        learn_states : list of strings, optional
+            Task states during which the intention is estimated. By default, intention is estimated
+            during every state in which the task specifies a target state
+        *args, **kwargs : additional args
+            Passed to the Learner constructor (e.g., done_states, reset_states)
+
+        Returns
+        -------
+        PositionErrorLearner instance
+        '''
+        super(PositionErrorLearner, self).__init__(batch_size, *args, **kwargs)
+        self.gain = gain
+        self.zero_tol = zero_tol
+        self.learn_states = learn_states
+
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''
+        Calculate the intended kinematics as the current state with the velocity replaced by
+        gain * (target position - current position)
+
+        Parameters
+        ----------
+        [same as OFCLearner.calc_int_kin]
+        current_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            Ignored
+        task_state : string
+            Name of the task state. No intention is estimated in states outside 'learn_states'
+        state_order : np.ndarray of shape (N,)
+            Order of each state in the decoder (0 = position, 1 = velocity); see riglib.bmi.state_space_models.State.
+            Required for this learner.
+
+        Returns
+        -------
+        np.mat of shape (N, 1) or None
+            Estimate of intended next state for the BMI, or None if no intention can be estimated
+        '''
+        if self.learn_states is not None and task_state not in self.learn_states:
+            return None
+        if state_order is None:
+            raise ValueError("PositionErrorLearner needs the 'state_order' of the decoder states to find the position and velocity states")
+
+        current_state = np.asarray(current_state, dtype=np.float64).ravel()
+        target_state = np.asarray(target_state, dtype=np.float64).ravel()
+        if np.any(np.isnan(target_state)):
+            return None
+
+        state_order = np.asarray(state_order, dtype=np.float64)
+        pos_inds = np.nonzero(state_order == 0)[0]
+        vel_inds = np.nonzero(state_order == 1)[0]
+        assert len(pos_inds) == len(vel_inds), "position and velocity states must pair up"
+
+        pos_error = target_state[pos_inds] - current_state[pos_inds]
+        int_kin = current_state.copy()
+        if np.linalg.norm(pos_error) <= self.zero_tol:
+            int_kin[vel_inds] = 0.
+        else:
+            int_kin[vel_inds] = self.gain * pos_error
+        return np.asmatrix(int_kin).reshape(-1, 1)
+    
 class SimpleEndpointIntentionLearner(Learner):
     """
     Minimal intention estimator for endpoint velocity decoders.
@@ -458,7 +546,9 @@ class Updater(object):
             # Instantiate the process
             self.calculator = MPCompute(self.work_queue, self.result_queue, fn)
 
-            # spawn the process
+            # spawn the process. As a daemon, it is killed when the task process exits
+            # instead of keeping it alive if this object is never garbage collected
+            self.calculator.daemon = True
             self.calculator.start()
         else:
             self.fn = fn
@@ -486,7 +576,7 @@ class Updater(object):
                 self.prev_result = output_data
                 self.waiting = False
                 return output_data
-            except Queue.Empty:
+            except queue.Empty:
                 return None
             except:
                 import traceback
@@ -1059,6 +1149,300 @@ class PPFRML(Updater):
                 self.S[k] = np.array(rho*S + (1-rho)*(y_m*x_m)).ravel()
 
         return {'filt.C': self.C_est}
+
+
+class WFSmoothbatch(Updater):
+    '''
+    Calculate updates for the weights of a Wiener filter (wfdecoder.WienerFilter) using the
+    SmoothBatch method, with the new weights estimated by gradient descent on a regularized
+    least-squares (L2) cost. This is the algorithm of the labgraph Wiener filter CLDA
+    (weiner_filter_L2cost.py).
+
+    Each batch, a new set of weights H_hat is estimated from the batch of neural observations
+    (stacked into the history of observations Y the filter acts on) and the intended kinematics
+    X of the states the filter estimates, by minimizing
+
+        c(H) = lambda_E * ||H*Y - X||_F^2 + lambda_D * ||H||_F^2
+
+    using BFGS with the analytical gradient
+
+        dc/dH = 2*lambda_E*(H*Y - X)*Y^T + 2*lambda_D*H
+
+    starting from the unregularized least-squares solution. The minimizer is the ridge regression
+    solution, which can alternatively be computed in closed form with solver='exact'. The new
+    weights are then blended with the current weights using a step size rho set by the half-life:
+
+        H_new = rho * H_old + (1 - rho) * H_hat
+
+    Differences from the labgraph implementation:
+      - the offset column of H is not penalized, consistent with WienerFilter.MLE_filter
+      - the term lambda_F*||F||^2 of the labgraph cost is omitted since it does not depend on H
+      - the velocity 'state transition' term of the labgraph decoder is always zero in that
+        implementation and has no counterpart in the WienerFilter, so it is omitted
+      - the labgraph smoothing constant 'alpha' is 'rho' here, e.g., alpha = 0.5 corresponds
+        to half_life = batch_time
+    '''
+    update_kwargs = dict()
+    def __init__(self, batch_time, half_life, lambda_E=1., lambda_D=0.1, solver='bfgs', gtol=1e-6, maxiter=1000, multiproc=False, verbose=False):
+        '''
+        Constructor for WFSmoothbatch
+
+        Parameters
+        ----------
+        batch_time : float
+            Size of data batch to use for each update. Specify in seconds.
+        half_life : float
+            Amount of time (in seconds) before parameters are half-overwritten by new data.
+        lambda_E : float, optional, default=1
+            Weight on the squared prediction error in the cost
+        lambda_D : float, optional, default=0.1
+            Weight on the squared norm of the filter weights (ridge penalty) in the cost
+        solver : string, optional, default='bfgs'
+            'bfgs' minimizes the cost by gradient descent (BFGS) as in the labgraph implementation,
+            'exact' computes the minimizer in closed form
+        gtol : float, optional, default=1e-6
+            Gradient tolerance at which BFGS terminates
+        maxiter : int, optional, default=1000
+            Maximum number of BFGS iterations
+        multiproc : bool, optional, default=False
+            Run the estimation in a separate process so that the task loop is not blocked while
+            the optimizer runs (which can take a good fraction of a second for many features and taps).
+            The new weights are then applied a few hundred ms after the batch is complete.
+        verbose : bool, optional, default=False
+            Print the optimizer's convergence messages and the change in the weights after each update
+
+        Returns
+        -------
+        WFSmoothbatch instance
+        '''
+        if lambda_E <= 0:
+            raise ValueError("lambda_E must be positive")
+        if lambda_D < 0:
+            raise ValueError("lambda_D must be non-negative")
+        if solver not in ['bfgs', 'exact']:
+            raise ValueError("solver must be 'bfgs' or 'exact'")
+        self.batch_time = batch_time
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+        self.lambda_E = lambda_E
+        self.lambda_D = lambda_D
+        self.solver = solver
+        self.gtol = gtol
+        self.maxiter = maxiter
+        self.last_fit = None
+        self.verbose = verbose
+
+        # The attributes above must be set before the parent constructor runs, since with
+        # multiproc=True the calculation process is forked there with a copy of this object
+        super(WFSmoothbatch, self).__init__(self.calc, multiproc=multiproc, verbose=verbose)
+
+    def init(self, decoder):
+        '''
+        Check that the seed decoder can be updated by this method
+
+        Parameters
+        ----------
+        decoder : bmi.Decoder instance
+            The seed decoder before any adaptation runs. Must wrap a wfdecoder.WienerFilter
+
+        Returns
+        -------
+        None
+        '''
+        if not isinstance(decoder.filt, wfdecoder.WienerFilter):
+            raise TypeError("WFSmoothbatch can only update a WienerFilter, not %s" % type(decoder.filt))
+
+    @staticmethod
+    def _penalty_mask(n_states, n_regressors, penalize_offset=False):
+        '''
+        Mask of the weights which are penalized in the cost: all the weights except the offset column
+        '''
+        mask = np.ones((n_states, n_regressors))
+        if not penalize_offset:
+            mask[:, -1] = 0
+        return mask
+
+    @staticmethod
+    def cost_l2(H, X, Y, lambda_E, lambda_D, penalty_mask=None):
+        '''
+        L2 cost of the filter weights, c(H) = lambda_E * ||H*Y - X||_F^2 + lambda_D * ||H||_F^2
+
+        Parameters
+        ----------
+        H : np.ndarray of shape (N, M) or (N*M,)
+            Filter weights. Can be flattened, for the optimizer
+        X : np.ndarray of shape (N, T)
+            Intended kinematics of the states the filter estimates
+        Y : np.ndarray of shape (M, T)
+            History of observations the filter acts on, see WienerFilter.form_obs_history
+        lambda_E : float
+            Weight on the squared prediction error
+        lambda_D : float
+            Weight on the squared norm of the filter weights
+        penalty_mask : np.ndarray of shape (N, M), optional
+            Which weights the norm penalty applies to. Default is all of them
+
+        Returns
+        -------
+        float
+        '''
+        H = np.reshape(H, (X.shape[0], Y.shape[0]))
+        if penalty_mask is None:
+            penalty_mask = 1.
+        err = H.dot(Y) - X
+        return lambda_E * np.sum(err**2) + lambda_D * np.sum((H*penalty_mask)**2)
+
+    @staticmethod
+    def gradient_cost_l2(H, X, Y, lambda_E, lambda_D, penalty_mask=None):
+        '''
+        Gradient of the L2 cost with respect to the filter weights,
+        dc/dH = 2*lambda_E*(H*Y - X)*Y^T + 2*lambda_D*H
+
+        Parameters
+        ----------
+        [same as cost_l2]
+
+        Returns
+        -------
+        np.ndarray of shape (N*M,)
+            Flattened gradient, for the optimizer
+        '''
+        H = np.reshape(H, (X.shape[0], Y.shape[0]))
+        if penalty_mask is None:
+            penalty_mask = 1.
+        grad = 2 * lambda_E * (H.dot(Y) - X).dot(Y.T) + 2 * lambda_D * H * penalty_mask
+        return grad.ravel()
+
+    @classmethod
+    def estimate_filter(cls, X, Y, lambda_E=1., lambda_D=0.1, solver='bfgs', penalize_offset=False, H0=None, gtol=1e-6, maxiter=1000, verbose=False):
+        '''
+        Estimate the filter weights minimizing the L2 cost for a batch of data
+
+        Parameters
+        ----------
+        X : np.ndarray of shape (N, T)
+            Intended kinematics of the states the filter estimates
+        Y : np.ndarray of shape (M, T)
+            History of observations the filter acts on, see WienerFilter.form_obs_history.
+            The last row is assumed to be the offset regressor (all ones)
+        lambda_E, lambda_D : float
+            Weights of the cost terms, see the class documentation
+        solver : string, optional, default='bfgs'
+            'bfgs' or 'exact'
+        penalize_offset : bool, optional, default=False
+            Apply the norm penalty to the offset column of the weights as well
+        H0 : np.ndarray of shape (N, M), optional
+            Initial weights for the gradient descent. Default is the unregularized least-squares solution
+        gtol, maxiter : optional
+            BFGS termination settings
+        verbose : bool, optional, default=False
+            Print the optimizer's convergence message
+
+        Returns
+        -------
+        H_hat : np.ndarray of shape (N, M)
+            Estimated filter weights
+        info : dict
+            Diagnostics of the estimation: 'cost', and for the 'bfgs' solver also 'n_iter',
+            'success' and 'message'
+        '''
+        X = np.asarray(X, dtype=np.float64)
+        Y = np.asarray(Y, dtype=np.float64)
+        n_states, n_regressors = X.shape[0], Y.shape[0]
+        mask = cls._penalty_mask(n_states, n_regressors, penalize_offset=penalize_offset)
+        cost_args = (X, Y, lambda_E, lambda_D, mask)
+
+        if solver == 'exact':
+            # ridge regression solution, (Y*Y^T + lambda_D/lambda_E * M) * H^T = Y * X^T. lstsq
+            # returns the minimum-norm minimizer if the system is singular, e.g., for lambda_D=0
+            # with rank-deficient or short batches
+            YtY_lamb = Y.dot(Y.T) + (lambda_D/lambda_E) * np.diag(mask[0, :])
+            H_hat = np.linalg.lstsq(YtY_lamb, Y.dot(X.T), rcond=None)[0].T
+            info = dict(cost=cls.cost_l2(H_hat, *cost_args))
+        elif solver == 'bfgs':
+            from scipy.optimize import minimize
+            if H0 is None:
+                H0 = np.linalg.lstsq(Y.T, X.T, rcond=None)[0].T
+            res = minimize(cls.cost_l2, np.ravel(H0), args=cost_args, jac=cls.gradient_cost_l2,
+                method='BFGS', options=dict(gtol=gtol, maxiter=maxiter, disp=verbose))
+            if not res.success:
+                print("WFSmoothbatch: gradient descent did not converge: %s" % res.message)
+            H_hat = np.reshape(res.x, (n_states, n_regressors))
+            info = dict(cost=res.fun, n_iter=res.nit, success=res.success, message=res.message)
+        else:
+            raise ValueError("solver must be 'bfgs' or 'exact'")
+
+        return H_hat, info
+
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
+        '''
+        SmoothBatch calculation of the new filter weights
+
+        Parameters
+        ----------
+        intended_kin : np.ndarray of shape (n_states, batch_size)
+            Batch of estimates of intended kinematics, from the learner
+        spike_counts : np.ndarray of shape (n_features, batch_size)
+            Batch of consecutive observations of decoder features, from the learner
+        decoder : bmi.Decoder instance
+            Reference to the Decoder instance
+        half_life : float, optional
+            Half-life to use to calculate the parameter change step size [s]. If not specified, the half-life specified when the Updater was constructed is used.
+        kwargs : dict
+            Optional keyword arguments, ignored
+
+        Returns
+        -------
+        new_params : dict
+            New parameters to feed back to the Decoder in use by the task, i.e., the new filter weights 'filt.H'
+        '''
+        if intended_kin is None or spike_counts is None or decoder is None:
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
+
+        # Calculate the step size based on the half life and the number of samples to train from
+        batch_size = intended_kin.shape[1]
+        batch_time = batch_size * decoder.binlen
+        if half_life is not None:
+            rho = np.exp(np.log(0.5)/(half_life/batch_time))
+        else:
+            rho = self.rho
+
+        # The filter acts on the observations after they are normalized by the decoder
+        obs = np.asarray(spike_counts, dtype=np.float64)
+        if getattr(decoder, 'zscore', False):
+            obs = (obs - np.reshape(decoder.mFR, (-1, 1))) * (1./np.reshape(decoder.sdFR, (-1, 1)))
+
+        # Only the states estimated from the observations have filter weights. The structure of the
+        # filter is taken from the decoder passed in with the batch (rather than saved by 'init') so
+        # that the calculation also works in a separate process
+        train_inds = np.array(decoder.ssm.train_inds)
+        n_taps = decoder.filt.n_taps
+        X = np.asarray(intended_kin, dtype=np.float64)[train_inds, :]
+        Y = wfdecoder.WienerFilter.form_obs_history(obs, n_taps=n_taps, include_offset=True)
+
+        # Discard the samples for which the history of observations is incomplete
+        X = X[:, n_taps-1:]
+        Y = Y[:, n_taps-1:]
+
+        H_old = np.asarray(decoder.filt.H, dtype=np.float64)
+        if X.shape[1] == 0:
+            print("WFSmoothbatch: batch of %d samples is too short for a filter with %d taps, weights not updated" % (batch_size, n_taps))
+            self.last_fit = None
+            return {'filt.H': np.asmatrix(H_old)}
+
+        H_hat, info = self.estimate_filter(X, Y, lambda_E=self.lambda_E, lambda_D=self.lambda_D,
+            solver=self.solver, gtol=self.gtol, maxiter=self.maxiter, verbose=self.verbose)
+
+        # SmoothBatch update, with the weights of the other states left untouched
+        H_new = H_old.copy()
+        H_new[train_inds, :] = rho*H_old[train_inds, :] + (1-rho)*H_hat
+
+        info.update(rho=rho, batch_size=batch_size, H_hat=H_hat)
+        self.last_fit = info # only visible from the task when multiproc=False
+        if self.verbose:
+            print("WFSmoothbatch: rho=%.3f, cost=%.4g, |H_new - H_old|=%.4g" % (rho, info['cost'], np.linalg.norm(H_new - H_old)))
+
+        return {'filt.H': np.asmatrix(H_new)}
 
 
 ###############################

@@ -5,4 +5,4 @@ db/html/static/resources/js/bmi.js
 db/tracker/ajax.py 
 db/trainbmi.py
 riglib/bmi/train.py
-
+notebooks/generate_wf_decoder.ipynb

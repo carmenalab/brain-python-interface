@@ -29,7 +29,7 @@ from .blackrock_features import RelayBlackrockByte
 from .ecube_features import EcubeFileBMI, EcubeBMI, RecordECube
 from .sync_features import ArduinoSync, CursorAnalogOut, ScreenSync, HDFSync
 from .neuropixel_features import RecordNeuropixels
-from .clda_features import CLDA_Smoothbatch_IntendedVelocity, CLDA_KFRML_IntendedVelocity
+from .clda_features import CLDA_Smoothbatch_IntendedVelocity, CLDA_KFRML_IntendedVelocity, CLDA_WFSmoothbatch
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -101,6 +101,7 @@ built_in_features = dict(
     show_fixation_progress=Progressbar_fixation,
     clda_smoothbatch=CLDA_Smoothbatch_IntendedVelocity,
     clda_kfrml=CLDA_KFRML_IntendedVelocity,
+    clda_wf_smoothbatch=CLDA_WFSmoothbatch,
     hide_left_trajectory=HideLeftTrajectory,
     consecutive_jackpot=ConsecutiveJackpot,
     mouse_emulate_touch=MouseEmulateTouch,
