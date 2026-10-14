@@ -596,7 +596,26 @@ def toggle_features(request):
         return _respond(dict(msg=msg, status="success", id=feat.id))
     else:
         # something is wrong
-        return _respond(dict(msg="feature not valid!", status="error"))   
+        return _respond(dict(msg="feature not valid!", status="error"))
+
+@csrf_exempt
+def remove_feature(request):
+    '''Permanently delete a custom (not built-in) feature. Task entries that used it lose the link.'''
+    from features import built_in_features
+    from . import models
+
+    name = request.POST.get('name')
+    if name in built_in_features:
+        return _respond(dict(msg="Can't remove built-in feature %s, disable it instead" % name, status="error"))
+
+    existing_features = Feature.objects.filter(name=name)
+    if not existing_features.exists():
+        return _respond(dict(msg="feature not valid!", status="error"))
+
+    n_entries = TaskEntry.objects.filter(feats__in=existing_features).distinct().count()
+    existing_features.delete()
+    msg = "Removed feature: %s (unlinked from %d task entries)" % (name, n_entries)
+    return _respond(dict(msg=msg, status="success"))
 
 @csrf_exempt
 def add_new_feature(request):

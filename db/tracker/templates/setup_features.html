@@ -23,6 +23,9 @@
     <td>{{feature.name}}</td>
     <td>
       <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="toggle_feature('{{feature.name}}')">
+      {% if not feature.name in built_in_feature_names %}
+        <input type="submit" value="Remove" onclick="remove_feature('{{feature.name}}', this)">
+      {% endif %}
   </tr>
   {% endfor %}
 
@@ -31,7 +34,10 @@
   <tr>
     <td>{{feature.id}}</td>
     <td>{{feature.name}}</td>
-    <td><input type="submit" id="feature_{{feature.name}}" value="Enable" onclick="toggle_feature('{{feature.name}}')"></td>
+    <td>
+      <input type="submit" id="feature_{{feature.name}}" value="Enable" onclick="toggle_feature('{{feature.name}}')">
+      <input type="submit" value="Remove" onclick="remove_feature('{{feature.name}}', this)">
+    </td>
   </tr>
   {% endfor %}
 

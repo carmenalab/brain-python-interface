@@ -28,6 +28,7 @@ urlpatterns = [
     path('setup/run_upkeep', ajax.setup_run_upkeep),
     path('setup/update/generic', ajax.setup_handler),
     path('setup/update/toggle_features', ajax.toggle_features),
+    path('setup/remove/feature', ajax.remove_feature),
     path('setup/remove/task', ajax.remove_task),
     path('setup/remove/system', ajax.remove_system),
     path('setup/remove/task', ajax.remove_task),
