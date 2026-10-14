@@ -1,7 +1,7 @@
 from analysis import online_analysis
 from features.clda_features import CLDA_KFRML_IntendedVelocity
 from features.debug_features import OnlineAnalysis
-from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor, train
+from riglib.bmi import lindecoder, kfdecoder, wfdecoder, state_space_models, extractor, train
 from built_in_tasks.bmimultitasks import BMIControlMulti #, SimBMICosEncLinDec, SimBMIVelocityLinDec
 from features.ecube_features import EcubeBMI, EcubeFileBMI, RecordECube
 from features.neural_sys_features import SpikerBoxBMI
@@ -291,6 +291,181 @@ class TestLinDec(unittest.TestCase):
             self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
             self.assertTrue(rewards > 0)
 
+
+
+class TestWFDecoder(unittest.TestCase):
+
+    def setUp(self):
+        '''
+        Simulate a population whose activity is linearly related to the velocity
+        in the current bin and in the previous bin
+        '''
+        np.random.seed(0)
+        self.ssm = state_space_models.StateSpaceEndptVel2D()
+        self.n_units = 12
+        self.T = 2000
+        self.units = np.vstack([np.arange(1, self.n_units+1), np.zeros(self.n_units)]).T.astype(np.int32)
+
+        self.neural_features = np.random.randn(self.n_units, self.T) + 5
+        B_0 = np.random.randn(2, self.n_units)
+        B_1 = np.random.randn(2, self.n_units)
+        vel = B_0.dot(self.neural_features) + \
+            np.hstack([np.zeros((2, 1)), B_1.dot(self.neural_features[:, :-1])])
+
+        self.kin = np.zeros((6, self.T))
+        self.kin[3, :] = vel[0, :]
+        self.kin[5, :] = vel[1, :]
+
+    def _train(self, **kwargs):
+        return train.train_WFDecoder_abstract(self.ssm, self.kin, self.neural_features,
+            self.units, 0.1, **kwargs)
+
+    def test_obs_history(self):
+        obs = np.arange(6).reshape(2, 3)
+        obs_hist = wfdecoder.WienerFilter.form_obs_history(obs, n_taps=2)
+
+        # each column is [y_t; y_{t-1}; 1], with the first column zero-padded
+        np.testing.assert_array_equal(obs_hist[:, 0], [0, 3, 0, 0, 1])
+        np.testing.assert_array_equal(obs_hist[:, 1], [1, 4, 0, 3, 1])
+        np.testing.assert_array_equal(obs_hist[:, 2], [2, 5, 1, 4, 1])
+
+    def test_one_tap_is_linear_regression(self):
+        decoder = self._train(n_taps=1)
+
+        obs = np.vstack([self.neural_features, np.ones(self.T)])
+        H = np.linalg.lstsq(obs.T, self.kin[self.ssm.train_inds, :].T, rcond=None)[0].T
+        np.testing.assert_allclose(np.asarray(decoder.filt.H)[self.ssm.train_inds, :], H)
+
+        # states which aren't estimated from the observations have no filter weights
+        self.assertTrue(np.all(np.asarray(decoder.filt.H)[[0, 1, 2, 4, 6], :] == 0))
+
+    def test_decoding(self):
+        decoder = self._train(n_taps=4)
+        self.assertEqual(decoder.filt.H.shape, (self.ssm.n_states, self.n_units*4 + 1))
+        self.assertEqual(decoder.filt.n_features, self.n_units)
+
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features)
+
+        # the simulated velocity is exactly a linear function of the neural history
+        for state, kin_ind in zip([3, 5], [3, 5]):
+            corr = np.corrcoef(out[4:, state], self.kin[kin_ind, 4:])[0, 1]
+            self.assertTrue(corr > 0.99)
+
+        # one tap can't capture the lagged component of the simulated tuning
+        decoder_1tap = self._train(n_taps=1)
+        decoder_1tap.filt._init_state()
+        out_1tap = decoder_1tap.decode(self.neural_features)
+        self.assertTrue(np.corrcoef(out_1tap[:, 3], self.kin[3, :])[0, 1] <
+                        np.corrcoef(out[4:, 3], self.kin[3, 4:])[0, 1])
+
+    def test_state_space_update(self):
+        decoder = self._train(n_taps=4)
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features)
+
+        # states which aren't estimated from the observations follow the state space model
+        np.testing.assert_allclose(out[:, 6], 1)
+        np.testing.assert_allclose(out[:, 4], 0)
+        np.testing.assert_allclose(out[1:, 0], np.cumsum(out[:-1, 3])*decoder.binlen)
+
+    def test_regularization(self):
+        decoder = self._train(n_taps=4)
+        decoder_ridge = self._train(n_taps=4, regularizer=1e4)
+
+        # the offset term (the last column of H) is not penalized
+        self.assertTrue(np.linalg.norm(decoder_ridge.filt.H[:, :-1]) <
+                        np.linalg.norm(decoder.filt.H[:, :-1]))
+
+    def test_pickle(self):
+        import pickle
+        decoder = self._train(n_taps=4)
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features)
+
+        decoder_copy = pickle.loads(pickle.dumps(decoder, 2))
+        np.testing.assert_array_equal(decoder_copy.filt.H, decoder.filt.H)
+        self.assertEqual(decoder_copy.filt.n_taps, decoder.filt.n_taps)
+        np.testing.assert_array_equal(decoder_copy.filt.is_stochastic, decoder.filt.is_stochastic)
+
+        decoder_copy.filt._init_state()
+        np.testing.assert_allclose(out, decoder_copy.decode(self.neural_features))
+
+    def test_call(self):
+        decoder = self._train(n_taps=4)
+        decoder.filt._init_state()
+
+        # the task calls the decoder one observation at a time
+        states = [decoder(self.neural_features[:, k].reshape(-1, 1)) for k in range(10)]
+        self.assertEqual(states[0].shape, (self.ssm.n_states, 1))
+
+        decoder.filt._init_state()
+        np.testing.assert_allclose(np.hstack(states).T, decoder.decode(self.neural_features[:, :10]))
+
+    def test_control_input(self):
+        decoder = self._train(n_taps=4)
+        obs = self.neural_features[:, 0].reshape(-1, 1)
+
+        decoder.filt._init_state()
+        state = np.array(decoder(obs)).ravel()
+
+        # an assistive control input is added on to the states the filter estimates
+        decoder.filt._init_state()
+        Bu = np.asmatrix(np.zeros((self.ssm.n_states, 1)))
+        Bu[3, 0] = 10.
+        state_assist = np.array(decoder(obs, Bu=Bu)).ravel()
+        np.testing.assert_allclose(state_assist[3], state[3] + 10.)
+        np.testing.assert_allclose(state_assist[5], state[5])
+
+    def test_zscore(self):
+        decoder = self._train(n_taps=4, zscore=True)
+        self.assertTrue(decoder.zscore)
+
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features)
+        self.assertTrue(np.corrcoef(out[4:, 3], self.kin[3, 4:])[0, 1] > 0.99)
+
+    def test_fixed_decoder(self):
+        n_taps = 2
+        # only the rows of the trained states, without the offset column
+        H = np.random.randn(2, self.n_units*n_taps)
+        decoder = train.make_fixed_wf_decoder(self.units, self.ssm, H, dt=0.1, n_taps=n_taps)
+        self.assertEqual(decoder.filt.H.shape, (self.ssm.n_states, self.n_units*n_taps + 1))
+        self.assertEqual(decoder.filt.n_taps, n_taps)
+        self.assertEqual(decoder.n_features, self.n_units)
+        np.testing.assert_array_equal(np.asarray(decoder.filt.H)[[3, 5], :-1], H)
+        self.assertTrue(np.all(np.asarray(decoder.filt.H)[[0, 1, 2, 4, 6], :] == 0))
+        self.assertTrue(np.all(np.asarray(decoder.filt.H)[:, -1] == 0))
+
+        # the full matrix is accepted as is
+        decoder_full = train.make_fixed_wf_decoder(self.units, self.ssm, decoder.filt.H, dt=0.1, n_taps=n_taps)
+        np.testing.assert_array_equal(decoder_full.filt.H, decoder.filt.H)
+
+        with self.assertRaises(AssertionError):
+            train.make_fixed_wf_decoder(self.units, self.ssm, H, dt=0.1, n_taps=3)
+
+        # the decoder runs and behaves as a trained one
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features[:, :20])
+        self.assertEqual(out.shape, (20, self.ssm.n_states))
+        np.testing.assert_allclose(out[1:, 0], np.cumsum(out[:-1, 3])*decoder.binlen)
+
+        import pickle
+        decoder_copy = pickle.loads(pickle.dumps(decoder, 2))
+        np.testing.assert_array_equal(decoder_copy.filt.H, decoder.filt.H)
+
+    def test_random_decoder(self):
+        np.random.seed(1)
+        decoder = train.rand_WFDecoder(self.ssm, self.units, dt=0.1, n_taps=3, scale=0.5)
+        H = np.asarray(decoder.filt.H)
+        self.assertEqual(H.shape, (self.ssm.n_states, self.n_units*3 + 1))
+        self.assertTrue(np.all(H[[0, 1, 2, 4, 6], :] == 0))
+        self.assertTrue(np.all(H[:, -1] == 0))
+        self.assertAlmostEqual(np.std(H[[3, 5], :-1]), 0.5, delta=0.1)
+
+        decoder.filt._init_state()
+        out = decoder.decode(self.neural_features[:, :10])
+        self.assertEqual(out.shape, (10, self.ssm.n_states))
 
 
 def calculate_rewards(exp):

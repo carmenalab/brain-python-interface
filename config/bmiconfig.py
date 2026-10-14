@@ -7,6 +7,7 @@ bmi_update_rates = [10, 20, 30, 60, 120, 180]
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
     PPFDecoder=bmi.train.train_PPFDecoder,
+    WFDecoder=bmi.train.train_WFDecoder,
     OneDimLFPDecoder=bmi.train.create_onedimLFP,
     LinearDecoder=bmi.train.create_lindecoder,
 )

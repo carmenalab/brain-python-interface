@@ -26,13 +26,15 @@ fbotypes = dict(
 )
 
 class FBO(object):
-    def __init__(self, attachments, size=None, ncolors=1, **kwargs):
+    def __init__(self, attachments, size=None, ncolors=1, texture_opts=None, **kwargs):
         maxcolors = range(glGetInteger(GL_MAX_COLOR_ATTACHMENTS))
         self.names = dict(("color%d"%i, GL_COLOR_ATTACHMENT0+i) for i in maxcolors)
         self.names["depth"] = GL_DEPTH_ATTACHMENT
         self.names["stencil"] = GL_STENCIL_ATTACHMENT
 
         self.textures = dict()
+        if texture_opts is None:
+            texture_opts = {}
 
         self.fbo = glGenFramebuffers(1)
         glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
@@ -43,7 +45,7 @@ class FBO(object):
                     idx = int(attach[5:])
                     attach = "colors"
                 iform, exform, dtype, attachment = fbotypes[attach]
-                texture = Texture(None, size=size, iformat=iform, exformat=exform, dtype=dtype)
+                texture = Texture(None, size=size, iformat=iform, exformat=exform, dtype=dtype, **texture_opts)
                 texture.init()
                 if attach == "colors":
                     attachment += idx

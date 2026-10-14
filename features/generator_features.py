@@ -163,14 +163,17 @@ class RandomDelay(traits.HasTraits):
         At the start of the 'wait' state, draw a sample from the rand_delay interval for this trial.
         '''
 
-        # Catch trial condition
-        if random.random() < self.prob_catch_trials:
-            self.delay_time = random.choice(self.short_delay_catch_trials)
+        # only make new delay_time when the previous state was not pause or penalty
+        if self.pause_index == 0 and self.penalty_index == 0:
+            # Catch trial condition
+            if random.random() < self.prob_catch_trials:
+                self.delay_time = random.choice(self.short_delay_catch_trials)
 
-        # Normal trial condition
-        else:
-            s, e = self.rand_delay
-            self.delay_time = random.random()*(e-s) + s
+            # Normal trial condition
+            else:
+                s, e = self.rand_delay
+                self.delay_time = random.random()*(e-s) + s
+        
         super()._start_wait()
 
 class DiscreteRandomDelay_EyeHandSequence(traits.HasTraits):

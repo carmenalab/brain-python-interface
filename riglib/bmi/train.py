@@ -10,7 +10,7 @@ from scipy.io import loadmat
 from ..dio import parse
 
 import tables
-from . import kfdecoder, ppfdecoder
+from . import kfdecoder, ppfdecoder, wfdecoder
 from . import state_space_models
 import os
 
@@ -1060,6 +1060,232 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     # decoder.extractor_kwargs = extractor_kwargs
 
     return decoder
+
+def train_WFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, n_taps=5, update_rate_hz=60, **kwargs):
+    '''
+    Create a new WFDecoder using least-squares, from kinematic observations and neural observations
+
+    Parameters
+    ----------
+    files : dict
+        Dictionary of files which contain training data. Keys are file tyes, values are file names.
+        Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
+    extractor_cls : class
+        Class of feature extractor to instantiate
+    extractor_kwargs : dict
+        Parameters to specify for feature extractor to instantiate it to specification
+    kin_extractor : callable
+        Function to extract kinematics from the HDF file.
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    units : np.iterable
+        Spiking units are specified as tuples of (electrode channe, electrode unit)
+    update_rate : float, optional
+        Time in seconds between decoder updates. default=0.1
+    tslice : iterable of length 2, optional
+        Start and end times in seconds to specify the portion of the training data to use for estimation. By default, the whole dataset will be used
+    kin_source : string, optional
+        Table from the HDF file to grab kinematic data. Default is the 'task' table.
+    pos_key : string, optional
+        Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
+    vel_key : string
+        Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
+    zscore : Bool
+        Determines whether to zscore neural_data or not
+    n_taps : int, optional
+        Number of bins of neural history the filter acts on, including the current one. default=5
+    kwargs:
+        mFR: mean firing rate to use to zscore units
+        sdFR: standard dev. to use to zscore units
+        regularizer: ridge penalty on the filter weights
+
+    Returns
+    -------
+    WFDecoder instance
+    '''
+    binlen = update_rate
+
+    ## get kinematic data
+    tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=update_rate_hz)
+
+    ## get neural features
+    if 'blackrock' in list(files.keys()):
+        strobe_rate = 20.
+    elif 'ecube' in list(files.keys()):
+        strobe_rate = update_rate_hz # they are always the same
+    else:
+        strobe_rate = 60.
+
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file,
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
+
+    # Remove 1st kinematic sample and last neural features sample to align the
+    # velocity with the neural features
+    kin = kin[1:].T
+    neural_features = neural_features[:-1].T
+
+    decoder = train_WFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice,
+        zscore=zscore, n_taps=n_taps, **kwargs)
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+def train_WFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, n_taps=5,
+    regularizer=None, zscore=False, **kwargs):
+    '''
+    Train a WFDecoder from kinematic and neural data which have already been extracted and aligned
+
+    Parameters
+    ----------
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    kin : np.ndarray of shape (N, T)
+        N = dimensionality of state vector, T = number of observations
+    neural_features : np.ndarray of shape (M, T)
+        M = number of features, T = number of observations
+    units : np.iterable
+        Spiking units are specified as tuples of (electrode channel, electrode unit)
+    update_rate : float
+        Time in seconds between decoder updates
+    tslice : iterable of length 2, optional
+        Start and end times in seconds of the training data
+    n_taps : int, optional
+        Number of bins of neural history the filter acts on, including the current one. default=5
+    regularizer : float, optional
+        Ridge penalty on the filter weights. By default, no regularization is used
+    zscore : Bool
+        Determines whether to zscore neural_data or not
+    kwargs:
+        mFR: mean firing rate to use to zscore units
+        sdFR: standard dev. to use to zscore units
+
+    Returns
+    -------
+    WFDecoder instance
+    '''
+    #### Normalize the neural features, if requested ####
+    if type(zscore) is bool:
+        pass
+    else:
+        if zscore == 'on':
+            zscore = True
+        elif zscore == 'off':
+            zscore = False
+        else:
+            raise Exception
+
+    if zscore:
+        if 'mFR' in kwargs and 'sdFR' in kwargs:
+            print('using kwargs mFR, sdFR to zscore')
+            mFR = kwargs['mFR']
+            sdFR = kwargs['sdFR']
+        else:
+            print('computing own mFR, sdFR to zscore')
+            mFR = np.mean(neural_features, axis=1)
+            sdFR = np.std(neural_features, axis=1)
+        neural_features = (neural_features - mFR[:, np.newaxis])*(1./sdFR[:, np.newaxis])
+    else:
+        mFR = np.asarray(np.mean(neural_features, axis=1)).ravel()
+        sdFR = np.asarray(np.std(neural_features, axis=1)).ravel()
+
+    n_features = len(mFR)
+
+    #### Train the actual filter weights ####
+    # H is only trained on the stochastic state variables, the rest of the states are
+    # propagated by the state-space model (e.g., position integrates the decoded velocity)
+    H = np.zeros((ssm.n_states, n_features*n_taps + 1))
+    H[ssm.train_inds, :] = wfdecoder.WienerFilter.MLE_filter(kin[ssm.train_inds, :], neural_features,
+        n_taps=n_taps, regularizer=regularizer)
+
+    # Set state space model
+    A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
+
+    # instantiate WFdecoder
+    wf = wfdecoder.WienerFilter(A, W, H, n_taps=n_taps, is_stochastic=ssm.is_stochastic, B=B)
+    decoder = wfdecoder.WFDecoder(wf, units, ssm, binlen=update_rate, tslice=tslice)
+
+    if zscore:
+        decoder.init_zscore(mFR, sdFR)
+
+    decoder.n_features = n_features
+
+    return decoder
+
+def make_fixed_wf_decoder(units, ssm, H, dt=0.1, n_taps=1):
+    '''
+    Make a WFDecoder with the given filter weights, e.g., to hand-design a decoder or to seed CLDA
+
+    Parameters
+    ----------
+    units : np.array of shape (N, 2)
+        Unit labels of each of the N neural features
+    ssm : state_space_models.StateSpace instance
+        State-space model for the WFDecoder. Should specify the A and W matrices
+    H : np.ndarray
+        Filter weights. Either the full matrix of shape (n_states, N*n_taps + 1), or only the
+        rows of the states estimated from the observations (ssm.train_inds), of shape
+        (len(train_inds), N*n_taps + 1). In either case, the offset column may be omitted, i.e.,
+        a second dimension of N*n_taps is padded with a zero offset. Column k*N + j is the weight
+        of feature j at lag k
+    dt : float, optional, default=0.1
+        Time between decoder updates [s]
+    n_taps : int, optional, default=1
+        Number of bins of neural history the filter acts on, including the current one
+
+    Returns
+    -------
+    WFDecoder instance
+    '''
+    units = np.asarray(units)
+    n_features = units.shape[0]
+    H = np.array(H, dtype=np.float64)
+    train_inds = np.array(ssm.train_inds)
+
+    if H.shape[1] == n_features*n_taps:
+        H = np.hstack([H, np.zeros((H.shape[0], 1))])
+    assert H.shape[1] == n_features*n_taps + 1, "H must have %d*%d (+1 for the offset) columns, not %d" % (n_features, n_taps, H.shape[1])
+
+    if H.shape[0] == len(train_inds) and H.shape[0] != ssm.n_states:
+        H_full = np.zeros((ssm.n_states, H.shape[1]))
+        H_full[train_inds, :] = H
+        H = H_full
+    assert H.shape[0] == ssm.n_states, "H must have either %d (all states) or %d (trained states) rows, not %d" % (ssm.n_states, len(train_inds), H.shape[0])
+
+    A, B, W = ssm.get_ssm_matrices(update_rate=dt)
+    wf = wfdecoder.WienerFilter(A, W, H, n_taps=n_taps, is_stochastic=ssm.is_stochastic, B=B)
+    decoder = wfdecoder.WFDecoder(wf, units, ssm, binlen=dt)
+    decoder.n_features = n_features
+    return decoder
+
+def rand_WFDecoder(ssm, units, dt=0.1, n_taps=1, scale=1.):
+    '''
+    Make a WFDecoder with the filter weights initialized randomly (zero-mean Gaussian),
+    e.g., as a naive starting point for CLDA
+
+    Parameters
+    ----------
+    ssm : state_space_models.StateSpace instance
+        State-space model for the WFDecoder. Should specify the A and W matrices
+    units : np.array of shape (N, 2)
+        Unit labels of each of the N neural features
+    dt : float, optional, default=0.1
+        Time between decoder updates [s]
+    n_taps : int, optional, default=1
+        Number of bins of neural history the filter acts on, including the current one
+    scale : float, optional, default=1
+        Standard deviation of the random weights. The offset weights are zero
+
+    Returns
+    -------
+    WFDecoder instance
+    '''
+    units = np.asarray(units)
+    n_features = units.shape[0]
+    H = scale * np.random.standard_normal([len(ssm.train_inds), n_features*n_taps])
+    return make_fixed_wf_decoder(units, ssm, H, dt=dt, n_taps=n_taps)
 
 def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
     pos_key='cursor', vel_key=None, zscore=False):

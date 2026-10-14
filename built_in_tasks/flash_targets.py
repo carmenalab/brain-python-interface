@@ -91,6 +91,8 @@ class FlashTargets(ScreenTargetCapture_Saccade):
         assert self.total_flashes==np.floor(self.total_flashes), f"The hold time needs to be appropriately set to allow for the start/end buffer and a integer number of flashes. Current hold time should be modified to {np.floor(self.total_flashes)*(self.target_flash_time_s[0] + self.target_flash_time_s[1]) + 2*(self.flash_buffer_time_s)}"
         assert self.total_flashes>0, f"Hold time {self.hold_time} is too short to show any peripheral targets with the current flash buffer time {self.flash_buffer_time_s} and flash on/off times {self.target_flash_time_s}"
 
+        #Flag to track the number of flashes shown per trial
+        self.flash_tracker = 0
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
 
@@ -120,7 +122,7 @@ class FlashTargets(ScreenTargetCapture_Saccade):
         wait = dict(start_trial="target", start_pause="pause"),
         target = dict(enter_target="hold_start_buffer", start_pause="pause"),
         hold_start_buffer = dict(leave_target="hold_penalty", start_flash_cycle='hold_flash_on', start_pause="pause"),
-        hold_flash_on = dict(leave_target="hold_penalty", flash_complete="hold_flash_off", flash_cycle_complete='hold_end_buffer', start_pause="pause"),
+        hold_flash_on = dict(leave_target="hold_penalty", flash_complete="hold_flash_off", start_pause="pause"),
         hold_flash_off = dict(leave_target="hold_penalty", flash_interval_complete = "hold_flash_on", flash_cycle_complete='hold_end_buffer', start_pause="pause"),
         hold_end_buffer = dict(leave_target="hold_penalty", hold_complete='reward', start_pause="pause"),
         hold_penalty = dict(hold_penalty_end="wait", start_pause="pause", end_state=True),
@@ -131,7 +133,7 @@ class FlashTargets(ScreenTargetCapture_Saccade):
     def _test_hold_complete(self, time_in_state):
         time_since_hold_start = self.get_time() - self.most_recent_hold_start_time
         return self.hold_time<=(time_since_hold_start)
-    
+
     def _start_hold_flash_off(self):
         #Turn off the target
         #Which actual animatino blob do I hide?
@@ -142,12 +144,17 @@ class FlashTargets(ScreenTargetCapture_Saccade):
 
     def _test_flash_interval_complete(self, time_in_state):
         #wait until the inter flash interval has completed before turning the flash back on
-        return time_in_state>=self.target_flash_time_s[1]
+        interval_complete = time_in_state>=self.target_flash_time_s[1]
+        max_flashes_reached = self.flash_tracker >= self.total_flashes
+        return interval_complete and ~max_flashes_reached
 
     def _test_flash_cycle_complete(self, time_in_state):
         #make sure we have not encroached on the end hold buffer time
         time_since_hold_start = self.get_time() - self.most_recent_hold_start_time
-        return self.hold_time<=(time_since_hold_start + self.flash_buffer_time_s)
+        time_elapsed_check = self.hold_time<=(time_since_hold_start + self.flash_buffer_time_s)
+        flash_elapsed_check = self.flash_tracker>self.total_flashes
+
+        return time_elapsed_check or flash_elapsed_check
 
     def _test_start_flash_cycle(self, time_in_state):
         #Test to see if the buffer period at the beginningof the hold has been completed so that we can start showing peripheral targets
@@ -159,11 +166,15 @@ class FlashTargets(ScreenTargetCapture_Saccade):
     def _start_hold_start_buffer(self):
         #Save the start time of the hold for future reference and checking
         self.most_recent_hold_start_time = self.get_time()
+        self.flash_tracker = 0
 
     def _start_hold_flash_on(self):
         #We want to grab the first peripheral target and turn it on
         #Which actual animatino blob do I move? The second one
-        target = self.targets[1]
+        target = self.targets[1] 
+
+        #Increment the flash tracker
+        self.flash_tracker += 1
 
         #Incrementing to the next target in the generator
         self.target_index += 1

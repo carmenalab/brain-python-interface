@@ -63,3 +63,4 @@ riglib/dio/nidaq/pcidio.py
 db/settings.py
 db/secrets.json
 !db_test_aopy.sql
+notebooks/generate_wf_decoder.ipynb

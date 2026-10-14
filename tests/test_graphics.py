@@ -13,7 +13,7 @@ from riglib.stereo_opengl.environment import Grid
 from riglib.stereo_opengl.window import Window, Window2D, FPScontrol
 from riglib.stereo_opengl.primitives import AprilTag, Cylinder, Cube, Plane, Snake, Sphere, Cone, Text, Cable, TexSphere, TexCube, TexPlane
 from features.optitrack_features import SpheresToCylinders
-from riglib.stereo_opengl.window import Window, Window2D, FPScontrol, WindowSSAO
+from riglib.stereo_opengl.window import Window, Window2D, FPScontrol, WindowSSAO, Window2DIn3D
 from riglib.stereo_opengl.openxr import WindowVR
 from riglib.stereo_opengl.environment import Box, Grid
 from riglib.stereo_opengl.primitives import Cylinder, Cube, Plane, Sphere, Cone, Text, TexSphere, TexCube, TexPlane, AprilTag, CalibrationSphere
@@ -60,7 +60,7 @@ moon = CalibrationSphere(radius=2)
 
 pos_list = np.array([[0,0,0],[0,0,5]])
 
-class Test2(Window):
+class Test2(Window2DIn3D, Window):
 
     def __init__(self, *args, **kwargs):
         self.count=0
@@ -70,7 +70,7 @@ class Test2(Window):
     def _start_draw(self):
         #arm4j.set_joint_pos([0,0,np.pi/2,np.pi/2])
         #arm4j.get_endpoint_pos()
-        self.add_model(Grid(50))
+        self.add_environment_model(Grid(50))
         self.add_model(moon)
         self.add_model(planet)
         self.add_model(apriltag)
@@ -131,7 +131,11 @@ class Test2(Window):
         if error != GL_NO_ERROR:
             print(f"OpenGL error after drawing: {error}")
 
+
 if __name__ == "__main__":
     win = Test2(window_size=(1000, 800), fullscreen=False, stereo_mode='projection',
-                screen_dist=50, screen_half_height=22.5)
+                screen_dist=50, screen_half_height=22.5, 
+                background=(0.5,0.5,0.5,1),
+                overlay_plane_pos=(0,-10,0),
+                overlay_plane_rot_x=0)
     win.run()

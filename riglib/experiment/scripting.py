@@ -4,6 +4,7 @@ import numpy as np
 import os
 import socket
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+os.environ["BMI3D_PORT"] = "8000"
 
 from db.tracker.models import TaskEntry, Feature, Sequence, Task, Subject, Experimenter
 from db.tracker.json_param import Parameters

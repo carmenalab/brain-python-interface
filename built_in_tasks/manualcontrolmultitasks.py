@@ -11,7 +11,7 @@ from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture
 from .target_capture_task_xt import ScreenReachAngle, ScreenReachLine, SequenceCapture, ScreenTargetCapture_ReadySet
 from .target_capture_task_eye import EyeConstrainedTargetCapture, HandConstrainedEyeCapture, EyeConstrainedHandCapture, \
-    EyeHandSequenceCapture, ScreenTargetCapture_Saccade, EyeHandCaptureBlock, EyeHandCaptureBlock_sequence
+    EyeHandSequenceCapture, ScreenTargetCapture_Saccade, EyeHandCaptureBlock, EyeHandCaptureBlock_sequence, ScreenTargetCapture_Saccade_withBackgroundTargets
 from .target_tracking_task import ScreenTargetTracking
 from .rotation_matrices import *
 
@@ -263,6 +263,16 @@ class EyeConstrainedReachingTask(ManualControlMixin, EyeConstrainedHandCapture):
     pass
 
 class SaccadeTask(ManualControlMixin, ScreenTargetCapture_Saccade):
+    '''
+    Center out saccade task. The controller for the cursor is eye positions. The target color changes when subjects fixate the target.
+    '''
+    pass
+
+
+
+
+class SaccadeTaskWithBackgroundTargets(ManualControlMixin, ScreenTargetCapture_Saccade_withBackgroundTargets):
+
     '''
     Center out saccade task. The controller for the cursor is eye positions. The target color changes when subjects fixate the target.
     '''

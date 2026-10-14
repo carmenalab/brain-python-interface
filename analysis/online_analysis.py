@@ -15,6 +15,7 @@ from matplotlib.widgets import Button, Slider, Cursor, TextBox
 import aopy
 import traits
 from traits.trait_types import self
+#from built_in_tasks.manualcontrolmultitasks import SaccadeTaskWithBackgroundTargets
 from riglib.ecube import MultiSource, map_channels_for_multisource
 from riglib.source import MultiChanDataSource
 
@@ -1056,6 +1057,9 @@ class OnlineDataServer(threading.Thread):
 
         elif self.task_params['experiment_name'] == 'SaccadeTask':
             self.analysis_workers.append((SaccadeAnalysisWorker(self.task_params, data_queue), data_queue))
+        
+        elif self.task_params['experiment_name'] == 'SaccadeTaskWithBackgroundTargets':
+                    self.analysis_workers.append((SaccadeAnalysisWorker(self.task_params, data_queue), data_queue))
 
         elif self.task_params['experiment_name'] == 'FlashTargets':
             self.analysis_workers.append((SaccadeAnalysisWorker(self.task_params, data_queue), data_queue))

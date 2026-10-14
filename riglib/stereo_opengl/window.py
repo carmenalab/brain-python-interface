@@ -10,12 +10,12 @@ from OpenGL.GL import *
 from ..experiment import LogExperiment
 from ..experiment import traits
 
-from .render import stereo, render, ssao, shadow_map
+from .render import stereo, render, ssao, shadow_map, composite
 from .models import Group
 from .xfm import Quaternion, Transform
-from .primitives import Sphere, Cube, Chain
+from .primitives import Plane, Sphere, Cube, Chain
 from .environment import Box, Grid
-from .primitives import Cylinder, Sphere, Cone
+from .primitives import Cylinder, Sphere, Cone, TexPlane
 import socket
 
 try:
@@ -52,8 +52,18 @@ class Window(LogExperiment):
                                      bmi3d_input_options=['hmd', 'mirror', 'projection', 'anaglyph'])
 
     show_environment = traits.Bool(False, desc="Show wireframe box around environment")
+    show_environment_plane = traits.Bool(False, desc="Show a 2D plane in environment")
+    environment_plane_size = traits.Tuple((20, 20), desc="Size in cm of the environment plane")
+    environment_plane_origin = traits.Tuple((0, 0, -1), desc="(x,y,z): Set the origin of the plane. Ensure that the z is negative so that it appears behidn all targets")
+    environment_plane_color = traits.Tuple((1, 1, 1, 0.25), desc="Color (rgba) of the environment plane")
+    environment_plane_rotation = traits.Tuple((0, 0, 0), desc="Rotation of environment plane about (x, y, z) axes in degrees")
+    show_grid = traits.Bool(False, desc="Show a textured grid on the floor")
+    grid_size = traits.Float(130, desc="Size of the grid in cm")
+    grid_position = traits.Tuple((0, 0, 0), desc="Position of the grid in cm. If you want the floor of the grid to be on the floor of the world, set the z component to (grid_size - camera_offset[2])")
 
-    hidden_traits = ['stereo_mode', 'screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
+    hidden_traits = ['stereo_mode', 'screen_dist', 'screen_half_height', 'iod', 'show_environment', 
+                     'show_environment_plane', 'environment_plane_size', 'environment_plane_origin', 'environment_plane_color', 
+                     'environment_plane_rotation', 'show_grid', 'grid_size', 'grid_position', 'background']
 
     def __init__(self, *args, **kwargs):
         self.display_start_pos = kwargs.pop('display_start_pos', "0,0")
@@ -101,21 +111,12 @@ class Window(LogExperiment):
         glEnable(GL_CULL_FACE) # temporary solution to alpha blending issue with spheres. just draw the front half of the sphere
         glCullFace(GL_BACK)
 
-
-        #this effectively determines the modelview matrix
-        self.world = Group(self.models)
-        self.world.init()
-
-        #up vector is always (0,0,1), why would I ever need to roll the camera?!
-        self.set_eye((0, 0, 0), (0,0))
+        self._init_world()
         self.modelview = np.eye(4)
         self.modelview[:3,-1] = [0,0,-self.screen_dist]
         self.renderer = self._get_renderer()
 
         pygame.mouse.set_visible(False)
-
-        if self.show_environment:
-            self.add_model(Box())
     
     def _get_renderer(self):
         near = 1
@@ -125,13 +126,31 @@ class Window(LogExperiment):
             glFrontFace(GL_CW);  # Switch to clockwise winding for mirrored objects
             return stereo.MirrorDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
         if self.stereo_mode == 'hmd':
-            return stereo.MirrorDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
+            return shadow_map.ShadowMapper(self.window_size, self.fov, near, far)
         elif self.stereo_mode == 'projection':
             return shadow_map.ShadowMapper(self.window_size, self.fov, near, far)
         elif self.stereo_mode == 'anaglyph':
             return stereo.Anaglyph(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
         else:
             raise ValueError("Unknown stereo mode: %s" % self.stereo_mode)
+
+    def _init_world(self):
+        if self.show_environment:
+            self.add_model(Box())
+        if self.show_environment_plane:
+            width, height = self.environment_plane_size
+            x_pos, y_pos, z_pos = self.environment_plane_origin
+            plane = Plane(width, height, color=self.environment_plane_color, specular_color=(0, 0, 0, 0))
+            plane_pos = -np.array([width/2+x_pos, z_pos, height/2+y_pos])  # adjust position so that plane is centered on specified pos
+            plane.rotate_x(90+self.environment_plane_rotation[0]).rotate_y(self.environment_plane_rotation[1]).rotate_z(self.environment_plane_rotation[2])
+            plane.translate(*plane_pos)
+            self.add_model(plane)
+        if self.show_grid:
+            self.add_model(Grid(self.grid_size*2).translate(self.grid_position[0], self.grid_position[1], self.grid_position[2]))
+        self.world = Group(self.models)
+        self.world.init()
+        self.set_eye((0,0,0), (0,0))
+
 
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
@@ -415,6 +434,92 @@ class Window2D():
     def _get_renderer(self):
         glCullFace(GL_BACK)
         return render.Renderer2D(self.screen_cm)
+
+class Window2DIn3D(traits.HasTraits):
+    '''
+    Mixin providing two scene graphs:
+    - ``world``: rendered on a 2D plane in the 3D environment
+    - ``environment_world``: rendered in 3D to the main window
+    '''
+    overlay_size = traits.Tuple((1000, 1000), desc='Offscreen overlay render size in pixels; defaults to window size')
+    overlay_plane_size = traits.Tuple((30, 30), desc='2D plane size (width_cm, height_cm) in the 3D world')
+    overlay_plane_pos = traits.Tuple((0, 0, 0), desc='2D plane position (x, y, z) in the 3D world')
+    overlay_plane_color = traits.Tuple((0, 0, 0, 1), desc='Base RGBA color for the overlay plane')
+    overlay_plane_rot_x = traits.Float(90, desc='Overlay plane rotation about x-axis in degrees')
+    environment_background = traits.Tuple((0, 0, 0, 1), desc='RGBA background color for the environment')
+    
+    def _get_renderer(self):
+        near = 1
+        far = 1024
+
+        if getattr(self, 'environment_world', None) is None:
+            self.environment_world = Group([])
+            self.environment_world.init()
+        if not hasattr(self, '_environment_model_cache'):
+            self._environment_model_cache = []
+        for model in self._environment_model_cache:
+            model.init()
+            self.environment_world.add(model)
+        self._environment_model_cache = []
+
+        modelview = np.eye(4)
+        modelview[:3,-1] = [0,0,-self.screen_dist]
+        return composite.CompositeOverlay(
+            self.window_size,
+            self.fov,
+            near,
+            far,
+            root=self.environment_world,
+            overlay_size=self.overlay_size,
+            overlay_screen_cm=self.overlay_plane_size,
+            overlay_clear_color=self.background,
+            overlay_modelview=modelview,
+        )
+
+    def screen_init(self):
+        super().screen_init()
+        self._overlay_initialized = True
+
+        width, height = self.overlay_plane_size
+        plane_pos = np.array(self.overlay_plane_pos) - np.array([width/2, 0, height/2])  # adjust position so that plane is centered on specified pos
+        self.screen_plane = self.make_overlay_plane(width, height, color=self.overlay_plane_color)
+        self.screen_plane.rotate_x(self.overlay_plane_rot_x).translate(*plane_pos)
+
+        self.environment_world.rotate_x(-90)
+        glClearColor(*self.environment_background)
+
+        if hasattr(self, 'show_grid') and self.show_grid:
+
+            # Remove the grid from the 2D overlay and add it to the 3D environment
+            grid = [m for m in self.models if isinstance(m, Grid)][0]
+            self.remove_model(grid)
+            self.add_environment_model(
+                Grid(self.grid_size*2).translate(
+                    self.grid_position[0], self.grid_position[1], self.grid_position[2]
+                )
+            )
+
+    def add_environment_model(self, model):
+        if self.environment_world is None:
+            #world doesn't exist yet, add the model to cache
+            self._environment_model_cache.append(model)
+        else:
+            #We're already running, initialize the model and add it to the world
+            model.init()
+            self.environment_world.add(model)
+
+    def make_overlay_plane(self, width, height, **kwargs):
+        plane = TexPlane(
+            width,
+            height,
+            tex=self.renderer.overlay_texture,
+            specular_color=(0, 0, 0, 0),
+            **kwargs,
+        )
+        plane.init()
+        self.add_environment_model(plane)
+        return plane
+
     
 class FakeWindow(Window):
     '''
