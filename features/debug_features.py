@@ -1,6 +1,6 @@
 import cProfile
 import pstats
-import socket
+import zmq
 import traceback
 from riglib.experiment import traits
 import numpy as np
@@ -33,38 +33,37 @@ class OnlineAnalysis(traits.HasTraits):
         '''
         Helper function to send messages to the online analysis server
         '''
-        strings = []
+        processed_values = []
         for v in values:
-            if isinstance(v, np.ndarray) and v.size > 1:
-                strings.append(json.dumps(v.tolist()))
-            elif isinstance(v, np.ndarray):
-                strings.append(json.dumps(v[0]))
+            if isinstance(v, np.ndarray):
+                processed_values.append(v.tolist()) # ZMQ handles large lists easily
             elif isinstance(v, np.generic):
-                strings.append(json.dumps(v.item()))
+                processed_values.append(v.item())
             else:
-                try:
-                    strings.append(json.dumps(v))
-                except (TypeError, OverflowError):
-                    print('Could not convert to json:', v, 'for key:', key)
-                    traceback.print_exc()
-                    strings.append('null')
-        payload = '#'.join(strings)
-        self.online_analysis_sock.sendto(f'{key}%{payload}'.encode('utf-8'), (self.online_analysis_ip, self.online_analysis_port))
+                processed_values.append(v)
+
+        try:
+            # Send as a single JSON object
+            # ZMQ's send_json handles the encoding/decoding for you
+            self.online_analysis_sock.send_json({'key': key, 'values': processed_values})
+        except Exception as e:
+            print(f'ZMQ Send Error for key {key}: {e}')
 
     def init(self):
         '''
         Send basic experiment info to the online analysis server
         '''
         super().init()
-        try:
-            self.online_analysis_sock = socket.socket(
-                socket.AF_INET, # Internet
-                socket.SOCK_DGRAM) # UDP
-            self.online_analysis_sock.setblocking
-            self._send_online_analysis_msg('init', False) # Just a test message
-        except:
-            print('Could not connect to socket')
-            return
+
+        # Create ZMQ Context and Socket
+        self.zmq_context = zmq.Context()
+        self.online_analysis_sock = self.zmq_context.socket(zmq.PUSH)
+        
+        # Connect to the server
+        addr = f"tcp://{self.online_analysis_ip}:{self.online_analysis_port}"
+        self.online_analysis_sock.connect(addr)
+        self.online_analysis_sock.setsockopt(zmq.SNDTIMEO, 1000) 
+        self._send_online_analysis_msg('init', False) 
         
         # Send entry metadata
         try:
@@ -104,6 +103,9 @@ class OnlineAnalysis(traits.HasTraits):
                     print(key, value)
                     traceback.print_exc()
 
+        if hasattr(self, 'screen_cm'):
+            self._send_online_analysis_msg('param', 'screen_cm', self.screen_cm)
+
         # Send init message to trigger analysis workers
         self._send_online_analysis_msg('init', True)
         print('...done!')
@@ -114,6 +116,9 @@ class OnlineAnalysis(traits.HasTraits):
         if hasattr(self, 'targs') and hasattr(self, 'gen_indices'):
             for i in range(len(self.targs)):
                 self._send_online_analysis_msg('target_location', self.gen_indices[i], self.targs[i])
+        if hasattr(self, 'targs') and hasattr(self, 'disturbance_path'):
+            self._send_online_analysis_msg('reference_signal', self.targs)
+            self._send_online_analysis_msg('disturbance_signal', self.disturbance_trial, self.disturbance_path)
         
         # Eye / hand sequence trial information
         if hasattr(self, 'is_sequence'):
