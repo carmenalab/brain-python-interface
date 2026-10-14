@@ -340,6 +340,16 @@ class TrackingAnalysisWorker(BehaviorAnalysisWorker):
         self.dist_line, = self.ax.plot([], [], 'red', linewidth=2, alpha=0.75, label='Disturbance')
         self.ax.legend()
 
+        self.ax.set_position([0, 0.33, 1, 0.6])
+        self.err_ax = self.fig.add_axes([0.1, 0.22, 0.8, 0.08])
+        self.err_ax.set_xlim(-self.buffer_time, 0)
+        self.err_ax.set_ylabel('Error (cm)')
+        self.err_ax.set_xlabel('Time (s)')
+        self.err_ax.tick_params(labelbottom=False)
+        self.err_buffer = np.full(int(self.buffer_time*self.task_params['fps']), np.nan)
+        err_t = np.arange(len(self.err_buffer)) / self.task_params['fps'] - self.buffer_time
+        self.err_plot, = self.err_ax.plot(err_t, self.err_buffer, 'purple', linewidth=0.5, alpha=0.5)
+
     def handle_data(self, key, values):
         super().handle_data(key, values)
         if key == 'reference_signal':
@@ -360,9 +370,20 @@ class TrackingAnalysisWorker(BehaviorAnalysisWorker):
             self.frame_index += 1
             if self.frame_index < len(self.reference):
                 self.target_pos[0] = self.reference[self.frame_index,[0,2]]
+        elif key == 'cursor':
+            
+            err = np.nan
+            if self.frame_index >= 0 and 0 in self.target_pos:
+                err = np.linalg.norm(self.cursor_pos - self.target_pos[0])  
+        
+            self.err_buffer = np.roll(self.err_buffer, -1)
+            self.err_buffer[-1] = err
 
     def draw(self):
         super().draw()
+        self.err_plot.set_ydata(self.err_buffer)
+        self.err_ax.relim()
+        self.err_ax.autoscale_view(scalex=False)
         if self.frame_index >= 0:
             start = self.frame_index
             stop = min(len(self.reference), self.frame_index + int(self.lookahead))
