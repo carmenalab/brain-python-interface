@@ -461,10 +461,18 @@
                 <legend>Features</legend>
                 <ul>
                 {% for f in features %}
+                  {% if f.available %}
                   <li title="{{f.desc}}">
                   <input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
                   <label for="{{f.name}}">{{f.name}}</label>
                   </li>
+                  {% else %}
+                  <!-- Enabled in the database but not importable from the current code -->
+                  <li title="{{f.desc}}" style="color: gray">
+                  <input type="checkbox" class="feat-unavailable" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}" disabled>
+                  <label for="{{f.name}}">{{f.name}} (unavailable)</label>
+                  </li>
+                  {% endif %}
                 {% endfor %}
                 </ul>
               </fieldset> <!-- features -->

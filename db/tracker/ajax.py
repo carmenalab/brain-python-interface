@@ -709,8 +709,17 @@ def save_entry_name(request):
 def update_built_in_feature_import_paths(request):
     """For built-in features, update the import path based on the features module"""
     from . import models
+    failed = []
     for feat in Feature.objects.all():
-        feat.get(update_builtin=True)
+        try:
+            feat.get(update_builtin=True)
+        except Exception:
+            # don't let one unimportable feature stop the rest from updating
+            traceback.print_exc()
+            failed.append(feat.name)
+    if len(failed) > 0:
+        msg = "Updated built-in feature paths, but could not import: %s" % ", ".join(failed)
+        return _respond(dict(status="warning", msg=msg))
     return _respond(dict(status="success", msg="Updated built-in feature paths!"))
 
 def update_database_storage_path(request):
