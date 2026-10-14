@@ -221,15 +221,16 @@ def setup_features(request):
     from . import models
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
-    features = models.Feature.objects.all()
-
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
+    features = models.Feature.objects.filter(visible=True).order_by("name")
+    hidden_custom_features = models.Feature.objects.filter(visible=False).exclude(name__in=built_in_feature_names).order_by("name")
 
     return render(request, "setup_features.html",
         dict(active_features=features,
         active_feature_names=[feature.name for feature in features],
+        hidden_custom_features=hidden_custom_features,
         built_in_feature_names=built_in_feature_names,
         test_db=os.environ.get('BMI3D_TEST_DATABASE')))        
 

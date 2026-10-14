@@ -572,15 +572,22 @@ def toggle_features(request):
     from . import models
 
     name = request.POST.get('name')
-    
+
     # check if the feature is already installed
-    existing_features = Feature.objects.filter(name=name)
+    existing_features = Feature.objects.filter(name=name).order_by('id')
 
     if len(existing_features) > 0:
-        # disable the feature
-        Feature.objects.filter(name=name).delete()
-        msg = "Disabled feature: %s" % str(name)
-        return _respond(dict(msg=msg, status="success"))
+        if existing_features.filter(visible=True).exists():
+            # Soft-disable the feature so historical task links remain intact.
+            existing_features.filter(visible=True).update(visible=False)
+            msg = "Disabled feature: %s" % str(name)
+            return _respond(dict(msg=msg, status="success"))
+
+        # Re-enable an existing hidden feature instead of creating a new row.
+        existing_features.update(visible=True)
+        feat = existing_features[0]
+        msg = "Enabled feature: %s" % str(feat.name)
+        return _respond(dict(msg=msg, status="success", id=feat.id))
     elif name in built_in_features:
         import_path = built_in_features[name].__module__ + '.' + built_in_features[name].__qualname__
         feat = Feature(name=name, import_path=import_path)
@@ -589,7 +596,26 @@ def toggle_features(request):
         return _respond(dict(msg=msg, status="success", id=feat.id))
     else:
         # something is wrong
-        return _respond(dict(msg="feature not valid!", status="error"))   
+        return _respond(dict(msg="feature not valid!", status="error"))
+
+@csrf_exempt
+def remove_feature(request):
+    '''Permanently delete a custom (not built-in) feature. Task entries that used it lose the link.'''
+    from features import built_in_features
+    from . import models
+
+    name = request.POST.get('name')
+    if name in built_in_features:
+        return _respond(dict(msg="Can't remove built-in feature %s, disable it instead" % name, status="error"))
+
+    existing_features = Feature.objects.filter(name=name)
+    if not existing_features.exists():
+        return _respond(dict(msg="feature not valid!", status="error"))
+
+    n_entries = TaskEntry.objects.filter(feats__in=existing_features).distinct().count()
+    existing_features.delete()
+    msg = "Removed feature: %s (unlinked from %d task entries)" % (name, n_entries)
+    return _respond(dict(msg=msg, status="success"))
 
 @csrf_exempt
 def add_new_feature(request):
@@ -604,11 +630,21 @@ def add_new_feature(request):
         traceback.print_exc()
         return _respond(dict(msg="import path invalid!", status="error"))
 
-    feat = Feature(name=name, import_path=import_path)
-    feat.save()
+    existing_feature = Feature.objects.filter(name=name).order_by('id').first()
+    if existing_feature is not None:
+        # Re-use an existing row to avoid duplicate feature names.
+        existing_feature.import_path = import_path
+        existing_feature.visible = True
+        existing_feature.save()
+        feat = existing_feature
+        msg = "Updated existing feature: %s" % feat.name
+    else:
+        feat = Feature(name=name, import_path=import_path)
+        feat.save()
+        msg = "Added new feature: %s" % feat.name
     
     feature_data = dict(id=feat.id, name=feat.name, import_path=feat.import_path)
-    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success", data=feature_data))
+    return _respond(dict(msg=msg, status="success", data=feature_data))
 
 @csrf_exempt
 def setup_run_upkeep(request):
@@ -692,8 +728,17 @@ def save_entry_name(request):
 def update_built_in_feature_import_paths(request):
     """For built-in features, update the import path based on the features module"""
     from . import models
+    failed = []
     for feat in Feature.objects.all():
-        feat.get(update_builtin=True)
+        try:
+            feat.get(update_builtin=True)
+        except Exception:
+            # don't let one unimportable feature stop the rest from updating
+            traceback.print_exc()
+            failed.append(feat.name)
+    if len(failed) > 0:
+        msg = "Updated built-in feature paths, but could not import: %s" % ", ".join(failed)
+        return _respond(dict(status="warning", msg=msg))
     return _respond(dict(status="success", msg="Updated built-in feature paths!"))
 
 def update_database_storage_path(request):

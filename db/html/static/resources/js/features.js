@@ -9,6 +9,8 @@ if (typeof(require) !== 'undefined') {
             </li>
             <li><input type="checkbox" id="feat_feature2" value="feature2" name="feature2">
                 <label for="feat_feature2">Feature 2</label></li>
+            <li><input type="checkbox" class="feat-unavailable" id="feat_feature3" value="feature3" name="feature3" disabled>
+                <label for="feat_feature3">Feature 3 (unavailable)</label></li>
         </ul>
     </div>`);
     var document = dom.window.document;
@@ -49,7 +51,8 @@ Features.prototype.select_features = function(info_feats) {
  */
 Features.prototype.get_checked_features = function () {
     var feats = {};
-    $("#features input").each(function() {
+    // unavailable features can't be imported, so never send them to the server
+    $("#features input").not(".feat-unavailable").each(function() {
         if (this.checked)
             feats[this.name] = this.checked;
     });
@@ -65,7 +68,9 @@ Features.prototype.disable_entry = function () {
  * Enable the ability to check features
  */
 Features.prototype.enable_entry = function() {
-    $("#features input").removeAttr("disabled");
+    $("#features input").not(".feat-unavailable").removeAttr("disabled");
+    // unavailable features stay disabled and are unchecked so a copied entry won't appear to use them
+    $("#features input.feat-unavailable").prop("checked", false);
 }
 /*
  * If any of the features are chagned or unchanged, run the callback
